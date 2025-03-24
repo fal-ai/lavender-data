@@ -1,0 +1,275 @@
+import random
+from typing import Optional
+
+from fastapi import HTTPException, APIRouter, Response
+
+from sqlmodel import select, col
+from sqlalchemy.exc import NoResultFound
+from pydantic import BaseModel
+
+from lavender_data.server.cache import RedisClient
+from lavender_data.server.db import DbSession
+from lavender_data.server.db.models import (
+    Iteration,
+    IterationPublic,
+    DatasetPublic,
+    DatasetColumn,
+    DatasetColumnPublic,
+    Shardset,
+    ShardsetPublic,
+    ShardPublic,
+    Dataset,
+)
+from lavender_data.server.services.iterations import (
+    IterationState,
+    IterationStateException,
+    Progress,
+)
+from lavender_data.server.services.registries import (
+    PreprocessorRegistry,
+    FilterRegistry,
+    CollaterRegistry,
+)
+from lavender_data.server.services.reader import ReaderInstance
+from lavender_data.serialize import serialize_sample
+
+try:
+    import torch
+except ImportError:
+    torch = None
+
+
+router = APIRouter(prefix="/iterations", tags=["iterations"])
+
+
+@router.get("/")
+def get_iterations(
+    session: DbSession,
+    dataset_id: Optional[str] = None,
+) -> list[IterationPublic]:
+    query = select(Iteration)
+    if dataset_id is not None:
+        query = query.where(Iteration.dataset_id == dataset_id)
+    query = query.order_by(Iteration.created_at.desc())
+    return session.exec(query).all()
+
+
+class CreateIterationParams(BaseModel):
+    dataset_id: str
+    shardsets: Optional[list[str]] = None
+
+    filter: Optional[str] = None
+    preprocessor: Optional[str] = None
+    collater: Optional[str] = None
+
+    shuffle: Optional[bool] = None
+    shuffle_seed: Optional[int] = None
+    shuffle_block_size: Optional[int] = None
+
+    batch_size: Optional[int] = None
+
+    replication_pg: Optional[list[list[int]]] = None
+
+
+@router.post("/")
+def create_iteration(
+    params: CreateIterationParams, session: DbSession, cache: RedisClient
+) -> IterationPublic:
+    shuffle = params.shuffle or False
+    batch_size = params.batch_size or 0
+
+    if shuffle:
+        if params.shuffle_seed is None:
+            params.shuffle_seed = random.randint(0, 1000000)
+        if params.shuffle_block_size is None:
+            raise HTTPException(
+                status_code=400,
+                detail="shuffle_block_size is required if shuffle is true",
+            )
+        if params.shuffle_block_size < 1:
+            raise HTTPException(
+                status_code=400,
+                detail="shuffle_block_size must be a positive integer",
+            )
+    else:
+        params.shuffle_seed = None
+        params.shuffle_block_size = None
+
+    if batch_size < 0:
+        raise HTTPException(status_code=400, detail="batch_size must be >= 0")
+
+    if (
+        params.preprocessor is not None
+        and params.preprocessor not in PreprocessorRegistry.list()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="preprocessor must be one of the following: "
+            + ", ".join(PreprocessorRegistry.list()),
+        )
+
+    if params.filter is not None and params.filter not in FilterRegistry.list():
+        raise HTTPException(
+            status_code=400,
+            detail="filter must be one of the following: "
+            + ", ".join(FilterRegistry.list()),
+        )
+
+    if params.collater is not None and params.collater not in CollaterRegistry.list():
+        raise HTTPException(
+            status_code=400,
+            detail="collater must be one of the following: "
+            + ", ".join(CollaterRegistry.list()),
+        )
+
+    try:
+        dataset = session.get_one(Dataset, params.dataset_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    shardsets_query = select(Shardset).where(Shardset.dataset_id == params.dataset_id)
+    if params.shardsets is not None and len(params.shardsets) > 0:
+        shardsets_query = shardsets_query.where(col(Shardset.id).in_(params.shardsets))
+    shardsets = session.exec(shardsets_query).all()
+
+    if len(shardsets) == 0:
+        raise HTTPException(status_code=400, detail="No shardsets provided")
+
+    total_samples = shardsets[0].total_samples
+    for shardset in shardsets:
+        total_samples = min(total_samples, shardset.total_samples)
+
+    iteration = Iteration(
+        dataset_id=dataset.id,
+        total=total_samples,
+        filter=params.filter,
+        preprocessor=params.preprocessor,
+        collater=params.collater,
+        shuffle=shuffle,
+        shuffle_seed=params.shuffle_seed,
+        shuffle_block_size=params.shuffle_block_size,
+        batch_size=batch_size,
+        shardsets=shardsets,
+        replication_pg=params.replication_pg,
+    )
+    session.add(iteration)
+    session.commit()
+    session.refresh(iteration)
+
+    IterationState(iteration.id, cache).init(iteration)
+
+    return iteration
+
+
+class ShardsetWithShards(ShardsetPublic):
+    shards: list[ShardPublic]
+    columns: list[DatasetColumnPublic]
+
+
+class GetIterationResponse(IterationPublic):
+    dataset: DatasetPublic
+    shardsets: list[ShardsetWithShards]
+
+
+@router.get("/{iteration_id}")
+def get_iteration(iteration_id: str, session: DbSession) -> GetIterationResponse:
+    try:
+        iteration = session.get_one(Iteration, iteration_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Iteration not found")
+    return iteration
+
+
+@router.get("/{iteration_id}/next")
+def get_next(
+    iteration_id: str,
+    session: DbSession,
+    cache: RedisClient,
+    reader: ReaderInstance,
+    rank: int = 0,
+) -> bytes:
+    state = IterationState(iteration_id, cache)
+    if not state.exists():
+        try:
+            iteration = session.get_one(Iteration, iteration_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Iteration not found")
+
+        try:
+            state.init(iteration)
+        except IterationStateException as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    batch_size = state.get_batch_size()
+    filter_ = FilterRegistry.get(state.get_filter() or "default")
+    preprocessor = PreprocessorRegistry.get(state.get_preprocessor() or "default")
+    collater = CollaterRegistry.get(state.get_collater() or "default")
+
+    indices = []
+    samples = []
+    while len(samples) < max(batch_size, 1):
+        try:
+            next_item = state.next_item(rank)
+        except IterationStateException as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        try:
+            sample = reader.get_sample(next_item)
+        except Exception as e:
+            # TODO fault tolerance
+            state.failed(next_item.index)
+            raise HTTPException(
+                status_code=400, detail=f"Failed to read sample: {str(e)}"
+            )
+
+        if not filter_(sample):
+            state.filtered(next_item.index)
+            continue
+
+        samples.append(sample)
+        indices.append(next_item.index)
+
+    collated = collater(samples)
+    preprocessed = preprocessor(collated)
+    preprocessed["_lavender_data_indices"] = indices
+
+    if batch_size == 0:
+        _preprocessed = {}
+        for k, v in preprocessed.items():
+            if torch is not None and isinstance(v, torch.Tensor):
+                _preprocessed[k] = v.item()
+            else:
+                _preprocessed[k] = v[0]
+        preprocessed = _preprocessed
+
+    content = serialize_sample(preprocessed)
+
+    return Response(content=content, media_type="application/octet-stream")
+
+
+@router.post("/{iteration_id}/complete/{index}")
+def complete_index(iteration_id: str, index: str, cache: RedisClient):
+    state = IterationState(iteration_id, cache)
+    if not state.exists():
+        raise HTTPException(
+            status_code=404, detail="Iteration not found or not started"
+        )
+    state.complete(index)
+    return
+
+
+@router.get("/{iteration_id}/progress")
+def get_progress(iteration_id: str, session: DbSession, cache: RedisClient) -> Progress:
+    state = IterationState(iteration_id, cache)
+    if not state.exists():
+        raise HTTPException(status_code=404, detail="Iteration not found")
+    return state.get_progress()
+
+
+@router.post("/{iteration_id}/pushback")
+def pushback(iteration_id: str, cache: RedisClient):
+    state = IterationState(iteration_id, cache)
+    if not state.exists():
+        raise HTTPException(status_code=404, detail="Iteration not found")
+    state.pushback_inprogress()
+    return

@@ -1,0 +1,22 @@
+FROM node:22-alpine
+
+ARG NEXT_PUBLIC_API_URL="http://localhost:8000"
+
+WORKDIR /app
+RUN npm install -g pnpm
+
+COPY packages/lavender-data-ui/package.json packages/lavender-data-ui/package.json
+COPY pnpm-lock.yaml .
+COPY pnpm-workspace.yaml .
+COPY tsconfig.json .
+COPY .eslintrc.json .
+COPY .prettierrc .
+COPY .prettierignore .
+
+WORKDIR /app/packages/lavender-data-ui
+RUN pnpm install
+
+COPY packages/lavender-data-ui .
+RUN pnpm build
+
+CMD ["pnpm", "start"]
