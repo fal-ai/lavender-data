@@ -33,7 +33,6 @@ class Iteration:
     def from_dataset(
         cls,
         dataset_id: str,
-        resume: Optional[bool] = False,
         shardsets: Optional[list[str]] = None,
         filter: Optional[str] = None,
         preprocessor: Optional[str] = None,
@@ -43,6 +42,7 @@ class Iteration:
         shuffle_block_size: Optional[int] = None,
         batch_size: Optional[int] = None,
         replication_pg: Optional[list[list[int]]] = None,
+        resume: Optional[bool] = False,
     ):
         if resume:
             return cls.from_latest_iteration(dataset_id)
