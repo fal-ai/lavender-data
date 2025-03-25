@@ -3,7 +3,7 @@ from typing import Annotated, Optional
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
 
-from lavender_data.utils.logger import get_logger
+from lavender_data.logging import get_logger
 from .models import Dataset, Shardset, DatasetColumn, Iteration, Shard
 
 

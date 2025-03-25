@@ -2,7 +2,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from lavender_data.utils.logger import get_logger
+from lavender_data.logging import get_logger
 from lavender_data.storage.abc import Storage
 from lavender_data.storage.s3 import S3Storage
 from lavender_data.storage.hf import HuggingfaceStorage

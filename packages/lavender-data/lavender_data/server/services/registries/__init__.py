@@ -2,7 +2,7 @@ import sys
 import importlib.util
 from pathlib import Path
 
-from lavender_data.utils.logger import get_logger
+from lavender_data.logging import get_logger
 
 from .collater import CollaterRegistry, Collater
 from .filter import FilterRegistry, Filter

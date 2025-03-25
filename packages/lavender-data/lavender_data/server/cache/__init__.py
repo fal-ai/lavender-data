@@ -4,7 +4,7 @@ from typing import Annotated, Optional
 import redis
 from fastapi import Depends
 
-from lavender_data.utils.logger import get_logger
+from lavender_data.logging import get_logger
 
 redis_client = None
 
