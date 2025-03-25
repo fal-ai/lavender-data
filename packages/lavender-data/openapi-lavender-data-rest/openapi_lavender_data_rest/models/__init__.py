@@ -20,6 +20,7 @@ from .shard_public import ShardPublic
 from .shardset_public import ShardsetPublic
 from .shardset_with_shards import ShardsetWithShards
 from .validation_error import ValidationError
+from .version_response import VersionResponse
 
 __all__ = (
     "CreateDatasetParams",
@@ -42,4 +43,5 @@ __all__ = (
     "ShardsetPublic",
     "ShardsetWithShards",
     "ValidationError",
+    "VersionResponse",
 )

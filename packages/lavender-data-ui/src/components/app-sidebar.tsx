@@ -2,6 +2,7 @@
 
 import { Database, IterationCw } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import {
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -16,11 +17,28 @@ import {
   SidebarGroup,
   SidebarHeader,
 } from '@/components/ui/sidebar';
+import { Badge } from '@/components/ui/badge';
+import { client } from '@/lib/api';
 
 export function AppSidebar() {
+  const [version, setVersion] = useState('');
+
+  useEffect(() => {
+    client.GET('/version').then((versionResponse) => {
+      setVersion(versionResponse.data?.version || '');
+    });
+  }, []);
+
   return (
     <Sidebar>
-      <SidebarHeader></SidebarHeader>
+      <SidebarHeader>
+        <Link href="/">
+          <div className="flex items-center gap-2 px-2 mt-2">
+            <div>Lavender Data</div>
+            {version && <Badge variant="outline">{version}</Badge>}
+          </div>
+        </Link>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Datasets</SidebarGroupLabel>

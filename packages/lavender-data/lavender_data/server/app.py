@@ -1,3 +1,4 @@
+import importlib.metadata
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -5,7 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .db import setup_db, create_db_and_tables
 from .cache import setup_redis, register_worker, deregister_worker
-from .routes import datasets_router, iterations_router, registries_router
+from .routes import (
+    datasets_router,
+    iterations_router,
+    registries_router,
+    root_router,
+)
 
 from .services.registries import import_from_directory
 from .settings import get_settings
@@ -44,6 +50,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET"],
 )
+app.include_router(root_router)
 app.include_router(datasets_router)
 app.include_router(iterations_router)
 app.include_router(registries_router)

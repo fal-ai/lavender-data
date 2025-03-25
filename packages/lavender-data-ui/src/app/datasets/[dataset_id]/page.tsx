@@ -137,7 +137,7 @@ async function DatasetPreview({
                 </PaginationLink>
               </PaginationItem>
             ))}
-            {Number(preview_page) < preview.total / preview_limit && (
+            {Number(preview_page) < preview.total / preview_limit - 1 && (
               <PaginationItem>
                 <PaginationNext
                   href={`/datasets/${dataset_id}?preview_page=${Number(preview_page) + 1}`}
