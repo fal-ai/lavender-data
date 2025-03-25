@@ -1,4 +1,5 @@
 import os
+import shutil
 from lavender_data.storage.abc import Storage
 
 __all__ = ["LocalFileStorage"]
@@ -15,7 +16,7 @@ class LocalFileStorage(Storage):
             return
 
         try:
-            os.symlink(os.path.abspath(_remote_path), local_path)
+            shutil.copy(os.path.abspath(_remote_path), local_path)
         except FileExistsError:
             pass
 
@@ -27,6 +28,6 @@ class LocalFileStorage(Storage):
             return
 
         try:
-            os.symlink(os.path.abspath(local_path), _remote_path)
+            shutil.copy(os.path.abspath(local_path), _remote_path)
         except FileExistsError:
             pass
