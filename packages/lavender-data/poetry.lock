@@ -823,7 +823,7 @@ description = "A client library for accessing FastAPI"
 optional = false
 python-versions = "^3.9"
 files = []
-develop = false
+develop = true
 
 [package.dependencies]
 attrs = ">=22.2.0"
@@ -2118,4 +2118,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4"
-content-hash = "b8fcd3e054e43e9aa2bbef6fbdf74a25d8e9ba4520c971139aa8bb28736fbe6a"
+content-hash = "fa41dc433d21c4ce3818bf72892acc5149dab9d6eb59da9fcce65dd5ed2cdaf6"
