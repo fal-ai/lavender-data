@@ -133,7 +133,17 @@ def create_iteration(
     shardsets = session.exec(shardsets_query).all()
 
     if len(shardsets) == 0:
-        raise HTTPException(status_code=400, detail="No shardsets provided")
+        if params.shardsets is not None and len(params.shardsets) > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="No shardsets found for the provided shardset ids: "
+                + ", ".join(params.shardsets),
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="No shardsets found for the dataset. Please create a shardset first.",
+            )
 
     total_samples = shardsets[0].total_samples
     for shardset in shardsets:

@@ -1,8 +1,6 @@
-import os
 from typing import Optional
 
-from pydantic import BaseModel
-
+from lavender_data.logging import get_logger
 from lavender_data.client.api import (
     complete_index,
     create_iteration,
@@ -44,21 +42,28 @@ class Iteration:
         replication_pg: Optional[list[list[int]]] = None,
         resume: Optional[bool] = False,
     ):
+        logger = get_logger(__name__)
         if resume:
-            return cls.from_latest_iteration(dataset_id)
-        else:
-            iteration = create_iteration(
-                dataset_id=dataset_id,
-                shardsets=shardsets,
-                filter=filter,
-                preprocessor=preprocessor,
-                collater=collater,
-                shuffle=shuffle,
-                shuffle_seed=shuffle_seed,
-                shuffle_block_size=shuffle_block_size,
-                batch_size=batch_size,
-                replication_pg=replication_pg,
-            )
+            try:
+                return cls.from_latest_iteration(dataset_id)
+            except ValueError as e:
+                if "No iterations exist" in str(e):
+                    logger.warning("No iterations exist, creating a new one")
+                else:
+                    raise e
+
+        iteration = create_iteration(
+            dataset_id=dataset_id,
+            shardsets=shardsets,
+            filter=filter,
+            preprocessor=preprocessor,
+            collater=collater,
+            shuffle=shuffle,
+            shuffle_seed=shuffle_seed,
+            shuffle_block_size=shuffle_block_size,
+            batch_size=batch_size,
+            replication_pg=replication_pg,
+        )
         return cls.from_iteration(iteration)
 
     @classmethod
