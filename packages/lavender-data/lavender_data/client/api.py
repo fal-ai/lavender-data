@@ -78,7 +78,32 @@ class LavenderDataClient:
             raise LavenderDataApiError(response.parsed)
         return response.parsed
 
-    def get_dataset(self, dataset_id: str):
+    def get_dataset(
+        self,
+        dataset_id: Optional[str] = None,
+        name: Optional[str] = None,
+        use_latest: bool = False,
+    ):
+        if dataset_id is None and name is None:
+            raise ValueError("Either dataset_id or name must be provided")
+
+        if dataset_id is not None and name is not None:
+            raise ValueError("Only one of dataset_id or name can be provided")
+
+        if name is not None:
+            datasets = self.get_datasets(name=name)
+            if len(datasets) == 0:
+                raise ValueError(f"Dataset {name} not found")
+
+            if len(datasets) > 1 and not use_latest:
+                raise ValueError(
+                    f"Multiple datasets found for name {name}: {', '.join([d.id for d in datasets])}\n"
+                    "Please either specify the dataset_id to use a specific dataset, "
+                    "or set use_latest=True to use the latest dataset."
+                )
+
+            dataset_id = datasets[0].id
+
         with self._get_client() as client:
             response = get_dataset_datasets_dataset_id_get.sync_detailed(
                 client=client,
@@ -105,12 +130,6 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
-    def use_dataset(self, name: str):
-        datasets = self.get_datasets(name=name)
-        if len(datasets) == 0:
-            raise ValueError(f"Dataset {name} not found")
-        return self.get_dataset(datasets[0].id)
-
     def create_shardset(
         self, dataset_id: str, location: str, columns: list[DatasetColumnOptions]
     ):
@@ -131,6 +150,7 @@ class LavenderDataClient:
         samples: int,
         format: str,
         index: int,
+        overwrite: bool = False,
     ):
         with self._get_client() as client:
             response = create_shard_datasets_dataset_id_shardsets_shardset_id_shards_post.sync_detailed(
@@ -143,6 +163,7 @@ class LavenderDataClient:
                     samples=samples,
                     format_=format,
                     index=index,
+                    overwrite=overwrite,
                 ),
             )
         return self._check_response(response)
@@ -246,8 +267,14 @@ def init(api_url: str = "http://localhost:8000"):
 
 
 @ensure_client()
-def get_dataset(dataset_id: str):
-    return _client_instance.get_dataset(dataset_id)
+def get_dataset(
+    dataset_id: Optional[str] = None,
+    name: Optional[str] = None,
+    use_latest: bool = False,
+):
+    return _client_instance.get_dataset(
+        dataset_id=dataset_id, name=name, use_latest=use_latest
+    )
 
 
 @ensure_client()
@@ -258,11 +285,6 @@ def get_datasets(name: Optional[str] = None):
 @ensure_client()
 def create_dataset(name: str, uid_column_name: Optional[str] = None):
     return _client_instance.create_dataset(name=name, uid_column_name=uid_column_name)
-
-
-@ensure_client()
-def use_dataset(name: str):
-    return _client_instance.use_dataset(name=name)
 
 
 @ensure_client()
@@ -283,6 +305,7 @@ def create_shard(
     samples: int,
     format: str,
     index: int,
+    overwrite: bool = False,
 ):
     return _client_instance.create_shard(
         dataset_id=dataset_id,
@@ -292,6 +315,7 @@ def create_shard(
         samples=samples,
         format=format,
         index=index,
+        overwrite=overwrite,
     )
 
 

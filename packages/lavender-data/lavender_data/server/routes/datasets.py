@@ -1,7 +1,7 @@
 from typing import Optional, Any
 
 from fastapi import HTTPException, APIRouter
-from sqlmodel import select
+from sqlmodel import select, update
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 from lavender_data.server.db import DbSession
@@ -250,6 +250,8 @@ class CreateShardParams(BaseModel):
     format: str
     index: int
 
+    overwrite: bool = False
+
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -259,6 +261,7 @@ class CreateShardParams(BaseModel):
                     "samples": 100,
                     "format": "parquet",
                     "index": 0,
+                    "overwrite": True,
                 },
             ]
         }
@@ -290,15 +293,47 @@ def create_shard(
     shardset.shard_count = Shardset.shard_count + 1
     session.add(shardset)
 
-    shard = Shard(
-        shardset_id=shardset.id,
-        location=params.location,
-        filesize=params.filesize,
-        samples=params.samples,
-        index=params.index,
-        format=params.format,
-    )
-    session.add(shard)
-    session.commit()
-    session.refresh(shard)
+    if params.overwrite:
+        result = session.exec(
+            update(Shard)
+            .where(
+                Shard.shardset_id == shardset.id,
+                Shard.index == params.index,
+            )
+            .values(
+                location=params.location,
+                filesize=params.filesize,
+                samples=params.samples,
+                format=params.format,
+            )
+        )
+        if result.rowcount > 0:
+            return session.exec(
+                select(Shard).where(
+                    Shard.shardset_id == shardset.id,
+                    Shard.index == params.index,
+                )
+            ).one()
+
+    try:
+        shard = Shard(
+            shardset_id=shardset.id,
+            location=params.location,
+            filesize=params.filesize,
+            samples=params.samples,
+            index=params.index,
+            format=params.format,
+        )
+        session.add(shard)
+        session.commit()
+        session.refresh(shard)
+    except IntegrityError as e:
+        if "unique_shardset_index" in str(e):
+            if not params.overwrite:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"shard index {params.index} for shardset {shardset_id} already exists. Set overwrite=True to overwrite the shard.",
+                )
+
+        raise
     return shard
