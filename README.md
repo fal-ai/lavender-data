@@ -227,7 +227,7 @@ There's 4 progress bars:
 3. **Filtered**: The number of samples that have been filtered out
 4. **Failed**: The number of samples that have failed to process
 
-You can also see the indices which are currently being processed.
+You can also see the indices which are currently being processed and which rank is processing it.
 Press `Pushback` to put all in-progress-indices back into the queue.
 This is useful when you want to pause the iteration and resume from the same place.
 

@@ -139,13 +139,15 @@ export default async function IterationDetailPage({
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[100px]">Index</TableHead>
+                <TableHead>Rank</TableHead>
                 <TableHead>Started</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {progress.inprogress.map(({ index, started_at }: any) => (
+              {progress.inprogress.map(({ index, rank, started_at }) => (
                 <TableRow key={started_at}>
                   <TableCell>{index}</TableCell>
+                  <TableCell>{rank}</TableCell>
                   <TableCell>
                     {new Date(started_at * 1000).toLocaleString()}
                   </TableCell>
