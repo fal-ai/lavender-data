@@ -13,20 +13,7 @@ from lavender_data.client.api import (
     LavenderDataApiError,
 )
 
-__all__ = ["Iteration", "IterationConfig"]
-
-
-class IterationConfig(BaseModel):
-    dataset_id: str
-    shardsets: Optional[list[str]] = None
-    filter: Optional[str] = None
-    preprocessor: Optional[str] = None
-    collater: Optional[str] = None
-    shuffle: Optional[bool] = None
-    shuffle_seed: Optional[int] = None
-    shuffle_block_size: Optional[int] = None
-    batch_size: Optional[int] = None
-    replication_pg: Optional[list[list[int]]] = None
+__all__ = ["Iteration"]
 
 
 class Iteration:
@@ -43,8 +30,35 @@ class Iteration:
         self.last_indices = None
 
     @classmethod
-    def from_config(cls, config: IterationConfig):
-        iteration = create_iteration(**config.model_dump())
+    def from_dataset(
+        cls,
+        dataset_id: str,
+        resume: Optional[bool] = False,
+        shardsets: Optional[list[str]] = None,
+        filter: Optional[str] = None,
+        preprocessor: Optional[str] = None,
+        collater: Optional[str] = None,
+        shuffle: Optional[bool] = None,
+        shuffle_seed: Optional[int] = None,
+        shuffle_block_size: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        replication_pg: Optional[list[list[int]]] = None,
+    ):
+        if resume:
+            return cls.from_latest_iteration(dataset_id)
+        else:
+            iteration = create_iteration(
+                dataset_id=dataset_id,
+                shardsets=shardsets,
+                filter=filter,
+                preprocessor=preprocessor,
+                collater=collater,
+                shuffle=shuffle,
+                shuffle_seed=shuffle_seed,
+                shuffle_block_size=shuffle_block_size,
+                batch_size=batch_size,
+                replication_pg=replication_pg,
+            )
         return cls.from_iteration(iteration)
 
     @classmethod

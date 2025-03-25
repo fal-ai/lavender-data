@@ -103,7 +103,6 @@ writer = Writer.get(
     format="csv",
     dataset_id=dataset.id,
     shardset_id=shardset.id,
-    persist_files=True,
 )
 
 # Write samples
@@ -116,18 +115,16 @@ writer.write(samples=samples, shard_index=0)
 ### Iterating over data
 
 ```python
-from lavender_data.client import Iteration, IterationConfig
+from lavender_data.client import Iteration
 
-dataset = lavender.use_dataset(name="my-dataset")
+dataset = lavender.get_dataset(name="my-dataset")
 shardset = dataset.shardsets[0] # Select the shardset you want to iterate over
 
-iteration = Iteration.from_config(
-    IterationConfig(
-        dataset_id=dataset.id,
-        shardsets=[shardset.id],
-        batch_size=10,
-        shuffle=True,
-    )
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    batch_size=10,
+    shuffle=True,
 )
 
 for batch in iteration:
