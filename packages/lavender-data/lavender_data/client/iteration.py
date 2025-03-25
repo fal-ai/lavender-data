@@ -107,7 +107,7 @@ class Iteration:
 
         return DataLoader(
             self,
-            num_workers=1,
+            num_workers=1 if prefetch_factor is not None else 0,
             timeout=timeout,
             collate_fn=noop_collate_fn,
             multiprocessing_context=multiprocessing_context,
