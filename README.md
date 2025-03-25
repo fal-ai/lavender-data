@@ -128,8 +128,27 @@ iteration = Iteration.from_dataset(
 )
 
 for batch in iteration:
-    # Process your data
     print(batch)
+
+```
+
+### Iterating over data (as a torch data loader)
+
+```python
+dataloader = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    batch_size=10,
+    shuffle=True,
+).to_torch_dataloader(
+    prefetch_factor=4,
+    pin_memory=True,
+    pin_memory_device="cuda:0",
+)
+
+if __name__ == "__main__":
+    for batch in dataloader:
+        print(batch)
 ```
 
 ### Custom Modules

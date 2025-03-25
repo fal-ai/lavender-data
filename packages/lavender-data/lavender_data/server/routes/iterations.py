@@ -32,6 +32,7 @@ from lavender_data.server.services.registries import (
 )
 from lavender_data.server.services.reader import ReaderInstance
 from lavender_data.serialize import serialize_sample
+from lavender_data.logging import get_logger
 
 try:
     import torch
@@ -40,6 +41,7 @@ except ImportError:
 
 
 router = APIRouter(prefix="/iterations", tags=["iterations"])
+logger = get_logger(__name__)
 
 
 @router.get("/")
@@ -228,9 +230,9 @@ def get_next(
         except Exception as e:
             # TODO fault tolerance
             state.failed(next_item.index)
-            raise HTTPException(
-                status_code=400, detail=f"Failed to read sample: {str(e)}"
-            )
+            msg = f"Failed to read sample {next_item.index} (sample {next_item.main_shard.sample_index} of shard {next_item.main_shard.index}): {e.__class__.__name__}({str(e)})"
+            logger.exception(msg)
+            raise HTTPException(status_code=400, detail=msg)
 
         if not filter_(sample):
             state.filtered(next_item.index)

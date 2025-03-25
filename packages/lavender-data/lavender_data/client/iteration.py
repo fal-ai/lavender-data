@@ -14,6 +14,10 @@ from lavender_data.client.api import (
 __all__ = ["Iteration"]
 
 
+def noop_collate_fn(x):
+    return x[0]
+
+
 class Iteration:
     def __init__(
         self,
@@ -86,6 +90,34 @@ class Iteration:
             total=iteration.total,
         )
 
+    def to_torch_dataloader(
+        self,
+        pin_memory: bool = False,
+        timeout: float = 0,
+        multiprocessing_context=None,
+        *,
+        prefetch_factor: Optional[int] = None,
+        persistent_workers: bool = False,
+        pin_memory_device: str = "",
+    ):
+        try:
+            from torch.utils.data import DataLoader
+        except ImportError:
+            raise ImportError("torch is not installed. Please install it first.")
+
+        return DataLoader(
+            self,
+            num_workers=1,
+            timeout=timeout,
+            collate_fn=noop_collate_fn,
+            multiprocessing_context=multiprocessing_context,
+            prefetch_factor=prefetch_factor,
+            persistent_workers=persistent_workers,
+            pin_memory=pin_memory,
+            pin_memory_device=pin_memory_device,
+            in_order=True,
+        )
+
     def complete(self, index: int):
         complete_index(self._iteration_id, index)
 
@@ -95,6 +127,7 @@ class Iteration:
     def __next__(self):
         if self.last_indices is not None:
             for index in self.last_indices:
+                # TODO handle prefetch
                 self.complete(index)
             self.last_indices = None
 
