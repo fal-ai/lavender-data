@@ -22,6 +22,9 @@
 
 ### Web UI
 
+- **Datasets**: Create, manage and preview your datasets
+- **Iterations**: Track the realtime progress of your iterations
+
 ### Customizable
 
 - **Custom Modules**: Easily define custom filters, collaters, and preprocessors
@@ -191,3 +194,41 @@ Using docker:
 ```bash
 docker run -p 3000:3000 -e NEXT_PUBLIC_API_URL=http://localhost:8000 lavender-data-ui
 ```
+
+Using pnpm:
+
+```bash
+export NEXT_PUBLIC_API_URL=http://localhost:8000
+
+git clone https://github.com/fal-ai/lavender-data
+cd packages/lavender-data-ui
+pnpm install
+pnpm run build
+pnpm run start
+```
+
+Dashboard will be available at [http://localhost:3000](http://localhost:3000)
+
+### Basic Usage
+
+Go to the datasets page and you should see list of your datasets.
+
+<img src="./assets/web-ui-datasets.png" alt="Datasets" />
+
+Click on a dataset id to view more details including the shardsets, preview of the data and the iterations.
+
+<img src="./assets/web-ui-dataset-detail.png" alt="Dataset Details" />
+
+Click on an iteration id to view the realtime progress.
+There's 4 progress bars:
+
+1. **Current**: The index of the sample currently being processed
+2. **Completed**: The number of samples that have been completed
+3. **Filtered**: The number of samples that have been filtered out
+4. **Failed**: The number of samples that have failed to process
+
+You can also see the indices which are currently being processed.
+Press `Pushback` to put all in-progress-indices back into the queue.
+This is useful when you want to pause the iteration and resume from the same place.
+
+<img src="./assets/web-ui-iteration-detail.png" alt="Iteration Details" />
