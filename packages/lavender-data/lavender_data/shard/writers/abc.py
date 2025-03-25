@@ -74,6 +74,7 @@ class Writer(ABC):
         samples: list[dict],
         location: Optional[str] = None,
         filename: Optional[str] = None,
+        overwrite: bool = False,
     ):
         if len(samples) == 0:
             raise ValueError("No samples to write")
@@ -103,6 +104,7 @@ class Writer(ABC):
             filesize=len(raw_data),
             samples=len(samples),
             format=self.format,
+            overwrite=overwrite,
         )
 
         if not self.persist_files:

@@ -1,8 +1,10 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+
+from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="CreateShardParams")
 
@@ -16,6 +18,7 @@ class CreateShardParams:
         samples (int):
         format_ (str):
         index (int):
+        overwrite (Union[Unset, bool]):  Default: False.
     """
 
     location: str
@@ -23,6 +26,7 @@ class CreateShardParams:
     samples: int
     format_: str
     index: int
+    overwrite: Union[Unset, bool] = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -36,6 +40,8 @@ class CreateShardParams:
 
         index = self.index
 
+        overwrite = self.overwrite
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -47,6 +53,8 @@ class CreateShardParams:
                 "index": index,
             }
         )
+        if overwrite is not UNSET:
+            field_dict["overwrite"] = overwrite
 
         return field_dict
 
@@ -63,12 +71,15 @@ class CreateShardParams:
 
         index = d.pop("index")
 
+        overwrite = d.pop("overwrite", UNSET)
+
         create_shard_params = cls(
             location=location,
             filesize=filesize,
             samples=samples,
             format_=format_,
             index=index,
+            overwrite=overwrite,
         )
 
         create_shard_params.additional_properties = d
