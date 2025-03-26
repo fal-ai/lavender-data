@@ -23,6 +23,11 @@ import { AddShardsetDialog } from './add-shardset-dialog';
 import { AddIterationDialog } from '@/app/iterations/add-iteration-dialog';
 import { utcToLocal } from '@/lib/date';
 import { ErrorCard } from '@/components/error-card';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 function ShardSetInfo({ shardset }: { shardset: any }) {
   if (!shardset) {
@@ -97,21 +102,37 @@ async function DatasetPreview({
               {preview.columns.map((column) => {
                 const value = sample[column.name];
                 let sanitizedValue: string;
+                let ellipsizedValue: string | null = null;
                 if (typeof value === 'object' && value !== null) {
                   sanitizedValue = JSON.stringify(value);
                 } else if (typeof value === 'number') {
                   if (isInteger(value)) {
                     sanitizedValue = String(value);
                   } else {
-                    sanitizedValue = (value as number).toFixed(2);
+                    sanitizedValue = (value as number).toFixed(8);
+                    ellipsizedValue = (value as number).toFixed(2);
                   }
                 } else {
                   sanitizedValue = String(value);
                 }
-                if (sanitizedValue.length > 100) {
-                  sanitizedValue = sanitizedValue.slice(0, 100) + '...';
+
+                if (sanitizedValue.length > 50) {
+                  ellipsizedValue = sanitizedValue.slice(0, 50) + '...';
                 }
-                return <TableCell key={column.id}>{sanitizedValue}</TableCell>;
+                return (
+                  <TableCell key={column.id}>
+                    {ellipsizedValue ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>{ellipsizedValue}</div>
+                        </TooltipTrigger>
+                        <TooltipContent>{sanitizedValue}</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <div>{sanitizedValue}</div>
+                    )}
+                  </TableCell>
+                );
               })}
             </TableRow>
           ))}
