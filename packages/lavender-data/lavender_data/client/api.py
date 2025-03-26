@@ -7,6 +7,7 @@ from openapi_lavender_data_rest import Client
 from openapi_lavender_data_rest.types import Response
 
 # apis
+from openapi_lavender_data_rest.api.root import version_version_get
 from openapi_lavender_data_rest.api.datasets import (
     get_dataset_datasets_dataset_id_get,
     get_datasets_datasets_get,
@@ -59,7 +60,7 @@ class LavenderDataClient:
         self.url = api_url
 
         try:
-            self.get_datasets()
+            self.version = self.get_version().version
         except Exception as e:
             raise ValueError(
                 "Failed to initialize lavender_data client. Please check if the server is running."
@@ -77,6 +78,13 @@ class LavenderDataClient:
         if isinstance(response.parsed, HTTPValidationError):
             raise LavenderDataApiError(response.parsed)
         return response.parsed
+
+    def get_version(self):
+        with self._get_client() as client:
+            response = version_version_get.sync_detailed(
+                client=client,
+            )
+        return self._check_response(response)
 
     def get_dataset(
         self,
@@ -264,6 +272,11 @@ def init(api_url: str = "http://localhost:8000"):
     global _client_instance
     _client_instance = LavenderDataClient(api_url=api_url)
     return _client_instance
+
+
+@ensure_client()
+def get_version():
+    return _client_instance.get_version()
 
 
 @ensure_client()
