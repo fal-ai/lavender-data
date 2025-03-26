@@ -84,3 +84,24 @@ class S3Storage(Storage):
             Key=key,
             Filename=local_path,
         )
+
+    def list(self, remote_path: str) -> list[str]:
+        parsed = urllib.parse.urlparse(remote_path)
+        bucket = parsed.netloc
+        prefix = parsed.path.lstrip("/")
+
+        keys = []
+
+        offset = ""
+        limit = 1000
+        while True:
+            r = self.client.list_objects_v2(
+                Bucket=bucket, MaxKeys=limit, StartAfter=offset, Prefix=prefix
+            )
+            for obj in r["Contents"]:
+                keys.append(obj["Key"][len(prefix) :])
+            offset = r.get("NextContinuationToken")
+            if offset is None:
+                break
+
+        return keys

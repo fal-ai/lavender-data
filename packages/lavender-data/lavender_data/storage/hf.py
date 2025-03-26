@@ -55,3 +55,6 @@ class HuggingfaceStorage(Storage):
             path_or_fileobj=local_path,
             path_in_repo=path,
         )
+
+    def list(self, remote_path: str) -> list[str]:
+        raise NotImplementedError("HuggingfaceStorage does not support listing yet")

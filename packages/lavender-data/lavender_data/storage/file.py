@@ -31,3 +31,7 @@ class LocalFileStorage(Storage):
             shutil.copy(os.path.abspath(local_path), _remote_path)
         except FileExistsError:
             pass
+
+    def list(self, remote_path: str) -> list[str]:
+        _remote_path = remote_path.lstrip("file://")
+        return [f for f in os.listdir(_remote_path)]

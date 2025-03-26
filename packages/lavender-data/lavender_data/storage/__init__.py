@@ -15,6 +15,7 @@ __all__ = [
     "LocalFileStorage",
     "download_file",
     "upload_file",
+    "list_files",
 ]
 
 
@@ -127,3 +128,8 @@ def upload_file(
             os.remove(local_path)
         except Exception as e:
             logger.warning(f"Failed to delete file {local_path} after upload: {e}")
+
+
+def list_files(remote_path: str) -> list[str]:
+    storage = Storage.get(remote_path)
+    return storage.list(remote_path)

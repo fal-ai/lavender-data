@@ -25,3 +25,6 @@ class Storage(ABC):
 
     @abstractmethod
     def upload(self, local_path: str, remote_path: str) -> None: ...
+
+    @abstractmethod
+    def list(self, remote_path: str) -> list[str]: ...
