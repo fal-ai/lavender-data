@@ -78,6 +78,7 @@ def add_shards_to_dataset(
 ) -> str:
     dataset = api.get_dataset(dataset_id)
     shard_basenames = list_files(location)
+    shard_basenames = sorted(shard_basenames)
     shard_index = 0
 
     if shardset_id is not None:
@@ -88,17 +89,20 @@ def add_shards_to_dataset(
                 f"Shardset with id {shardset_id} not found on dataset {dataset_id}"
             )
     else:
-        shard_basename = shard_basenames.pop()
-        shard, columns, shardset = add_shard_to_dataset(
-            dataset,
-            None,
-            columns,
-            os.path.join(location, shard_basename),
-            0,
-            overwrite,
-        )
-        print(f"Shard 0/{len(shard_basenames)} ({shard_basename}) created: {shard.id}")
-        shard_index += 1
+        shardset = None
+
+    # create shardset, get columns from first shard
+    shard_basename = shard_basenames.pop(0)
+    shard, columns, shardset = add_shard_to_dataset(
+        dataset,
+        shardset,
+        columns,
+        os.path.join(location, shard_basename),
+        shard_index,
+        overwrite,
+    )
+    print(f"Shard 0/{len(shard_basenames)} ({shard_basename}) created: {shard.id}")
+    shard_index += 1
 
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = []
@@ -118,7 +122,7 @@ def add_shards_to_dataset(
         for future in as_completed(futures):
             shard, _, _ = future.result()
             print(
-                f"Shard {shard.index+1}/{len(shard_basenames)} ({shard.location}) created: {shard.id}"
+                f"Shard {shard.index}/{len(shard_basenames)} ({shard.location}) created: {shard.id}"
             )
 
     return api.get_dataset(dataset_id)
