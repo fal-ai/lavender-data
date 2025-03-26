@@ -16,20 +16,23 @@ class Reader(ABC):
         cls,
         format: str,
         location: str,
-        samples: int,
-        columns: Optional[dict[str, str]] = None,
         *,
+        columns: Optional[dict[str, str]] = None,
         dirname: Optional[str] = None,
         filepath: Optional[str] = None,
         uid_column_name: Optional[str] = None,
         uid_column_type: Optional[str] = None,
-    ) -> Self:
-        for subcls in cls.__subclasses__():
+    ) -> Union[Self, "UntypedReader", "TypedReader"]:
+        for subcls in cls._reader_classes():
             if format == subcls.format:
+                if isinstance(subcls, UntypedReader) and columns is None:
+                    raise ValueError(
+                        f'Shard is in "{format}" format, which is not a typed format. '
+                        "Please specify columns."
+                    )
                 try:
                     instance = subcls(
                         location=location,
-                        samples=samples,
                         columns=columns,
                         dirname=dirname,
                         filepath=filepath,
@@ -45,12 +48,21 @@ class Reader(ABC):
                     ) from e
         raise ValueError(f"Invalid format: {format}")
 
+    @classmethod
+    def _reader_classes(cls):
+        classes = []
+        for subcls in cls.__subclasses__():
+            if subcls.format:
+                classes.append(subcls)
+            else:
+                classes.extend(subcls._reader_classes())
+        return classes
+
     def __init__(
         self,
         location: str,
-        samples: int,
-        columns: Optional[dict[str, str]] = None,
         *,
+        columns: Optional[dict[str, str]] = None,
         dirname: Optional[str] = None,
         filepath: Optional[str] = None,
         uid_column_name: Optional[str] = None,
@@ -65,12 +77,11 @@ class Reader(ABC):
             raise ValueError("One of dirname or filepath must be specified")
 
         self.location = location
-        self.samples = samples
         self.columns = columns
         self.uid_column_name = uid_column_name
         self.uid_column_type = uid_column_type
 
-        if self.uid_column_name not in self.columns:
+        if self.columns is not None and self.uid_column_name not in self.columns:
             self.columns[self.uid_column_name] = self.uid_column_type
 
         self.loaded: bool = False
@@ -92,12 +103,10 @@ class Reader(ABC):
             # TODO
             raise e
 
-    @property
-    def size(self):
-        return self.samples
-
     def __len__(self) -> int:
-        return self.samples
+        if not self.loaded:
+            self._load()
+        return len(self.uids)
 
     def get_item(self, key: int) -> dict[str, Any]:
         return self.get_item_by_index(key)
@@ -132,3 +141,15 @@ class Reader(ABC):
     def __iter__(self) -> Iterator[dict[str, Any]]:
         for i in range(len(self)):
             yield self[i]
+
+
+class TypedReader(Reader):
+    @abstractmethod
+    def read_columns(self) -> dict[str, str]:
+        raise NotImplementedError
+
+
+class UntypedReader(Reader):
+    @abstractmethod
+    def resolve_type(self, value: Any, typestr: str) -> type:
+        raise NotImplementedError

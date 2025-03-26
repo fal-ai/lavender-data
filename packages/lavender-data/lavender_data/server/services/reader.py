@@ -63,7 +63,6 @@ class ServerSideReader:
         return Reader.get(
             format=shard.format,
             location=shard.location,
-            samples=shard.samples,
             columns=shard.columns,
             dirname=dirname,
             uid_column_name=uid_column_name,

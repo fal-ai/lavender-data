@@ -3,13 +3,14 @@ import csv
 import ast
 from typing import Any
 
-from .abc import Reader
+from .abc import UntypedReader
 
 __all__ = ["CsvReader"]
 
 
-class CsvReader(Reader):
+class CsvReader(UntypedReader):
     format = "csv"
+    typed_columns = False
 
     def resolve_type(self, value: Any, typestr: str) -> type:
         if typestr == "int":
