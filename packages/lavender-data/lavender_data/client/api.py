@@ -11,6 +11,7 @@ from openapi_lavender_data_rest.api.root import version_version_get
 from openapi_lavender_data_rest.api.datasets import (
     get_dataset_datasets_dataset_id_get,
     get_datasets_datasets_get,
+    get_shardset_datasets_dataset_id_shardsets_shardset_id_get,
     create_dataset_datasets_post,
     create_shardset_datasets_dataset_id_shardsets_post,
     create_shard_datasets_dataset_id_shardsets_shardset_id_shards_post,
@@ -135,6 +136,15 @@ class LavenderDataClient:
                     name=name,
                     uid_column_name=uid_column_name,
                 ),
+            )
+        return self._check_response(response)
+
+    def get_shardset(self, dataset_id: str, shardset_id: str):
+        with self._get_client() as client:
+            response = get_shardset_datasets_dataset_id_shardsets_shardset_id_get.sync_detailed(
+                client=client,
+                dataset_id=dataset_id,
+                shardset_id=shardset_id,
             )
         return self._check_response(response)
 
@@ -298,6 +308,11 @@ def get_datasets(name: Optional[str] = None):
 @ensure_client()
 def create_dataset(name: str, uid_column_name: Optional[str] = None):
     return _client_instance.create_dataset(name=name, uid_column_name=uid_column_name)
+
+
+@ensure_client()
+def get_shardset(dataset_id: str, shardset_id: str):
+    return _client_instance.get_shardset(dataset_id=dataset_id, shardset_id=shardset_id)
 
 
 @ensure_client()

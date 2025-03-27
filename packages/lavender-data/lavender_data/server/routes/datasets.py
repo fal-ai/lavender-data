@@ -305,8 +305,27 @@ class CreateShardParams(BaseModel):
     }
 
 
-class NextShardIndexResponse(BaseModel):
-    shard_index: int
+class GetShardsetResponse(ShardsetPublic):
+    shards: list[ShardPublic]
+
+
+@router.get("/{dataset_id}/shardsets/{shardset_id}")
+def get_shardset(
+    dataset_id: str,
+    shardset_id: str,
+    session: DbSession,
+) -> GetShardsetResponse:
+    try:
+        shardset = session.exec(
+            select(Shardset).where(
+                Shardset.id == shardset_id,
+                Shardset.dataset_id == dataset_id,
+            )
+        ).one()
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Shardset not found")
+
+    return shardset
 
 
 @router.post("/{dataset_id}/shardsets/{shardset_id}/shards")

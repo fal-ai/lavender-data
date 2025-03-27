@@ -90,6 +90,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasets/{dataset_id}/shardsets/{shardset_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Shardset */
+        get: operations["get_shardset_datasets__dataset_id__shardsets__shardset_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasets/{dataset_id}/shardsets/{shardset_id}/shards": {
         parameters: {
             query?: never;
@@ -455,6 +472,32 @@ export interface components {
             /** Shardsets */
             shardsets: components["schemas"]["ShardsetWithShards"][];
         };
+        /** GetShardsetResponse */
+        GetShardsetResponse: {
+            /** Id */
+            id?: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Location */
+            location: string;
+            /**
+             * Shard Count
+             * @default 0
+             */
+            shard_count: number;
+            /**
+             * Total Samples
+             * @default 0
+             */
+            total_samples: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Shards */
+            shards: components["schemas"]["ShardPublic"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -810,6 +853,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreateShardsetResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_shardset_datasets__dataset_id__shardsets__shardset_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+                shardset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetShardsetResponse"];
                 };
             };
             /** @description Validation Error */

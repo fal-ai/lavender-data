@@ -30,17 +30,19 @@ def sync_shardset_location(
     dataset_id: str,
     shardset_id: str,
     num_workers: int = 10,
+    skip_existing: bool = True,
 ) -> str:
-    dataset = api.get_dataset(dataset_id)
-
-    try:
-        shardset = [s for s in dataset.shardsets if s.id == shardset_id].pop()
-    except IndexError:
-        raise ValueError(
-            f"Shardset with id {shardset_id} not found on dataset {dataset_id}"
-        )
+    shardset = api.get_shardset(dataset_id, shardset_id)
 
     shard_basenames = sorted(list_files(shardset.location))
+
+    if skip_existing:
+        shard_basenames = [
+            shard_basename
+            for shard_basename in shard_basenames
+            if not os.path.join(shardset.location, shard_basename)
+            in [s.location for s in shardset.shards]
+        ]
 
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = []

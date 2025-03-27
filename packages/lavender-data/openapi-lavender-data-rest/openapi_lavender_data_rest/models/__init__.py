@@ -10,6 +10,7 @@ from .dataset_column_public import DatasetColumnPublic
 from .dataset_public import DatasetPublic
 from .get_dataset_response import GetDatasetResponse
 from .get_iteration_response import GetIterationResponse
+from .get_shardset_response import GetShardsetResponse
 from .http_validation_error import HTTPValidationError
 from .in_progress_index import InProgressIndex
 from .iteration_public import IterationPublic
@@ -33,6 +34,7 @@ __all__ = (
     "DatasetPublic",
     "GetDatasetResponse",
     "GetIterationResponse",
+    "GetShardsetResponse",
     "HTTPValidationError",
     "InProgressIndex",
     "IterationPublic",
