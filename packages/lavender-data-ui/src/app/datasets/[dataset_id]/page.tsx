@@ -36,7 +36,8 @@ function ShardSetInfo({ shardset }: { shardset: any }) {
 
   return (
     <div>
-      <div>{shardset.location}</div>
+      <div>{shardset.id}</div>
+      <div className="text-xs text-muted-foreground">{shardset.location}</div>
       <div className="text-xs text-muted-foreground">
         total {shardset.total_samples} samples, {shardset.shard_count} shards
       </div>
@@ -211,6 +212,9 @@ export default async function DatasetDetailPage({
         <div className="text-lg">{dataset.name}</div>
         <div className="text-xs text-muted-foreground">{dataset.id}</div>
       </div>
+
+      <DatasetPreview dataset_id={dataset_id} preview_page={preview_page} />
+
       <div className="w-full flex flex-col gap-2">
         <div className="text-lg">Columns</div>
         <Table>
@@ -256,8 +260,6 @@ export default async function DatasetDetailPage({
           </AddShardsetDialog>
         </div>
       </div>
-
-      <DatasetPreview dataset_id={dataset_id} preview_page={preview_page} />
 
       <div className="w-full flex flex-col gap-2">
         <div className="text-lg">Iterations</div>
