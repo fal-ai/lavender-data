@@ -1,5 +1,5 @@
-import { Plus } from 'lucide-react';
 import Link from 'next/link';
+import { Plus, Ellipsis } from 'lucide-react';
 import { isInteger } from 'lodash';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,14 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
+import { Pagination } from '@/components/pagination';
 import { client } from '@/lib/api';
 import { AddShardsetDialog } from './add-shardset-dialog';
 import { AddIterationDialog } from '@/app/iterations/add-iteration-dialog';
@@ -73,18 +66,8 @@ async function DatasetPreview({
     );
   }
 
-  const maxPaginationPages = 5;
   const totalPages = Math.ceil(preview.total / preview_limit);
   const currentPage = Number(preview_page);
-  const startPage = Math.max(
-    0,
-    currentPage - Math.floor(maxPaginationPages / 2)
-  );
-  const endPage = Math.min(totalPages, startPage + maxPaginationPages);
-  const pageRange = Array.from(
-    { length: endPage - startPage },
-    (_, index) => startPage + index
-  );
 
   return (
     <div className="w-full flex flex-col gap-2">
@@ -140,34 +123,12 @@ async function DatasetPreview({
         </TableBody>
       </Table>
       <div className="w-full flex justify-center">
-        <Pagination>
-          <PaginationContent>
-            {Number(preview_page) > 0 && (
-              <PaginationItem>
-                <PaginationPrevious
-                  href={`/datasets/${dataset_id}?preview_page=${Number(preview_page) - 1}`}
-                />
-              </PaginationItem>
-            )}
-            {pageRange.map((page) => (
-              <PaginationItem key={page}>
-                <PaginationLink
-                  href={`/datasets/${dataset_id}?preview_page=${page}`}
-                  isActive={Number(preview_page) === page}
-                >
-                  {page + 1}
-                </PaginationLink>
-              </PaginationItem>
-            ))}
-            {Number(preview_page) < preview.total / preview_limit - 1 && (
-              <PaginationItem>
-                <PaginationNext
-                  href={`/datasets/${dataset_id}?preview_page=${Number(preview_page) + 1}`}
-                />
-              </PaginationItem>
-            )}
-          </PaginationContent>
-        </Pagination>
+        <Pagination
+          centerButtonCount={5}
+          totalPages={totalPages}
+          currentPage={currentPage}
+          pageHref={(page) => `/datasets/${dataset_id}?preview_page=${page}`}
+        />
       </div>
     </div>
   );
