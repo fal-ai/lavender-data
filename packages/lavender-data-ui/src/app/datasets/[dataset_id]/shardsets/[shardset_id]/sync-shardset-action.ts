@@ -1,0 +1,44 @@
+'use server';
+
+import { client } from '@/lib/api';
+import { revalidatePath } from 'next/cache';
+
+export type ColumnInput = {
+  name: string;
+  type: string;
+  description?: string;
+};
+
+export async function syncShardset(
+  datasetId: string,
+  shardsetId: string,
+  overwrite: boolean
+) {
+  try {
+    const response = await client.POST(
+      '/datasets/{dataset_id}/shardsets/{shardset_id}/sync',
+      {
+        params: { path: { dataset_id: datasetId, shardset_id: shardsetId } },
+        body: { overwrite },
+      }
+    );
+
+    if (response.error) {
+      let error = 'Unknown error';
+      if (typeof response.error.detail === 'string') {
+        error = response.error.detail;
+      }
+      return { success: false, error };
+    }
+
+    // Revalidate the dataset path to refresh the shardset list
+    revalidatePath(`/datasets/${datasetId}/shardsets/${shardsetId}`);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    };
+  }
+}

@@ -124,6 +124,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasets/{dataset_id}/shardsets/{shardset_id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sync Status */
+        get: operations["get_sync_status_datasets__dataset_id__shardsets__shardset_id__sync_get"];
+        put?: never;
+        /** Sync Shardset */
+        post: operations["sync_shardset_datasets__dataset_id__shardsets__shardset_id__sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/iterations/": {
         parameters: {
             query?: never;
@@ -497,6 +515,8 @@ export interface components {
             created_at: string;
             /** Shards */
             shards: components["schemas"]["ShardPublic"][];
+            /** Columns */
+            columns: components["schemas"]["DatasetColumnPublic"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -658,6 +678,23 @@ export interface components {
             shards: components["schemas"]["ShardPublic"][];
             /** Columns */
             columns: components["schemas"]["DatasetColumnPublic"][];
+        };
+        /** SyncShardsetParams */
+        SyncShardsetParams: {
+            /**
+             * Overwrite
+             * @default false
+             */
+            overwrite: boolean;
+        };
+        /** SyncShardsetStatus */
+        SyncShardsetStatus: {
+            /** Status */
+            status: string;
+            /** Done Count */
+            done_count: number;
+            /** Shard Count */
+            shard_count: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -921,6 +958,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShardPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sync_status_datasets__dataset_id__shardsets__shardset_id__sync_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+                shardset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncShardsetStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_shardset_datasets__dataset_id__shardsets__shardset_id__sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+                shardset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncShardsetParams"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetShardsetResponse"];
                 };
             };
             /** @description Validation Error */

@@ -9,6 +9,7 @@ from dateutil.parser import isoparse
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
+    from ..models.dataset_column_public import DatasetColumnPublic
     from ..models.shard_public import ShardPublic
 
 
@@ -23,6 +24,7 @@ class GetShardsetResponse:
         location (str):
         created_at (datetime.datetime):
         shards (list['ShardPublic']):
+        columns (list['DatasetColumnPublic']):
         id (Union[Unset, str]):
         shard_count (Union[Unset, int]):  Default: 0.
         total_samples (Union[Unset, int]):  Default: 0.
@@ -32,6 +34,7 @@ class GetShardsetResponse:
     location: str
     created_at: datetime.datetime
     shards: list["ShardPublic"]
+    columns: list["DatasetColumnPublic"]
     id: Union[Unset, str] = UNSET
     shard_count: Union[Unset, int] = 0
     total_samples: Union[Unset, int] = 0
@@ -49,6 +52,11 @@ class GetShardsetResponse:
             shards_item = shards_item_data.to_dict()
             shards.append(shards_item)
 
+        columns = []
+        for columns_item_data in self.columns:
+            columns_item = columns_item_data.to_dict()
+            columns.append(columns_item)
+
         id = self.id
 
         shard_count = self.shard_count
@@ -63,6 +71,7 @@ class GetShardsetResponse:
                 "location": location,
                 "created_at": created_at,
                 "shards": shards,
+                "columns": columns,
             }
         )
         if id is not UNSET:
@@ -76,6 +85,7 @@ class GetShardsetResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.dataset_column_public import DatasetColumnPublic
         from ..models.shard_public import ShardPublic
 
         d = dict(src_dict)
@@ -92,6 +102,13 @@ class GetShardsetResponse:
 
             shards.append(shards_item)
 
+        columns = []
+        _columns = d.pop("columns")
+        for columns_item_data in _columns:
+            columns_item = DatasetColumnPublic.from_dict(columns_item_data)
+
+            columns.append(columns_item)
+
         id = d.pop("id", UNSET)
 
         shard_count = d.pop("shard_count", UNSET)
@@ -103,6 +120,7 @@ class GetShardsetResponse:
             location=location,
             created_at=created_at,
             shards=shards,
+            columns=columns,
             id=id,
             shard_count=shard_count,
             total_samples=total_samples,

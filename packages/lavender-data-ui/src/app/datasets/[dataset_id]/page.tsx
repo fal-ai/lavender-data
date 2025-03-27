@@ -29,7 +29,9 @@ function ShardSetInfo({ shardset }: { shardset: any }) {
 
   return (
     <div>
-      <div>{shardset.id}</div>
+      <Link href={`/datasets/${shardset.dataset_id}/shardsets/${shardset.id}`}>
+        <div>{shardset.id}</div>
+      </Link>
       <div className="text-xs text-muted-foreground">{shardset.location}</div>
       <div className="text-xs text-muted-foreground">
         total {shardset.total_samples} samples, {shardset.shard_count} shards

@@ -312,6 +312,7 @@ class CreateShardParams(BaseModel):
 
 class GetShardsetResponse(ShardsetPublic):
     shards: list[ShardPublic]
+    columns: list[DatasetColumnPublic]
 
 
 @router.get("/{dataset_id}/shardsets/{shardset_id}")
@@ -425,12 +426,6 @@ def sync_shardset(
     cache: RedisClient,
     background_tasks: BackgroundTasks,
 ) -> GetShardsetResponse:
-    if cache.exists(_sync_status_key(shardset_id)):
-        raise HTTPException(
-            status_code=400,
-            detail="Shardset is already being synced. Please wait for the sync to complete.",
-        )
-
     try:
         shardset = session.exec(
             select(Shardset).where(
@@ -440,6 +435,21 @@ def sync_shardset(
         ).one()
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Shardset not found")
+
+    if cache.exists(_sync_status_key(shardset_id)):
+        raise HTTPException(
+            status_code=400,
+            detail="Shardset is already being synced. Please wait for the sync to complete.",
+        )
+    else:
+        cache.hset(
+            _sync_status_key(shardset.id),
+            mapping=SyncShardsetStatus(
+                status="pending",
+                done_count=0,
+                shard_count=0,
+            ).model_dump(),
+        )
 
     background_tasks.add_task(
         sync_shardset_location,
