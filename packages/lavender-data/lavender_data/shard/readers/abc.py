@@ -25,11 +25,6 @@ class Reader(ABC):
     ) -> Union[Self, "UntypedReader", "TypedReader"]:
         for subcls in cls._reader_classes():
             if format == subcls.format:
-                if isinstance(subcls, UntypedReader) and columns is None:
-                    raise ValueError(
-                        f'Shard is in "{format}" format, which is not a typed format. '
-                        "Please specify columns."
-                    )
                 try:
                     instance = subcls(
                         location=location,
@@ -39,8 +34,18 @@ class Reader(ABC):
                         uid_column_name=uid_column_name,
                         uid_column_type=uid_column_type,
                     )
+                    if isinstance(instance, UntypedReader) and columns is None:
+                        raise ValueError(
+                            f'Shard is in "{format}" format, which is not a typed format. '
+                            "Please specify columns."
+                        )
+
                     # TODO async?
                     instance.prepare()
+
+                    if isinstance(instance, TypedReader) and columns is None:
+                        instance.columns = instance.read_columns()
+
                     return instance
                 except ImportError as e:
                     raise ImportError(

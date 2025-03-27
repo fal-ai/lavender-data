@@ -99,7 +99,10 @@ class S3Storage(Storage):
                 Bucket=bucket, MaxKeys=limit, StartAfter=offset, Prefix=prefix
             )
             for obj in r["Contents"]:
-                keys.append(obj["Key"][len(prefix) :])
+                filename = obj["Key"][len(prefix) :]
+                if filename.startswith("/"):
+                    filename = filename[1:]
+                keys.append(filename)
             offset = r.get("NextContinuationToken")
             if offset is None:
                 break

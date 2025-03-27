@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from lavender_data.client import api
 from lavender_data.storage import list_files
 
-from .readers import Reader
+from lavender_data.shard import Reader
 
 
 def add_shard_to_dataset(

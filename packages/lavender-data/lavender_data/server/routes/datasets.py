@@ -1,9 +1,12 @@
+import os
 from typing import Optional, Any
 
 from fastapi import HTTPException, APIRouter
 from sqlmodel import select, update
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
+
+from lavender_data.logging import get_logger
 from lavender_data.server.db import DbSession
 from lavender_data.server.db.models import (
     Dataset,
@@ -23,7 +26,12 @@ from lavender_data.server.services.reader import (
 )
 from lavender_data.server.services.iterations import get_main_shardset, span
 
+from lavender_data.storage import list_files
+from lavender_data.shard import inspect_shard
+
 router = APIRouter(prefix="/datasets", tags=["datasets"])
+
+logger = get_logger(__name__)
 
 
 @router.get("/")
@@ -115,6 +123,9 @@ def preview_dataset(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
+    if len(dataset.shardsets) == 0:
+        raise HTTPException(status_code=400, detail="Dataset has no shardsets")
+
     samples = []
     for index in range(offset, offset + limit):
         try:
@@ -203,9 +214,6 @@ def create_shardset(
     shardset = Shardset(dataset_id=dataset.id, location=params.location)
     session.add(shardset)
 
-    if len(params.columns) == 0:
-        raise HTTPException(status_code=400, detail="columns is required")
-
     if len(set(options.name for options in params.columns)) != len(params.columns):
         raise HTTPException(status_code=400, detail="column names must be unique")
 
@@ -219,6 +227,35 @@ def create_shardset(
     except NoResultFound:
         uid_column = None
 
+    if len(params.columns) == 0:
+        try:
+            shard_basenames = sorted(list_files(params.location))
+        except Exception as e:
+            logger.exception(f"Failed to list shardset location: {e}")
+            raise HTTPException(
+                status_code=400, detail=f"Failed to list shardset location"
+            )
+
+        if len(shard_basenames) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="No shards found in location. Please either specify columns or provide a valid location with at least one shard.",
+            )
+
+        shard_basename = shard_basenames.pop(0)
+        try:
+            shard_info = inspect_shard(os.path.join(params.location, shard_basename))
+        except Exception as e:
+            logger.exception(f"Failed to inspect shard: {e}")
+            raise HTTPException(status_code=400, detail=f"Failed to inspect shard")
+
+        _columns = [
+            DatasetColumnOptions(name=column_name, type=column_type)
+            for column_name, column_type in shard_info.columns.items()
+        ]
+    else:
+        _columns = params.columns
+
     columns = [
         DatasetColumn(
             dataset_id=dataset.id,
@@ -227,7 +264,7 @@ def create_shardset(
             type=options.type,
             description=options.description,
         )
-        for options in params.columns
+        for options in _columns
         if uid_column is None or options.name != uid_column.name
     ]
     session.add_all(columns)

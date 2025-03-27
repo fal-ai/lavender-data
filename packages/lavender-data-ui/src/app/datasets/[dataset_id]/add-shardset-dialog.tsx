@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFormStatus } from 'react-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { IconTooltip } from '@/components/icon-tooltip';
 import { createShardset, ColumnInput } from './add-shardset-action';
 
 function SubmitButton() {
@@ -163,7 +164,20 @@ export function AddShardsetDialog({
                 onChange={(e) => setLocation(e.target.value)}
               />
             </div>
-            <div className="text-lg mt-2">Columns</div>
+            <div className="text-lg mt-2 flex gap-2 items-center">
+              <div>Columns</div>
+              <IconTooltip
+                icon={<Info className="w-4 h-4" />}
+                content={
+                  <p>
+                    If you have at least one shard in the location, the columns
+                    will be inferred from the shard. <br />
+                    Please specify columns if you want to override them or if
+                    you don't have any shards yet.
+                  </p>
+                }
+              />
+            </div>
             <ScrollArea className="max-h-[200px]">
               {columns.map((column, index) => (
                 <div key={index}>

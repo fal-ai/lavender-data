@@ -27,10 +27,6 @@ export async function createShardset(datasetId: string, formData: FormData) {
     return { success: false, error: 'Location is required' };
   }
 
-  if (columns.length === 0) {
-    return { success: false, error: 'At least one column is required' };
-  }
-
   if (columns.some((column) => column.name === '')) {
     return { success: false, error: 'All columns must have a name' };
   }
