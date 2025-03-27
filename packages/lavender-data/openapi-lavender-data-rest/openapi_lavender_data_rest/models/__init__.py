@@ -20,6 +20,8 @@ from .progress import Progress
 from .shard_public import ShardPublic
 from .shardset_public import ShardsetPublic
 from .shardset_with_shards import ShardsetWithShards
+from .sync_shardset_params import SyncShardsetParams
+from .sync_shardset_status import SyncShardsetStatus
 from .validation_error import ValidationError
 from .version_response import VersionResponse
 
@@ -44,6 +46,8 @@ __all__ = (
     "ShardPublic",
     "ShardsetPublic",
     "ShardsetWithShards",
+    "SyncShardsetParams",
+    "SyncShardsetStatus",
     "ValidationError",
     "VersionResponse",
 )

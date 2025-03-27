@@ -1,8 +1,8 @@
 import os
 from typing import Optional, Any
 
-from fastapi import HTTPException, APIRouter
-from sqlmodel import select, update
+from fastapi import HTTPException, APIRouter, BackgroundTasks
+from sqlmodel import select, update, insert
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 
@@ -18,6 +18,7 @@ from lavender_data.server.db.models import (
     ShardPublic,
     DatasetColumnPublic,
 )
+from lavender_data.server.cache import RedisClient
 from lavender_data.server.reader import (
     ReaderInstance,
     GetSampleParams,
@@ -25,6 +26,10 @@ from lavender_data.server.reader import (
     MainShardInfo,
 )
 from lavender_data.server.services.iterations import get_main_shardset, span
+from lavender_data.server.services.shardsets import (
+    sync_shardset_location,
+    SyncShardsetStatus,
+)
 
 from lavender_data.storage import list_files
 from lavender_data.shard import inspect_shard
@@ -345,10 +350,16 @@ def create_shard(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Shardset not found")
 
-    shardset.total_samples = Shardset.total_samples + params.samples
-    shardset.shard_count = Shardset.shard_count + 1
-    session.add(shardset)
+    session.exec(
+        update(Shardset)
+        .where(Shardset.id == shardset.id)
+        .values(
+            total_samples=Shardset.total_samples + params.samples,
+            shard_count=Shardset.shard_count + 1,
+        )
+    )
 
+    updated = False
     if params.overwrite:
         result = session.exec(
             update(Shard)
@@ -364,32 +375,97 @@ def create_shard(
             )
         )
         if result.rowcount > 0:
-            return session.exec(
-                select(Shard).where(
-                    Shard.shardset_id == shardset.id,
-                    Shard.index == params.index,
+            updated = True
+
+    if not updated:
+        try:
+            session.exec(
+                insert(Shard).values(
+                    shardset_id=shardset.id,
+                    location=params.location,
+                    filesize=params.filesize,
+                    samples=params.samples,
+                    format=params.format,
+                    index=params.index,
                 )
-            ).one()
+            )
+        except IntegrityError as e:
+            if "unique_shardset_index" in str(e):
+                if not params.overwrite:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"shard index {params.index} for shardset {shardset_id} already exists. Set overwrite=True to overwrite the shard.",
+                    )
+            raise
+
+    session.commit()
+
+    return session.exec(
+        select(Shard).where(
+            Shard.shardset_id == shardset.id,
+            Shard.index == params.index,
+        )
+    ).one()
+
+
+class SyncShardsetParams(BaseModel):
+    overwrite: bool = False
+
+
+def _sync_status_key(shardset_id: str) -> str:
+    return f"shardset:{shardset_id}:sync-status"
+
+
+@router.post("/{dataset_id}/shardsets/{shardset_id}/sync")
+def sync_shardset(
+    dataset_id: str,
+    shardset_id: str,
+    params: SyncShardsetParams,
+    session: DbSession,
+    cache: RedisClient,
+    background_tasks: BackgroundTasks,
+) -> GetShardsetResponse:
+    if cache.exists(_sync_status_key(shardset_id)):
+        raise HTTPException(
+            status_code=400,
+            detail="Shardset is already being synced. Please wait for the sync to complete.",
+        )
 
     try:
-        shard = Shard(
-            shardset_id=shardset.id,
-            location=params.location,
-            filesize=params.filesize,
-            samples=params.samples,
-            index=params.index,
-            format=params.format,
-        )
-        session.add(shard)
-        session.commit()
-        session.refresh(shard)
-    except IntegrityError as e:
-        if "unique_shardset_index" in str(e):
-            if not params.overwrite:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"shard index {params.index} for shardset {shardset_id} already exists. Set overwrite=True to overwrite the shard.",
-                )
+        shardset = session.exec(
+            select(Shardset).where(
+                Shardset.id == shardset_id,
+                Shardset.dataset_id == dataset_id,
+            )
+        ).one()
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Shardset not found")
 
-        raise
-    return shard
+    background_tasks.add_task(
+        sync_shardset_location,
+        shardset_id=shardset.id,
+        shardset_location=shardset.location,
+        shardset_shard_samples=[s.samples for s in shardset.shards],
+        shardset_shard_locations=[s.location for s in shardset.shards],
+        num_workers=10,
+        overwrite=params.overwrite,
+        cache_key=_sync_status_key(shardset.id),
+    )
+    return shardset
+
+
+@router.get("/{dataset_id}/shardsets/{shardset_id}/sync")
+def get_sync_status(
+    dataset_id: str,
+    shardset_id: str,
+    cache: RedisClient,
+) -> SyncShardsetStatus:
+    cache_key = _sync_status_key(shardset_id)
+    status = cache.hgetall(cache_key)
+    if status is None or len(status) == 0:
+        raise HTTPException(status_code=404, detail="Sync status not found")
+    return SyncShardsetStatus(
+        status=status[b"status"].decode("utf-8"),
+        done_count=int(status[b"done_count"]),
+        shard_count=int(status[b"shard_count"]),
+    )
