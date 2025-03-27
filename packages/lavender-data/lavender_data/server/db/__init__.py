@@ -30,6 +30,9 @@ def create_db_and_tables():
 
 
 def get_session():
+    if not engine:
+        raise RuntimeError("Database not initialized")
+
     with Session(engine) as session:
         yield session
 

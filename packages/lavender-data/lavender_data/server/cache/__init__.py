@@ -30,6 +30,9 @@ def setup_redis(redis_url: Optional[str] = None):
 
 
 def get_client():
+    if not redis_client:
+        raise RuntimeError("Redis client not initialized")
+
     yield redis_client
 
 

@@ -18,7 +18,7 @@ from lavender_data.server.db.models import (
     ShardPublic,
     DatasetColumnPublic,
 )
-from lavender_data.server.services.reader import (
+from lavender_data.server.reader import (
     ReaderInstance,
     GetSampleParams,
     ShardInfo,

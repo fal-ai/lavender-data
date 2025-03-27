@@ -1,5 +1,5 @@
 import os
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import Depends
 from pydantic import BaseModel
@@ -33,7 +33,7 @@ class ServerSideReader:
     dirname: str = ".cache"
     reader_cache: dict[str, Reader] = {}
 
-    def __init__(self, disk_cache_size: int = 100):
+    def __init__(self, disk_cache_size: int):
         self.disk_cache_size = disk_cache_size
 
     def _get_reader(self, shard: ShardInfo, uid_column_name: str, uid_column_type: str):
@@ -99,10 +99,18 @@ class ServerSideReader:
         return sample
 
 
-reader = ServerSideReader(disk_cache_size=100)
+reader = None
+
+
+def setup_reader(disk_cache_size: Optional[int] = None):
+    global reader
+    reader = ServerSideReader(disk_cache_size=disk_cache_size or 100)
 
 
 def get_reader_instance():
+    if not reader:
+        raise RuntimeError("Reader not initialized")
+
     return reader
 
 

@@ -10,9 +10,10 @@ from lavender_data.server.db.models import (
     Iteration,
     Shardset,
 )
+from lavender_data.server.reader import ShardInfo, MainShardInfo, GetSampleParams
+
 
 from .shardsets import get_main_shardset, span
-from .reader import ShardInfo, MainShardInfo, GetSampleParams
 
 
 @contextlib.contextmanager

@@ -20,6 +20,7 @@ from lavender_data.server.db.models import (
     ShardPublic,
     Dataset,
 )
+from lavender_data.server.reader import ReaderInstance
 from lavender_data.server.services.iterations import (
     IterationState,
     IterationStateException,
@@ -30,7 +31,6 @@ from lavender_data.server.services.registries import (
     FilterRegistry,
     CollaterRegistry,
 )
-from lavender_data.server.services.reader import ReaderInstance
 from lavender_data.serialize import serialize_sample
 from lavender_data.logging import get_logger
 

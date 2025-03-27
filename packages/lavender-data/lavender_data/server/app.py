@@ -1,4 +1,3 @@
-import importlib.metadata
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -6,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .db import setup_db, create_db_and_tables
 from .cache import setup_redis, register_worker, deregister_worker
+from .reader import setup_reader
 from .routes import (
     datasets_router,
     iterations_router,
@@ -28,6 +28,8 @@ async def lifespan(app: FastAPI):
 
     if settings.lavender_data_modules_dir:
         import_from_directory(settings.lavender_data_modules_dir)
+
+    setup_reader(int(settings.lavender_data_reader_disk_cache_size))
 
     rank = register_worker()
     app.state.rank = rank
