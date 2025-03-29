@@ -134,27 +134,28 @@ class IterationState:
                         {column.name: column.type for column in shardset.columns}
                     ),
                 )
+                shards = sorted(shardset.shards, key=lambda s: s.index)
                 pipe.rpush(
                     self._key(f"shardsets:{shardset.id}:samples"),
-                    *[shard.samples for shard in shardset.shards],
+                    *[shard.samples for shard in shards],
                 )
                 pipe.rpush(
                     self._key(f"shardsets:{shardset.id}:location"),
-                    *[shard.location for shard in shardset.shards],
+                    *[shard.location for shard in shards],
                 )
                 pipe.rpush(
                     self._key(f"shardsets:{shardset.id}:format"),
-                    *[shard.format for shard in shardset.shards],
+                    *[shard.format for shard in shards],
                 )
                 pipe.rpush(
                     self._key(f"shardsets:{shardset.id}:filesize"),
-                    *[shard.filesize for shard in shardset.shards],
+                    *[shard.filesize for shard in shards],
                 )
 
     def _set_main_shardset_info(
         self, shardset: Shardset, shuffle: bool, shuffle_seed: int
     ) -> None:
-        shards = shardset.shards
+        shards = sorted(shardset.shards, key=lambda s: s.index)
         if shuffle:
             with np_seed(shuffle_seed):
                 np.random.shuffle(shards)

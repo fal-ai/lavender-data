@@ -94,7 +94,13 @@ class ServerSideReader:
             reader = self.get_reader(
                 feature_shard, params.uid_column_name, params.uid_column_type
             )
-            sample.update(reader.get_item_by_uid(sample_uid))
+            try:
+                columns = reader.get_item_by_uid(sample_uid)
+            except KeyError:
+                raise KeyError(
+                    f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({params.main_shard.sample_index} of {params.main_shard.location}) '
+                )
+            sample.update(columns)
 
         return sample
 
