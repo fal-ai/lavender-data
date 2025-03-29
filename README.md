@@ -168,17 +168,20 @@ Define custom components:
 # modules/custom_filter.py
 from lavender_data.server import FilterRegistry, Filter
 
-@FilterRegistry.register("only_even_uids")
-class OnlyEvenUidsFilter(Filter):
+@FilterRegistry.register("uid_mod")
+class UidModFilter(Filter):
+    def __init__(self, mod: int):
+        self.mod = mod
+
     def filter(self, sample: dict) -> bool:
-        return sample["uid"] % 2 == 0
+        return sample["uid"] % self.mod == 0
 
 # Use it in your iteration
 iteration = Iteration.from_config(
     IterationConfig(
         dataset_id=dataset.id,
         shardsets=[shardset.id],
-        filter="only_even_uids",
+        filters=[("uid_mod", {"mod": 2})],
     )
 )
 ```

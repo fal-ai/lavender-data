@@ -6,6 +6,9 @@ from .abc import Registry
 class Preprocessor(ABC):
     name: str
 
+    def __init__(self, **kwargs):
+        pass
+
     @abstractmethod
     def process(self, batch: dict) -> dict:
         raise NotImplementedError

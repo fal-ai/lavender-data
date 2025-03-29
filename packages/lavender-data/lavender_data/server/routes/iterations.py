@@ -19,6 +19,9 @@ from lavender_data.server.db.models import (
     ShardsetPublic,
     ShardPublic,
     Dataset,
+    IterationFilter,
+    IterationPreprocessor,
+    IterationCollater,
 )
 from lavender_data.server.reader import ReaderInstance
 from lavender_data.server.services.iterations import (
@@ -60,9 +63,9 @@ class CreateIterationParams(BaseModel):
     dataset_id: str
     shardsets: Optional[list[str]] = None
 
-    filter: Optional[str] = None
-    preprocessor: Optional[str] = None
-    collater: Optional[str] = None
+    filters: Optional[list[IterationFilter]] = None
+    preprocessors: Optional[list[IterationPreprocessor]] = None
+    collater: Optional[IterationCollater] = None
 
     shuffle: Optional[bool] = None
     shuffle_seed: Optional[int] = None
@@ -100,29 +103,31 @@ def create_iteration(
     if batch_size < 0:
         raise HTTPException(status_code=400, detail="batch_size must be >= 0")
 
-    if (
-        params.preprocessor is not None
-        and params.preprocessor not in PreprocessorRegistry.list()
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail="preprocessor must be one of the following: "
-            + ", ".join(PreprocessorRegistry.list()),
-        )
+    if params.preprocessors is not None:
+        for preprocessor in params.preprocessors:
+            if preprocessor["name"] not in PreprocessorRegistry.list():
+                raise HTTPException(
+                    status_code=400,
+                    detail="preprocessor must be one of the following: "
+                    + ", ".join(PreprocessorRegistry.list()),
+                )
 
-    if params.filter is not None and params.filter not in FilterRegistry.list():
-        raise HTTPException(
-            status_code=400,
-            detail="filter must be one of the following: "
-            + ", ".join(FilterRegistry.list()),
-        )
+    if params.filters is not None:
+        for f in params.filters:
+            if f["name"] not in FilterRegistry.list():
+                raise HTTPException(
+                    status_code=400,
+                    detail="filter must be one of the following: "
+                    + ", ".join(FilterRegistry.list()),
+                )
 
-    if params.collater is not None and params.collater not in CollaterRegistry.list():
-        raise HTTPException(
-            status_code=400,
-            detail="collater must be one of the following: "
-            + ", ".join(CollaterRegistry.list()),
-        )
+    if params.collater is not None:
+        if params.collater["name"] not in CollaterRegistry.list():
+            raise HTTPException(
+                status_code=400,
+                detail="collater must be one of the following: "
+                + ", ".join(CollaterRegistry.list()),
+            )
 
     try:
         dataset = session.get_one(Dataset, params.dataset_id)
@@ -154,8 +159,8 @@ def create_iteration(
     iteration = Iteration(
         dataset_id=dataset.id,
         total=total_samples,
-        filter=params.filter,
-        preprocessor=params.preprocessor,
+        filters=params.filters,
+        preprocessors=params.preprocessors,
         collater=params.collater,
         shuffle=shuffle,
         shuffle_seed=params.shuffle_seed,
@@ -213,9 +218,24 @@ def get_next(
             raise HTTPException(status_code=400, detail=str(e))
 
     batch_size = state.get_batch_size()
-    filter_ = FilterRegistry.get(state.get_filter() or "default")
-    preprocessor = PreprocessorRegistry.get(state.get_preprocessor() or "default")
-    collater = CollaterRegistry.get(state.get_collater() or "default")
+    iteration_filters = state.get_filters()
+    filters = (
+        [FilterRegistry.get(**f) for f in iteration_filters]
+        if iteration_filters is not None
+        else []
+    )
+    iteration_preprocessors = state.get_preprocessors()
+    preprocessors = (
+        [PreprocessorRegistry.get(**p) for p in iteration_preprocessors]
+        if iteration_preprocessors is not None
+        else []
+    )
+    iteration_collater = state.get_collater()
+    collater = (
+        CollaterRegistry.get(**iteration_collater)
+        if iteration_collater is not None
+        else CollaterRegistry.get("default")
+    )
 
     indices = []
     samples = []
@@ -234,27 +254,33 @@ def get_next(
             logger.exception(msg)
             raise HTTPException(status_code=400, detail=msg)
 
-        if not filter_(sample):
+        filtered = False
+        for should_include in filters:
+            if not should_include(sample):
+                filtered = True
+                break
+        if filtered:
             state.filtered(next_item.index)
             continue
 
         samples.append(sample)
         indices.append(next_item.index)
 
-    collated = collater(samples)
-    preprocessed = preprocessor(collated)
-    preprocessed["_lavender_data_indices"] = indices
+    batch = collater(samples)
+    for preprocessor in preprocessors:
+        batch = preprocessor(batch)
+    batch["_lavender_data_indices"] = indices
 
     if batch_size == 0:
-        _preprocessed = {}
-        for k, v in preprocessed.items():
+        _batch = {}
+        for k, v in batch.items():
             if torch is not None and isinstance(v, torch.Tensor):
-                _preprocessed[k] = v.item()
+                _batch[k] = v.item()
             else:
-                _preprocessed[k] = v[0]
-        preprocessed = _preprocessed
+                _batch[k] = v[0]
+        batch = _batch
 
-    content = serialize_sample(preprocessed)
+    content = serialize_sample(batch)
 
     return Response(content=content, media_type="application/octet-stream")
 

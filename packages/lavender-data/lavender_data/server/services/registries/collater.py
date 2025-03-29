@@ -13,6 +13,9 @@ except ImportError:
 class Collater(ABC):
     name: str
 
+    def __init__(self, **kwargs):
+        pass
+
     @abstractmethod
     def collate(self, samples: list[dict]) -> dict:
         raise NotImplementedError

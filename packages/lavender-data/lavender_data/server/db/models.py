@@ -1,7 +1,7 @@
 import time
 import random
 import string
-from typing import Optional
+from typing import Optional, TypedDict, Any
 from datetime import datetime
 from sqlmodel import (
     Field,
@@ -137,14 +137,31 @@ class IterationShardsetLink(SQLModel, table=True):
     shardset_id: str = Field(primary_key=True, foreign_key="shardset.id")
 
 
+class IterationFilter(TypedDict):
+    name: str
+    params: dict[str, Any]
+
+
+class IterationPreprocessor(TypedDict):
+    name: str
+    params: dict[str, Any]
+
+
+class IterationCollater(TypedDict):
+    name: str
+    params: dict[str, Any]
+
+
 class IterationBase(SQLModel):
     id: str = Field(primary_key=True, default_factory=generate_uid("it"))
     dataset_id: str = Field(foreign_key="dataset.id")
     total: int = Field(default=0)
 
-    filter: Optional[str] = Field(default=None)
-    preprocessor: Optional[str] = Field(default=None)
-    collater: Optional[str] = Field(default=None)
+    filters: Optional[list[IterationFilter]] = Field(default=None, sa_type=JSON)
+    preprocessors: Optional[list[IterationPreprocessor]] = Field(
+        default=None, sa_type=JSON
+    )
+    collater: Optional[IterationCollater] = Field(default=None, sa_type=JSON)
 
     shuffle: bool = Field(default=False)
     shuffle_seed: Optional[int] = Field(default=None)

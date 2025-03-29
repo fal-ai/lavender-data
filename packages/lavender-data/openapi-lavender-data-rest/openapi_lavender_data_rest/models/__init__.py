@@ -13,6 +13,12 @@ from .get_iteration_response import GetIterationResponse
 from .get_shardset_response import GetShardsetResponse
 from .http_validation_error import HTTPValidationError
 from .in_progress_index import InProgressIndex
+from .iteration_collater import IterationCollater
+from .iteration_collater_params import IterationCollaterParams
+from .iteration_filter import IterationFilter
+from .iteration_filter_params import IterationFilterParams
+from .iteration_preprocessor import IterationPreprocessor
+from .iteration_preprocessor_params import IterationPreprocessorParams
 from .iteration_public import IterationPublic
 from .preview_dataset_response import PreviewDatasetResponse
 from .preview_dataset_response_samples_item import PreviewDatasetResponseSamplesItem
@@ -39,6 +45,12 @@ __all__ = (
     "GetShardsetResponse",
     "HTTPValidationError",
     "InProgressIndex",
+    "IterationCollater",
+    "IterationCollaterParams",
+    "IterationFilter",
+    "IterationFilterParams",
+    "IterationPreprocessor",
+    "IterationPreprocessorParams",
     "IterationPublic",
     "PreviewDatasetResponse",
     "PreviewDatasetResponseSamplesItem",

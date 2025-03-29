@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCcw } from 'lucide-react';
 import { syncShardset } from './sync-shardset-action';
 import { Progress } from '@/components/ui/progress';
+import { useRouter } from 'next/navigation';
 
 type SyncShardsetStatus = components['schemas']['SyncShardsetStatus'];
 
@@ -19,6 +20,7 @@ export function SyncShardsetButton({
 }) {
   const [syncStatus, setSyncStatus] = useState<SyncShardsetStatus | null>(null);
   const [intervalRef, setIntervalRef] = useState<NodeJS.Timeout | null>(null);
+  const router = useRouter();
 
   const refreshStatus = async () => {
     try {
@@ -48,6 +50,7 @@ export function SyncShardsetButton({
     } else if (syncStatus == null && intervalRef != null) {
       clearInterval(intervalRef);
       setIntervalRef(null);
+      router.refresh();
     }
   }, [syncStatus]);
 

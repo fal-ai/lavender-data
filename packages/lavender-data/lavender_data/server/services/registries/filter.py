@@ -6,6 +6,9 @@ from .abc import Registry
 class Filter(ABC):
     name: str
 
+    def __init__(self, **kwargs):
+        pass
+
     @abstractmethod
     def filter(self, sample: dict) -> bool:
         raise NotImplementedError

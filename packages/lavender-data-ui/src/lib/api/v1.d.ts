@@ -313,12 +313,11 @@ export interface components {
             dataset_id: string;
             /** Shardsets */
             shardsets?: string[] | null;
-            /** Filter */
-            filter?: string | null;
-            /** Preprocessor */
-            preprocessor?: string | null;
-            /** Collater */
-            collater?: string | null;
+            /** Filters */
+            filters?: components["schemas"]["IterationFilter"][] | null;
+            /** Preprocessors */
+            preprocessors?: components["schemas"]["IterationPreprocessor"][] | null;
+            collater?: components["schemas"]["IterationCollater"] | null;
             /** Shuffle */
             shuffle?: boolean | null;
             /** Shuffle Seed */
@@ -459,12 +458,11 @@ export interface components {
              * @default 0
              */
             total: number;
-            /** Filter */
-            filter?: string | null;
-            /** Preprocessor */
-            preprocessor?: string | null;
-            /** Collater */
-            collater?: string | null;
+            /** Filters */
+            filters?: components["schemas"]["IterationFilter"][] | null;
+            /** Preprocessors */
+            preprocessors?: components["schemas"]["IterationPreprocessor"][] | null;
+            collater?: components["schemas"]["IterationCollater"] | null;
             /**
              * Shuffle
              * @default false
@@ -532,6 +530,27 @@ export interface components {
             /** Started At */
             started_at: number;
         };
+        /** IterationCollater */
+        IterationCollater: {
+            /** Name */
+            name: string;
+            /** Params */
+            params: Record<string, never>;
+        };
+        /** IterationFilter */
+        IterationFilter: {
+            /** Name */
+            name: string;
+            /** Params */
+            params: Record<string, never>;
+        };
+        /** IterationPreprocessor */
+        IterationPreprocessor: {
+            /** Name */
+            name: string;
+            /** Params */
+            params: Record<string, never>;
+        };
         /** IterationPublic */
         IterationPublic: {
             /** Id */
@@ -543,12 +562,11 @@ export interface components {
              * @default 0
              */
             total: number;
-            /** Filter */
-            filter?: string | null;
-            /** Preprocessor */
-            preprocessor?: string | null;
-            /** Collater */
-            collater?: string | null;
+            /** Filters */
+            filters?: components["schemas"]["IterationFilter"][] | null;
+            /** Preprocessors */
+            preprocessors?: components["schemas"]["IterationPreprocessor"][] | null;
+            collater?: components["schemas"]["IterationCollater"] | null;
             /**
              * Shuffle
              * @default false

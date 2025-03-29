@@ -9,6 +9,9 @@ from lavender_data.client.api import (
     get_next_item,
     GetIterationResponse,
     LavenderDataApiError,
+    IterationFilter,
+    IterationPreprocessor,
+    IterationCollater,
 )
 
 __all__ = ["Iteration"]
@@ -36,9 +39,9 @@ class Iteration:
         cls,
         dataset_id: str,
         shardsets: Optional[list[str]] = None,
-        filter: Optional[str] = None,
-        preprocessor: Optional[str] = None,
-        collater: Optional[str] = None,
+        filters: Optional[list[tuple[str, dict]]] = None,
+        preprocessors: Optional[list[tuple[str, dict]]] = None,
+        collater: Optional[tuple[str, dict]] = None,
         shuffle: Optional[bool] = None,
         shuffle_seed: Optional[int] = None,
         shuffle_block_size: Optional[int] = None,
@@ -59,9 +62,29 @@ class Iteration:
         iteration = create_iteration(
             dataset_id=dataset_id,
             shardsets=shardsets,
-            filter=filter,
-            preprocessor=preprocessor,
-            collater=collater,
+            filters=(
+                [
+                    IterationFilter.from_dict({"name": name, "params": params})
+                    for name, params in filters
+                ]
+                if filters is not None
+                else None
+            ),
+            preprocessors=(
+                [
+                    IterationPreprocessor.from_dict({"name": name, "params": params})
+                    for name, params in preprocessors
+                ]
+                if preprocessors is not None
+                else None
+            ),
+            collater=(
+                IterationCollater.from_dict(
+                    {"name": collater[0], "params": collater[1]}
+                )
+                if collater is not None
+                else None
+            ),
             shuffle=shuffle,
             shuffle_seed=shuffle_seed,
             shuffle_block_size=shuffle_block_size,

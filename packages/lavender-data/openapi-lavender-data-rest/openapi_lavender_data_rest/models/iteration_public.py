@@ -1,12 +1,18 @@
 import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
 from ..types import UNSET, Unset
+
+if TYPE_CHECKING:
+    from ..models.iteration_collater import IterationCollater
+    from ..models.iteration_filter import IterationFilter
+    from ..models.iteration_preprocessor import IterationPreprocessor
+
 
 T = TypeVar("T", bound="IterationPublic")
 
@@ -19,9 +25,9 @@ class IterationPublic:
         created_at (datetime.datetime):
         id (Union[Unset, str]):
         total (Union[Unset, int]):  Default: 0.
-        filter_ (Union[None, Unset, str]):
-        preprocessor (Union[None, Unset, str]):
-        collater (Union[None, Unset, str]):
+        filters (Union[None, Unset, list['IterationFilter']]):
+        preprocessors (Union[None, Unset, list['IterationPreprocessor']]):
+        collater (Union['IterationCollater', None, Unset]):
         shuffle (Union[Unset, bool]):  Default: False.
         shuffle_seed (Union[None, Unset, int]):
         shuffle_block_size (Union[None, Unset, int]):
@@ -33,9 +39,9 @@ class IterationPublic:
     created_at: datetime.datetime
     id: Union[Unset, str] = UNSET
     total: Union[Unset, int] = 0
-    filter_: Union[None, Unset, str] = UNSET
-    preprocessor: Union[None, Unset, str] = UNSET
-    collater: Union[None, Unset, str] = UNSET
+    filters: Union[None, Unset, list["IterationFilter"]] = UNSET
+    preprocessors: Union[None, Unset, list["IterationPreprocessor"]] = UNSET
+    collater: Union["IterationCollater", None, Unset] = UNSET
     shuffle: Union[Unset, bool] = False
     shuffle_seed: Union[None, Unset, int] = UNSET
     shuffle_block_size: Union[None, Unset, int] = UNSET
@@ -44,6 +50,8 @@ class IterationPublic:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.iteration_collater import IterationCollater
+
         dataset_id = self.dataset_id
 
         created_at = self.created_at.isoformat()
@@ -52,21 +60,35 @@ class IterationPublic:
 
         total = self.total
 
-        filter_: Union[None, Unset, str]
-        if isinstance(self.filter_, Unset):
-            filter_ = UNSET
-        else:
-            filter_ = self.filter_
+        filters: Union[None, Unset, list[dict[str, Any]]]
+        if isinstance(self.filters, Unset):
+            filters = UNSET
+        elif isinstance(self.filters, list):
+            filters = []
+            for filters_type_0_item_data in self.filters:
+                filters_type_0_item = filters_type_0_item_data.to_dict()
+                filters.append(filters_type_0_item)
 
-        preprocessor: Union[None, Unset, str]
-        if isinstance(self.preprocessor, Unset):
-            preprocessor = UNSET
         else:
-            preprocessor = self.preprocessor
+            filters = self.filters
 
-        collater: Union[None, Unset, str]
+        preprocessors: Union[None, Unset, list[dict[str, Any]]]
+        if isinstance(self.preprocessors, Unset):
+            preprocessors = UNSET
+        elif isinstance(self.preprocessors, list):
+            preprocessors = []
+            for preprocessors_type_0_item_data in self.preprocessors:
+                preprocessors_type_0_item = preprocessors_type_0_item_data.to_dict()
+                preprocessors.append(preprocessors_type_0_item)
+
+        else:
+            preprocessors = self.preprocessors
+
+        collater: Union[None, Unset, dict[str, Any]]
         if isinstance(self.collater, Unset):
             collater = UNSET
+        elif isinstance(self.collater, IterationCollater):
+            collater = self.collater.to_dict()
         else:
             collater = self.collater
 
@@ -111,10 +133,10 @@ class IterationPublic:
             field_dict["id"] = id
         if total is not UNSET:
             field_dict["total"] = total
-        if filter_ is not UNSET:
-            field_dict["filter"] = filter_
-        if preprocessor is not UNSET:
-            field_dict["preprocessor"] = preprocessor
+        if filters is not UNSET:
+            field_dict["filters"] = filters
+        if preprocessors is not UNSET:
+            field_dict["preprocessors"] = preprocessors
         if collater is not UNSET:
             field_dict["collater"] = collater
         if shuffle is not UNSET:
@@ -132,6 +154,10 @@ class IterationPublic:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.iteration_collater import IterationCollater
+        from ..models.iteration_filter import IterationFilter
+        from ..models.iteration_preprocessor import IterationPreprocessor
+
         d = dict(src_dict)
         dataset_id = d.pop("dataset_id")
 
@@ -141,30 +167,64 @@ class IterationPublic:
 
         total = d.pop("total", UNSET)
 
-        def _parse_filter_(data: object) -> Union[None, Unset, str]:
+        def _parse_filters(data: object) -> Union[None, Unset, list["IterationFilter"]]:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
-            return cast(Union[None, Unset, str], data)
+            try:
+                if not isinstance(data, list):
+                    raise TypeError()
+                filters_type_0 = []
+                _filters_type_0 = data
+                for filters_type_0_item_data in _filters_type_0:
+                    filters_type_0_item = IterationFilter.from_dict(filters_type_0_item_data)
 
-        filter_ = _parse_filter_(d.pop("filter", UNSET))
+                    filters_type_0.append(filters_type_0_item)
 
-        def _parse_preprocessor(data: object) -> Union[None, Unset, str]:
+                return filters_type_0
+            except:  # noqa: E722
+                pass
+            return cast(Union[None, Unset, list["IterationFilter"]], data)
+
+        filters = _parse_filters(d.pop("filters", UNSET))
+
+        def _parse_preprocessors(data: object) -> Union[None, Unset, list["IterationPreprocessor"]]:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
-            return cast(Union[None, Unset, str], data)
+            try:
+                if not isinstance(data, list):
+                    raise TypeError()
+                preprocessors_type_0 = []
+                _preprocessors_type_0 = data
+                for preprocessors_type_0_item_data in _preprocessors_type_0:
+                    preprocessors_type_0_item = IterationPreprocessor.from_dict(preprocessors_type_0_item_data)
 
-        preprocessor = _parse_preprocessor(d.pop("preprocessor", UNSET))
+                    preprocessors_type_0.append(preprocessors_type_0_item)
 
-        def _parse_collater(data: object) -> Union[None, Unset, str]:
+                return preprocessors_type_0
+            except:  # noqa: E722
+                pass
+            return cast(Union[None, Unset, list["IterationPreprocessor"]], data)
+
+        preprocessors = _parse_preprocessors(d.pop("preprocessors", UNSET))
+
+        def _parse_collater(data: object) -> Union["IterationCollater", None, Unset]:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
-            return cast(Union[None, Unset, str], data)
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                collater_type_0 = IterationCollater.from_dict(data)
+
+                return collater_type_0
+            except:  # noqa: E722
+                pass
+            return cast(Union["IterationCollater", None, Unset], data)
 
         collater = _parse_collater(d.pop("collater", UNSET))
 
@@ -217,8 +277,8 @@ class IterationPublic:
             created_at=created_at,
             id=id,
             total=total,
-            filter_=filter_,
-            preprocessor=preprocessor,
+            filters=filters,
+            preprocessors=preprocessors,
             collater=collater,
             shuffle=shuffle,
             shuffle_seed=shuffle_seed,

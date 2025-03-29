@@ -7,9 +7,9 @@ export async function createIteration(formData: FormData) {
   // Extract values from form data
   const datasetId = formData.get('datasetId') as string;
   const shardsetsJson = formData.get('shardsetsJson') as string;
-  const preprocessor = formData.get('preprocessor') as string;
-  const filter = formData.get('filter') as string;
-  const collater = formData.get('collater') as string;
+  const preprocessorsJson = formData.get('preprocessorsJson') as string;
+  const filtersJson = formData.get('filtersJson') as string;
+  const collaterJson = formData.get('collaterJson') as string;
   const shuffle = formData.get('shuffle') === 'true';
   const shuffleSeed = parseInt(formData.get('shuffleSeed') as string, 10) || 0;
   const shuffleBlockSize =
@@ -45,9 +45,9 @@ export async function createIteration(formData: FormData) {
       body: {
         dataset_id: datasetId,
         shardsets,
-        preprocessor: preprocessor || null,
-        filter: filter || null,
-        collater: collater || null,
+        preprocessors: null,
+        filters: null,
+        collater: null,
         shuffle,
         shuffle_seed: shuffleSeed,
         shuffle_block_size: shuffleBlockSize,

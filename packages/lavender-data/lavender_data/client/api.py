@@ -47,6 +47,11 @@ from openapi_lavender_data_rest.models.dataset_column_public import DatasetColum
 from openapi_lavender_data_rest.models.shardset_public import ShardsetPublic
 from openapi_lavender_data_rest.models.shardset_with_shards import ShardsetWithShards
 from openapi_lavender_data_rest.models.shard_public import ShardPublic
+from openapi_lavender_data_rest.models.iteration_filter import IterationFilter
+from openapi_lavender_data_rest.models.iteration_preprocessor import (
+    IterationPreprocessor,
+)
+from openapi_lavender_data_rest.models.iteration_collater import IterationCollater
 
 
 class LavenderDataApiError(Exception):
@@ -195,9 +200,9 @@ class LavenderDataClient:
         shuffle_block_size: Optional[int] = None,
         batch_size: Optional[int] = None,
         replication_pg: Optional[list[list[int]]] = None,
-        filter: Optional[str] = None,
-        preprocessor: Optional[str] = None,
-        collater: Optional[str] = None,
+        filters: Optional[list[IterationFilter]] = None,
+        preprocessors: Optional[list[IterationPreprocessor]] = None,
+        collater: Optional[IterationCollater] = None,
     ):
         with self._get_client() as client:
             response = create_iteration_iterations_post.sync_detailed(
@@ -209,8 +214,8 @@ class LavenderDataClient:
                     shuffle_seed=shuffle_seed,
                     shuffle_block_size=shuffle_block_size,
                     batch_size=batch_size,
-                    preprocessor=preprocessor,
-                    filter_=filter,
+                    preprocessors=preprocessors,
+                    filters=filters,
                     collater=collater,
                     replication_pg=replication_pg,
                 ),
@@ -356,9 +361,9 @@ def create_iteration(
     shuffle_block_size: Optional[int] = None,
     batch_size: Optional[int] = None,
     replication_pg: Optional[list[list[int]]] = None,
-    filter: Optional[str] = None,
-    preprocessor: Optional[str] = None,
-    collater: Optional[str] = None,
+    filters: Optional[list[IterationFilter]] = None,
+    preprocessors: Optional[list[IterationPreprocessor]] = None,
+    collater: Optional[IterationCollater] = None,
 ):
     return _client_instance.create_iteration(
         dataset_id=dataset_id,
@@ -368,8 +373,8 @@ def create_iteration(
         shuffle_block_size=shuffle_block_size,
         batch_size=batch_size,
         replication_pg=replication_pg,
-        filter=filter,
-        preprocessor=preprocessor,
+        filters=filters,
+        preprocessors=preprocessors,
         collater=collater,
     )
 

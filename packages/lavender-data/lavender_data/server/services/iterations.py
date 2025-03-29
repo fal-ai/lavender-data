@@ -7,8 +7,11 @@ from typing import Optional, Any
 from pydantic import BaseModel
 from lavender_data.server.cache import RedisClient
 from lavender_data.server.db.models import (
-    Iteration,
     Shardset,
+    Iteration,
+    IterationPreprocessor,
+    IterationFilter,
+    IterationCollater,
 )
 from lavender_data.server.reader import ShardInfo, MainShardInfo, GetSampleParams
 
@@ -107,14 +110,16 @@ class IterationState:
                     self._key("replication_pg"), json.dumps(iteration.replication_pg)
                 )
 
-            if iteration.preprocessor is not None:
-                pipe.set(self._key("preprocessor"), iteration.preprocessor)
+            if iteration.preprocessors is not None:
+                pipe.set(
+                    self._key("preprocessors"), json.dumps(iteration.preprocessors)
+                )
 
-            if iteration.filter is not None:
-                pipe.set(self._key("filter"), iteration.filter)
+            if iteration.filters is not None:
+                pipe.set(self._key("filters"), json.dumps(iteration.filters))
 
             if iteration.collater is not None:
-                pipe.set(self._key("collater"), iteration.collater)
+                pipe.set(self._key("collater"), json.dumps(iteration.collater))
 
     def _set_shardsets_info(self, shardsets: list[Shardset]) -> None:
         with self.pipeline() as pipe:
@@ -323,23 +328,23 @@ class IterationState:
     def get_batch_size(self) -> int:
         return int(self._get("batch_size"))
 
-    def get_preprocessor(self) -> Optional[str]:
-        v = self._get("preprocessor")
+    def get_preprocessors(self) -> Optional[list[IterationPreprocessor]]:
+        v = self._get("preprocessors")
         if v is None:
             return None
-        return v.decode("utf-8")
+        return json.loads(v)
 
-    def get_filter(self) -> Optional[str]:
-        v = self._get("filter")
+    def get_filters(self) -> Optional[list[IterationFilter]]:
+        v = self._get("filters")
         if v is None:
             return None
-        return v.decode("utf-8")
+        return json.loads(v)
 
-    def get_collater(self) -> Optional[str]:
+    def get_collater(self) -> Optional[IterationCollater]:
         v = self._get("collater")
         if v is None:
             return None
-        return v.decode("utf-8")
+        return json.loads(v)
 
     def next_item(self, rank: int) -> GetSampleParams:
         pipe = self.cache.pipeline()

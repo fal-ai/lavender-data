@@ -8,10 +8,13 @@ from lavender_data.server import (
 )
 
 
-@FilterRegistry.register("only_even_uids")
-class OnlyEvenUidsFilter(Filter):
+@FilterRegistry.register("uid_mod")
+class UidModFilter(Filter):
+    def __init__(self, mod: int):
+        self.mod = mod
+
     def filter(self, sample: dict) -> bool:
-        return sample["uid"] % 2 == 0
+        return sample["uid"] % self.mod == 0
 
 
 @CollaterRegistry.register("pylist")
