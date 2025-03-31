@@ -264,8 +264,7 @@ class IterationState:
     def pop_index(self, rank: int) -> int:
         retrieved = self.cache.lpop(self._key(f"indices:{rank}"), 1)
         if retrieved is None:
-            with self.cache.lock(f"iteration:{self.iteration_id}"):
-                self.push_indices(rank)
+            self.push_indices(rank)
             retrieved = self.cache.lpop(self._key(f"indices:{rank}"), 1)
 
         if retrieved is None:
@@ -347,16 +346,20 @@ class IterationState:
             return None
         return json.loads(v)
 
-    def next_item(self, rank: int) -> GetSampleParams:
+    def next_item(self, rank: int) -> tuple[int, GetSampleParams]:
         pipe = self.cache.pipeline()
         pipe.get(self._key("uid_column_name"))
         pipe.get(self._key("uid_column_type"))
         [uid_column_name, uid_column_type] = pipe.execute()
         uid_column_name = uid_column_name.decode("utf-8")
         uid_column_type = uid_column_type.decode("utf-8")
-        index = self.pop_index(rank)
+
+        with self.cache.lock(f"next_item:{self.iteration_id}"):
+            index = self.pop_index(rank)
+            current = self.get_current()
+
         main_shard, feature_shards = self.get_shards_from_index(index)
-        return GetSampleParams(
+        return current, GetSampleParams(
             index=index,
             uid_column_name=uid_column_name,
             uid_column_type=uid_column_type,
@@ -374,7 +377,7 @@ class IterationState:
             for k, v in self.cache.hgetall(self._key("inprogress")).items()
         ]
 
-    def get_progress(self) -> Progress:
+    def get_current(self) -> int:
         pushed = self.cache.incr(self._key("pushed"), 0)
         inqueue = 0
 
@@ -397,8 +400,11 @@ class IterationState:
                 pipe.llen(self._key(f"indices:{rank}"))
             inqueue = sum(pipe.execute())
 
+        return pushed - inqueue
+
+    def get_progress(self) -> Progress:
         total = int(self._get("total"))
-        current = pushed - inqueue
+        current = self.get_current()
         inprogress = self.get_inprogress()
         completed = self.cache.incr(self._key("completed"), 0)
         filtered = self.cache.incr(self._key("filtered"), 0)

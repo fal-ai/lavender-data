@@ -241,7 +241,7 @@ def get_next(
     samples = []
     while len(samples) < max(batch_size, 1):
         try:
-            next_item = state.next_item(rank)
+            current, next_item = state.next_item(rank)
         except IterationStateException as e:
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -266,10 +266,26 @@ def get_next(
         samples.append(sample)
         indices.append(next_item.index)
 
-    batch = collater(samples)
-    for preprocessor in preprocessors:
-        batch = preprocessor(batch)
+    try:
+        batch = collater(samples)
+    except Exception as e:
+        logger.exception(f'Error in collater: {e.__class__.__name__}("{str(e)}")')
+        raise HTTPException(
+            status_code=400,
+            detail=f'Error in collater: {e.__class__.__name__}("{str(e)}")',
+        )
+
+    try:
+        for preprocessor in preprocessors:
+            batch = preprocessor(batch)
+    except Exception as e:
+        logger.exception(f'Error in preprocessor: {e.__class__.__name__}("{str(e)}")')
+        raise HTTPException(
+            status_code=400,
+            detail=f'Error in preprocessor: {e.__class__.__name__}("{str(e)}")',
+        )
     batch["_lavender_data_indices"] = indices
+    batch["_lavender_data_current"] = current
 
     if batch_size == 0:
         _batch = {}

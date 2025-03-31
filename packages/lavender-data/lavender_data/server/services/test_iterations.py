@@ -283,7 +283,7 @@ class TestIterationState(unittest.TestCase):
             )
             expected_main_shard = iteration.shardsets[0].shards[shard_index]
 
-            item = iteration_state.next_item(rank)
+            _, item = iteration_state.next_item(rank)
             index = item.index
             main_shard = item.main_shard
             feature_shards = item.feature_shards
@@ -346,7 +346,7 @@ class TestIterationState(unittest.TestCase):
         iteration_state.init(iteration)
 
         for i in range(10):
-            next_item = iteration_state.next_item(0)
+            _, next_item = iteration_state.next_item(0)
             if i < 5:
                 iteration_state.complete(next_item.index)
 
