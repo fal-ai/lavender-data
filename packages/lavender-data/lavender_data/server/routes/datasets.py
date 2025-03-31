@@ -66,7 +66,11 @@ def read_dataset(
 ) -> GetSampleParams:
     main_shardset = get_main_shardset(dataset.shardsets)
     shard_index, sample_index = span(
-        index, [shard.samples for shard in main_shardset.shards]
+        index,
+        [
+            shard.samples
+            for shard in sorted(main_shardset.shards, key=lambda s: s.index)
+        ],
     )
 
     uid_column_type = None
@@ -76,7 +80,15 @@ def read_dataset(
         if dataset.uid_column_name in columns:
             uid_column_type = columns[dataset.uid_column_name]
 
-        shard = shardset.shards[shard_index]
+        try:
+            shard = [
+                shard
+                for shard in sorted(shardset.shards, key=lambda s: s.index)
+                if shard.index == shard_index
+            ][0]
+        except IndexError:
+            # f"Shard index {shard_index} not found in shardset {shardset.id}",
+            continue
 
         shard_info = ShardInfo(
             shardset_id=shardset.id,
