@@ -209,7 +209,11 @@ class CreateShardsetResponse(ShardsetPublic):
 
 @router.post("/{dataset_id}/shardsets")
 def create_shardset(
-    dataset_id: str, params: CreateShardsetParams, session: DbSession
+    dataset_id: str,
+    params: CreateShardsetParams,
+    session: DbSession,
+    cache: RedisClient,
+    background_tasks: BackgroundTasks,
 ) -> CreateShardsetResponse:
     try:
         dataset = session.get_one(Dataset, dataset_id)
@@ -282,6 +286,26 @@ def create_shardset(
         raise
 
     session.refresh(shardset)
+
+    cache.hset(
+        _sync_status_key(shardset.id),
+        mapping=SyncShardsetStatus(
+            status="pending",
+            done_count=0,
+            shard_count=0,
+        ).model_dump(),
+    )
+    background_tasks.add_task(
+        sync_shardset_location,
+        shardset_id=shardset.id,
+        shardset_location=shardset.location,
+        shardset_shard_samples=[s.samples for s in shardset.shards],
+        shardset_shard_locations=[s.location for s in shardset.shards],
+        num_workers=10,
+        overwrite=False,
+        cache_key=_sync_status_key(shardset.id),
+    )
+
     return shardset
 
 
