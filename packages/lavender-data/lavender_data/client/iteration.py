@@ -1,4 +1,5 @@
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 
 from lavender_data.logging import get_logger
 from lavender_data.client.api import (
@@ -134,6 +135,7 @@ class Iteration:
         timeout: float = 0,
         multiprocessing_context=None,
         *,
+        num_workers: int = 0,
         prefetch_factor: Optional[int] = None,
         persistent_workers: bool = False,
         pin_memory_device: str = "",
@@ -143,9 +145,15 @@ class Iteration:
         except ImportError:
             raise ImportError("torch is not installed. Please install it first.")
 
+        is_async = prefetch_factor is not None
+        num_workers = max(1, num_workers)
         return DataLoader(
-            self,
-            num_workers=1 if prefetch_factor is not None else 0,
+            (
+                self
+                if not is_async
+                else AsyncIteration(self, num_workers, prefetch_factor)
+            ),
+            num_workers=1 if is_async else 0,
             timeout=timeout,
             collate_fn=noop_collate_fn,
             multiprocessing_context=multiprocessing_context,
@@ -182,6 +190,77 @@ class Iteration:
             else:
                 raise e
         return sample_or_batch
+
+    def __iter__(self):
+        return self
+
+
+class AsyncIteration:
+    def __init__(self, iteration: Iteration, num_workers: int, prefetch_factor: int):
+        self.iteration = iteration
+        self.num_workers = num_workers
+        self.prefetch_factor = prefetch_factor
+        self.executor: Optional[ThreadPoolExecutor] = None  # to be serializable
+        self.futures: list[Future] = []
+        self.arrived: list[tuple[int, dict]] = []
+        self.current = 0
+        self.stopped = False
+
+    def _submit_next(self):
+        if self.stopped:
+            return
+
+        queue_size = self.num_workers * self.prefetch_factor
+        if self.executor is None:
+            self.executor = ThreadPoolExecutor(queue_size)
+
+        while len(self.futures) < queue_size:
+            future = self.executor.submit(self.iteration.__next__)
+            self.futures.append(future)
+
+    def __len__(self):
+        return len(self.iteration)
+
+    def __next__(self):
+        if len(self.futures) == 0:
+            self._submit_next()
+
+        next_index = self.current + 1
+
+        # check if the data has already arrived during the previous iteration
+        already_arrived = [data for i, data in self.arrived if i == next_index]
+        if len(already_arrived) > 0:
+            self.current = next_index
+            return already_arrived[0]
+
+        # if the iteration is stopped and there are no more futures to be waited, stop iteration
+        if self.stopped and len(self.futures) == 0:
+            raise StopIteration
+
+        while True:
+            try:
+                # wait for the data to arrive
+                future = next(as_completed(self.futures))
+                self.futures.remove(future)
+                data = future.result()
+            except StopIteration:
+                # it means one of the workers detected that the iteration is stopped
+                # but it's not guaranteed that all data from the other workers has returned
+                self.stopped = True
+
+            self._submit_next()
+
+            arrived_index = data["_lavender_data_current"]
+
+            if arrived_index == next_index:
+                # if arrived index is the next index, return the data
+                self.current = next_index
+                break
+            else:
+                # if arrived index is not the next index, add the data to the list
+                self.arrived.append((arrived_index, data))
+
+        return data
 
     def __iter__(self):
         return self
