@@ -221,7 +221,21 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
-    def get_iterations(self, dataset_id: Optional[str] = None):
+    def get_iterations(
+        self, dataset_id: Optional[str] = None, dataset_name: Optional[str] = None
+    ):
+        if dataset_id is None and dataset_name is None:
+            raise ValueError("Either dataset_id or dataset_name must be provided")
+
+        if dataset_id is not None and dataset_name is not None:
+            raise ValueError("Only one of dataset_id or dataset_name can be provided")
+
+        if dataset_name is not None:
+            dataset = self.get_dataset(name=dataset_name)
+            if dataset is None:
+                raise ValueError(f"Dataset {dataset_name} not found")
+            dataset_id = dataset.id
+
         with self._get_client() as client:
             response = get_iterations_iterations_get.sync_detailed(
                 client=client,
@@ -376,8 +390,12 @@ def create_iteration(
 
 
 @ensure_client()
-def get_iterations(dataset_id: Optional[str] = None):
-    return _client_instance.get_iterations(dataset_id=dataset_id)
+def get_iterations(
+    dataset_id: Optional[str] = None, dataset_name: Optional[str] = None
+):
+    return _client_instance.get_iterations(
+        dataset_id=dataset_id, dataset_name=dataset_name
+    )
 
 
 @ensure_client()

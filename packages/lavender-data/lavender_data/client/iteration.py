@@ -7,6 +7,7 @@ from lavender_data.client.api import (
     get_iterations,
     get_iteration,
     get_next_item,
+    get_dataset,
     GetIterationResponse,
     LavenderDataApiError,
     IterationFilter,
@@ -37,7 +38,8 @@ class Iteration:
     @classmethod
     def from_dataset(
         cls,
-        dataset_id: str,
+        dataset_id: Optional[str] = None,
+        dataset_name: Optional[str] = None,
         shardsets: Optional[list[str]] = None,
         filters: Optional[list[tuple[str, dict]]] = None,
         preprocessors: Optional[list[tuple[str, dict]]] = None,
@@ -49,10 +51,21 @@ class Iteration:
         replication_pg: Optional[list[list[int]]] = None,
         resume: Optional[bool] = False,
     ):
+        if dataset_id is None and dataset_name is None:
+            raise ValueError("Either dataset_id or dataset_name must be provided")
+
+        if dataset_id is not None and dataset_name is not None:
+            raise ValueError("Only one of dataset_id or dataset_name can be provided")
+
+        if dataset_id is None:
+            dataset_id = get_dataset(dataset_name).id
+
         logger = get_logger(__name__)
         if resume:
             try:
-                return cls.from_latest_iteration(dataset_id)
+                return cls.from_latest_iteration(
+                    dataset_id=dataset_id, dataset_name=dataset_name
+                )
             except ValueError as e:
                 if "No iterations exist" in str(e):
                     logger.warning("No iterations exist, creating a new one")
@@ -94,8 +107,10 @@ class Iteration:
         return cls.from_iteration(iteration)
 
     @classmethod
-    def from_latest_iteration(cls, dataset_id: str):
-        iterations = get_iterations(dataset_id=dataset_id)
+    def from_latest_iteration(
+        cls, dataset_id: Optional[str] = None, dataset_name: Optional[str] = None
+    ):
+        iterations = get_iterations(dataset_id=dataset_id, dataset_name=dataset_name)
         if len(iterations) == 0:
             raise ValueError("No iterations exist")
         return cls.from_iteration(iterations[0])

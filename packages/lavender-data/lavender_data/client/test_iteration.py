@@ -122,9 +122,12 @@ class TestIteration(unittest.TestCase):
 
     def test_iteration(self):
         read_samples = 0
-        iteration = create_iteration(self.dataset_id, shardsets=[self.shardset_id])
         for i, sample in tqdm.tqdm(
-            enumerate(Iteration.from_iteration_id(iteration.id)),
+            enumerate(
+                Iteration.from_dataset(
+                    dataset_id=self.dataset_id, shardsets=[self.shardset_id]
+                )
+            ),
             total=self.total_samples,
         ):
             self.assertEqual(
@@ -137,13 +140,14 @@ class TestIteration(unittest.TestCase):
     def test_iteration_with_batch_size(self):
         read_samples = 0
         batch_size = 10
-        iteration = create_iteration(
-            self.dataset_id,
-            shardsets=[self.shardset_id],
-            batch_size=batch_size,
-        )
         for i, batch in tqdm.tqdm(
-            enumerate(Iteration.from_iteration_id(iteration.id)),
+            enumerate(
+                Iteration.from_dataset(
+                    self.dataset_id,
+                    shardsets=[self.shardset_id],
+                    batch_size=batch_size,
+                )
+            ),
             total=self.total_samples // batch_size,
         ):
             self.assertEqual(len(batch["image_url"]), batch_size)
@@ -159,13 +163,14 @@ class TestIteration(unittest.TestCase):
 
     def test_iteration_with_filter(self):
         read_samples = 0
-        iteration = create_iteration(
-            self.dataset_id,
-            shardsets=[self.shardset_id],
-            filter="test_filter",
-        )
         for i, sample in tqdm.tqdm(
-            enumerate(Iteration.from_iteration_id(iteration.id)),
+            enumerate(
+                Iteration.from_dataset(
+                    self.dataset_id,
+                    shardsets=[self.shardset_id],
+                    filters=[("test_filter", {})],
+                )
+            ),
             total=self.total_samples // 2,
         ):
             self.assertEqual(sample["id"] % 2, 0)
@@ -174,13 +179,14 @@ class TestIteration(unittest.TestCase):
 
     def test_iteration_with_preprocessor(self):
         read_samples = 0
-        iteration = create_iteration(
-            self.dataset_id,
-            shardsets=[self.shardset_id],
-            preprocessor="test_preprocessor",
-        )
         for i, sample in tqdm.tqdm(
-            enumerate(Iteration.from_iteration_id(iteration.id)),
+            enumerate(
+                Iteration.from_dataset(
+                    self.dataset_id,
+                    shardsets=[self.shardset_id],
+                    preprocessors=[("test_preprocessor", {})],
+                )
+            ),
             total=self.total_samples,
         ):
             self.assertEqual(sample["double_id"], i * 2)
