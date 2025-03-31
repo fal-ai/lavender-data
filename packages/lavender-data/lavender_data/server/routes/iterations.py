@@ -284,8 +284,6 @@ def get_next(
             status_code=400,
             detail=f'Error in preprocessor: {e.__class__.__name__}("{str(e)}")',
         )
-    batch["_lavender_data_indices"] = indices
-    batch["_lavender_data_current"] = current
 
     if batch_size == 0:
         _batch = {}
@@ -295,6 +293,9 @@ def get_next(
             else:
                 _batch[k] = v[0]
         batch = _batch
+
+    batch["_lavender_data_indices"] = indices
+    batch["_lavender_data_current"] = current
 
     content = serialize_sample(batch)
 
