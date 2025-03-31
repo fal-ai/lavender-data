@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Plus, Ellipsis } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { isInteger } from 'lodash';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,7 +13,6 @@ import {
 import { Pagination } from '@/components/pagination';
 import { client } from '@/lib/api';
 import { AddShardsetDialog } from './add-shardset-dialog';
-import { AddIterationDialog } from '@/app/iterations/add-iteration-dialog';
 import { utcToLocal } from '@/lib/date';
 import { ErrorCard } from '@/components/error-card';
 import {
@@ -284,12 +283,12 @@ export default async function DatasetDetailPage({
           </TableBody>
         </Table>
         <div className="w-full flex justify-end">
-          <AddIterationDialog fixedDataset={dataset}>
+          {/* <AddIterationDialog fixedDataset={dataset}>
             <Button variant="outline">
               <Plus />
               Iteration
             </Button>
-          </AddIterationDialog>
+          </AddIterationDialog> */}
         </div>
       </div>
     </main>

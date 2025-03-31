@@ -1,6 +1,5 @@
 'use client';
 
-import { client } from '@/lib/api';
 import type { components } from '@/lib/api/v1';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { RefreshCcw } from 'lucide-react';
 import { syncShardset } from './sync-shardset-action';
 import { Progress } from '@/components/ui/progress';
 import { useRouter } from 'next/navigation';
+import { getSyncShardsetStatus } from '@/lib/client-side-api';
 
 type SyncShardsetStatus = components['schemas']['SyncShardsetStatus'];
 
@@ -24,24 +24,23 @@ export function SyncShardsetButton({
 
   const refreshStatus = async () => {
     try {
-      const response = await client.GET(
-        '/datasets/{dataset_id}/shardsets/{shardset_id}/sync',
-        {
-          params: { path: { dataset_id, shardset_id } },
-        }
-      );
-      if (response.data) {
-        setSyncStatus(response.data);
-      } else {
-        setSyncStatus(null);
-      }
+      const response = await getSyncShardsetStatus(dataset_id, shardset_id);
+      setSyncStatus(response);
     } catch (error) {
+      console.error('error', error);
       setSyncStatus(null);
     }
   };
 
   useEffect(() => {
     refreshStatus();
+
+    return () => {
+      if (intervalRef != null) {
+        clearInterval(intervalRef);
+        setIntervalRef(null);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -52,11 +51,10 @@ export function SyncShardsetButton({
       setIntervalRef(null);
       router.refresh();
     }
-  }, [syncStatus]);
+  }, [syncStatus, intervalRef]);
 
   const clientSyncAction = async () => {
     await syncShardset(dataset_id, shardset_id, true);
-    await refreshStatus();
     setIntervalRef(setInterval(() => refreshStatus(), 100));
   };
 

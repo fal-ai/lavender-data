@@ -9,9 +9,6 @@ import {
 import Link from 'next/link';
 import { client } from '@/lib/api';
 import { utcToLocal } from '@/lib/date';
-import { AddIterationDialog } from './add-iteration-dialog';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
 import { ErrorCard } from '@/components/error-card';
 
 export default async function IterationsPage() {
@@ -90,12 +87,12 @@ export default async function IterationsPage() {
         </TableBody>
       </Table>
       <div className="w-full flex justify-end gap-2">
-        <AddIterationDialog>
+        {/* <AddIterationDialog>
           <Button variant="outline">
             <Plus />
             Iteration
           </Button>
-        </AddIterationDialog>
+        </AddIterationDialog> */}
       </div>
     </main>
   );

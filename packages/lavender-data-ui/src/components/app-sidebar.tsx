@@ -18,15 +18,20 @@ import {
   SidebarHeader,
 } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
-import { client } from '@/lib/api';
+import { getVersion } from '@/lib/client-side-api';
 
 export function AppSidebar() {
   const [version, setVersion] = useState('');
 
   useEffect(() => {
-    client.GET('/version').then((versionResponse) => {
-      setVersion(versionResponse.data?.version || '');
-    });
+    getVersion()
+      .then((versionResponse) => {
+        setVersion(versionResponse.version);
+      })
+      .catch((e) => {
+        setVersion('');
+        console.error(e);
+      });
   }, []);
 
   return (
