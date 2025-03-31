@@ -8,6 +8,7 @@ from sqlmodel import select, update, insert
 from lavender_data.logging import get_logger
 from lavender_data.storage import list_files
 from lavender_data.shard import inspect_shard
+from lavender_data.shard.readers.exceptions import ReaderColumnsRequired
 from lavender_data.server.cache import get_client
 from lavender_data.server.db import Shardset, Shard, get_session
 
@@ -152,10 +153,14 @@ def sync_shardset_location(
             cache.delete(cache_key)
 
         return session.exec(select(Shardset).where(Shardset.id == shardset_id)).one()
+    except ReaderColumnsRequired as e:
+        logger.warning(
+            f"Failed to sync shardset {shardset_id} at {shardset_location}: {e}"
+        )
     except Exception as e:
         logger.exception(
             f"Error syncing shardset {shardset_id} at {shardset_location}: {e}"
         )
+    finally:
         if cache_key and cache:
             cache.delete(cache_key)
-        raise e

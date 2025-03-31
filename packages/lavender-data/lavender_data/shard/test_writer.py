@@ -133,8 +133,9 @@ class TestWriter(unittest.TestCase):
         self.assertEqual(shardset.total_samples, self.total_samples)
 
         read_samples = 0
-        iteration = create_iteration(self.dataset_id, shardsets=[self.shardset_id])
-        for i, sample in enumerate(Iteration.from_iteration_id(iteration.id)):
+        for i, sample in enumerate(
+            Iteration.from_dataset(self.dataset_id, shardsets=[self.shardset_id])
+        ):
             self.assertEqual(sample["text"], f"Sample {i}")
             self.assertEqual(sample["number"], i)
             self.assertTrue(

@@ -5,6 +5,13 @@ from typing_extensions import Self
 
 from lavender_data.storage import download_file
 
+from .exceptions import (
+    ReaderColumnsRequired,
+    ReaderColumnsInvalid,
+    ReaderFormatInvalid,
+    ReaderDirnameOrFilepathRequired,
+)
+
 __all__ = ["Reader"]
 
 
@@ -35,7 +42,7 @@ class Reader(ABC):
                         uid_column_type=uid_column_type,
                     )
                     if isinstance(instance, UntypedReader) and columns is None:
-                        raise ValueError(
+                        raise ReaderColumnsRequired(
                             f'Shard is in "{format}" format, which is not a typed format. '
                             "Please specify columns."
                         )
@@ -51,7 +58,7 @@ class Reader(ABC):
                     raise ImportError(
                         f"Please install required dependencies for {subcls.__name__}"
                     ) from e
-        raise ValueError(f"Invalid format: {format}")
+        raise ReaderFormatInvalid(f"Invalid format: {format}")
 
     @classmethod
     def _reader_classes(cls):
@@ -79,7 +86,7 @@ class Reader(ABC):
         elif filepath:
             self.filepath = filepath
         else:
-            raise ValueError("One of dirname or filepath must be specified")
+            raise ReaderDirnameOrFilepathRequired()
 
         self.location = location
         self.columns = columns
@@ -97,7 +104,7 @@ class Reader(ABC):
         new_columns = {}
         for column in columns:
             if column not in self.columns:
-                raise ValueError(f"Column {column} not found")
+                raise ReaderColumnsInvalid(f"Column {column} not found")
             new_columns[column] = self.columns[column]
         self.columns = new_columns
 
