@@ -164,8 +164,8 @@ def create_dataset(params: CreateDatasetParams, session: DbSession) -> DatasetPu
     try:
         session.commit()
     except IntegrityError as e:
-        if "UNIQUE constraint failed" in str(e):
-            raise HTTPException(status_code=409, detail="unique constraint failed")
+        if "unique constraint" in str(e) and "name" in str(e):
+            raise HTTPException(status_code=409, detail="Dataset name must be unique")
         raise
     return dataset
 
@@ -277,7 +277,7 @@ def create_shardset(
     try:
         session.commit()
     except IntegrityError as e:
-        if "UNIQUE constraint failed" in str(e):
+        if "unique constraint" in str(e):
             raise HTTPException(status_code=409, detail="unique constraint failed")
         raise
 

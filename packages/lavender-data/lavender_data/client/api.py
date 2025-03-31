@@ -96,7 +96,6 @@ class LavenderDataClient:
         self,
         dataset_id: Optional[str] = None,
         name: Optional[str] = None,
-        use_latest: bool = False,
     ):
         if dataset_id is None and name is None:
             raise ValueError("Either dataset_id or name must be provided")
@@ -109,11 +108,11 @@ class LavenderDataClient:
             if len(datasets) == 0:
                 raise ValueError(f"Dataset {name} not found")
 
-            if len(datasets) > 1 and not use_latest:
+            if len(datasets) > 1:
                 raise ValueError(
                     f"Multiple datasets found for name {name}: {', '.join([d.id for d in datasets])}\n"
-                    "Please either specify the dataset_id to use a specific dataset, "
-                    "or set use_latest=True to use the latest dataset."
+                    "This should never happen since the dataset name is unique. "
+                    "Please contact the Lavender Data team if you see this error."
                 )
 
             dataset_id = datasets[0].id
@@ -298,11 +297,8 @@ def get_version():
 def get_dataset(
     dataset_id: Optional[str] = None,
     name: Optional[str] = None,
-    use_latest: bool = False,
 ):
-    return _client_instance.get_dataset(
-        dataset_id=dataset_id, name=name, use_latest=use_latest
-    )
+    return _client_instance.get_dataset(dataset_id=dataset_id, name=name)
 
 
 @ensure_client()
