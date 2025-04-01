@@ -1,6 +1,12 @@
-.PHONY: openapi
+.PHONY: openapi-python-client ui
+
+all: openapi-python-client ui
 
 openapi-python-client:
 	openapi-python-client generate --url http://localhost:8000/openapi.json --config openapi.config.yaml --overwrite
 	sed -i -e 's/response_200 = File(payload=BytesIO(response.json()))/response_200 = File(payload=BytesIO(response.content))/g' openapi-lavender-data-rest/openapi_lavender_data_rest/api/iterations/get_next_iterations_iteration_id_next_get.py
 	rm openapi-lavender-data-rest/openapi_lavender_data_rest/api/iterations/get_next_iterations_iteration_id_next_get.py-e 2> /dev/null
+
+ui:
+	cd ../lavender-data-ui && pnpm build && cd ../lavender-data
+	cp -r ../lavender-data-ui/.next/standalone/ ui/

@@ -22,7 +22,7 @@
 
 ### Web UI
 
-- **Datasets**: Create, manage and preview your datasets
+- **Datasets**: Create, manage and preview your datasets. Sync cloud storage to the dataset.
 - **Iterations**: Track the realtime progress of your iterations
 
 ### Customizable
@@ -51,107 +51,16 @@
 
 ### Installation
 
+`lavender-data` is available on pip.
+
 ```bash
 pip install lavender-data
 ```
 
-### Starting the Server
+Use below command to start the server.
 
 ```bash
-python3 -m lavender_data.server --port 8000 --host 0.0.0.0
-```
-
-### Initializing the Client
-
-```python
-from lavender_data.client import api as lavender
-
-lavender.init(api_url="http://localhost:8000")
-```
-
-### Creating a Dataset
-
-```python
-# Create a dataset
-from lavender_data.client import api as lavender
-
-dataset = lavender.create_dataset(name="my-dataset", uid_column_name="uid")
-
-# Add a shardset with columns
-shardset = lavender.create_shardset(
-    dataset_id=dataset.id,
-    location="file://.cache/lavender-data/my_shards",
-    columns=[
-        lavender.DatasetColumnOptions(
-            name="uid",
-            description="Unique identifier",
-            type_="int",
-        ),
-        lavender.DatasetColumnOptions(
-            name="text",
-            description="Text content",
-            type_="str",
-        ),
-    ],
-)
-```
-
-### Writing Data
-
-```python
-# Write data to the shardset
-from lavender_data.shard import Writer
-
-writer = Writer.get(
-    format="csv",
-    dataset_id=dataset.id,
-    shardset_id=shardset.id,
-)
-
-# Write samples
-samples = [
-    {"uid": i, "text": f"Sample {i}"} for i in range(100)
-]
-writer.write(samples=samples, shard_index=0)
-```
-
-### Iterating over data
-
-```python
-from lavender_data.client import Iteration
-
-dataset = lavender.get_dataset(name="my-dataset")
-shardset = dataset.shardsets[0] # Select the shardset you want to iterate over
-
-iteration = Iteration.from_dataset(
-    dataset_id=dataset.id,
-    shardsets=[shardset.id],
-    batch_size=10,
-    shuffle=True,
-)
-
-for batch in iteration:
-    print(batch)
-
-```
-
-### Iterating over data (as a torch data loader)
-
-```python
-dataloader = Iteration.from_dataset(
-    dataset_id=dataset.id,
-    shardsets=[shardset.id],
-    batch_size=10,
-    shuffle=True,
-).to_torch_dataloader(
-    prefetch_factor=4,
-    pin_memory=True,
-    pin_memory_device="cuda:0",
-)
-
-if __name__ == "__main__":
-    for batch in dataloader:
-        print(batch)
+python3 -m lavender_data.server --host 0.0.0.0 --port 8000 --ui-port 3000 --reload
 ```
 
 ### Custom Modules
@@ -186,41 +95,31 @@ iteration = Iteration.from_config(
 )
 ```
 
-Refer to the [example](https://github.com/fal-ai/lavender-data/tree/main/examples/quick-start/quick-start.ipynb) for more details.
+Please restart the server after adding or modifying the custom modules.
 
-## Web UI
+### Web UI
 
-### Installation
-
-Using docker:
-
-```bash
-docker run -p 3000:3000 -e NEXT_PUBLIC_API_URL=http://localhost:8000 lavender-data-ui
-```
-
-Using pnpm:
-
-```bash
-export NEXT_PUBLIC_API_URL=http://localhost:8000
-
-git clone https://github.com/fal-ai/lavender-data
-cd packages/lavender-data-ui
-pnpm install
-pnpm run build
-pnpm run start
-```
-
-Dashboard will be available at [http://localhost:3000](http://localhost:3000)
-
-### Basic Usage
-
+After starting the server, dashboard is be available at [http://localhost:3000](http://localhost:3000)
 Go to the datasets page and you should see list of your datasets.
 
 <img src="./assets/web-ui-datasets.png" alt="Datasets" />
 
-Click on a dataset id to view more details including the shardsets, preview of the data and the iterations.
+Click on a dataset id to view details including the shardsets, preview of the data and the iterations.
 
-<img src="./assets/web-ui-dataset-detail.png" alt="Dataset Details" />
+<img src="./assets/web-ui-dataset-detail.png" alt="Dataset Detail" />
+
+Press `Shardset` button to add a new shardset.
+If you have at least one shard in the shardset location (e.g. s3 path, local directory, etc.),
+the columns will be inferred from the shard automatically.
+
+<img src="./assets/web-ui-add-shardset.png" alt="Add Shardset" />
+
+Click on a shardset id to view details.
+The shard files under the shardset location will be synced as shards of the shardset
+once you press the `Sync` button.
+This is useful when you added more shard files to the locaion.
+
+<img src="./assets/web-ui-shardset-detail.png" alt="Shardset Detail" />
 
 Click on an iteration id to view the realtime progress.
 There's 4 progress bars:
@@ -235,3 +134,105 @@ Press `Pushback` to put all in-progress-indices back into the queue.
 This is useful when you want to pause the iteration and resume from the same place.
 
 <img src="./assets/web-ui-iteration-detail.png" alt="Iteration Details" />
+
+### Initializing the Client
+
+To access dataset served from the `lavender-data` server, please use `lavender_data.client` module.
+
+```python
+from lavender_data.client import api as lavender
+
+lavender.init(api_url="http://localhost:8000")
+```
+
+### Iterating over dataset
+
+```python
+from lavender_data.client import Iteration
+
+dataset = lavender.get_dataset(name="my-dataset")
+shardset = dataset.shardsets[0] # Select the shardset you want to iterate over
+
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    batch_size=10,
+    shuffle=True,
+)
+
+for batch in iteration:
+    print(batch)
+
+```
+
+### Iterating over dataset (as a torch data loader)
+
+```python
+dataloader = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    batch_size=10,
+    shuffle=True,
+).to_torch_dataloader(
+    prefetch_factor=4,
+    pin_memory=True,
+    pin_memory_device="cuda:0",
+)
+
+if __name__ == "__main__":
+    for batch in dataloader:
+        print(batch)
+```
+
+## Managing datasets programatically
+
+You can manage datasets and shardsets also with `lavender_data.client` instead of using the dashboard,
+if you want to access them programatically.
+
+### Creating datasets and shardsets
+
+```python
+# Create a dataset
+from lavender_data.client import api as lavender
+
+dataset = lavender.create_dataset(name="my-dataset", uid_column_name="uid")
+
+# Add a shardset with columns
+shardset = lavender.create_shardset(
+    dataset_id=dataset.id,
+    location="file://.cache/lavender-data/my_shards",
+    columns=[
+        lavender.DatasetColumnOptions(
+            name="uid",
+            description="Unique identifier",
+            type_="int",
+        ),
+        lavender.DatasetColumnOptions(
+            name="text",
+            description="Text content",
+            type_="str",
+        ),
+    ],
+)
+```
+
+### Writing data (adding shards)
+
+```python
+# Write data to the shardset
+from lavender_data.shard import Writer
+
+writer = Writer.get(
+    format="csv",
+    dataset_id=dataset.id,
+    shardset_id=shardset.id,
+)
+
+# Write samples
+samples = [
+    {"uid": i, "text": f"Sample {i}"} for i in range(100)
+]
+writer.write(samples=samples, shard_index=0)
+```
+
+Refer to the [example](https://github.com/fal-ai/lavender-data/tree/main/examples/quick-start/quick-start.ipynb) for more details.
