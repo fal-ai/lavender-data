@@ -84,15 +84,6 @@ class UidModFilter(Filter):
 
     def filter(self, sample: dict) -> bool:
         return sample["uid"] % self.mod == 0
-
-# Use it in your iteration
-iteration = Iteration.from_config(
-    IterationConfig(
-        dataset_id=dataset.id,
-        shardsets=[shardset.id],
-        filters=[("uid_mod", {"mod": 2})],
-    )
-)
 ```
 
 Please restart the server after adding or modifying the custom modules.
