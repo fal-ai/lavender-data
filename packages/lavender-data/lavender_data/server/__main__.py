@@ -80,13 +80,16 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--reload", action="store_true")
     parser.add_argument("--workers", type=int, default=1)
+
+    parser.add_argument("--disable-ui", action="store_true")
     parser.add_argument("--ui-port", type=int, default=3000)
 
     args = parser.parse_args()
 
-    ui_thread = start_ui_and_wait_for_ready(
-        f"http://{args.host}:{args.port}", args.ui_port
-    )
+    if not args.disable_ui:
+        ui_thread = start_ui_and_wait_for_ready(
+            f"http://{args.host}:{args.port}", args.ui_port
+        )
 
     run(
         "lavender_data.server:app",
