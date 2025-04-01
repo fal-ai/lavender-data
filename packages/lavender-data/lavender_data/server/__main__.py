@@ -12,18 +12,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def start_ui(ui_ready_event: Event, api_url: str, ui_port: int):
+def _read_process_output(process: subprocess.Popen):
+    while process.poll() is None:
+        read_fds, _, _ = select.select([process.stdout, process.stderr], [], [], 1)
+        for fd in read_fds:
+            yield fd.readline().decode().strip()
+
+
+def _start_ui(ui_ready_event: Event, api_url: str, ui_port: int):
     logger = get_logger("lavender-data.server.ui")
 
     node_path = shutil.which("node")
     npm_path = shutil.which("npm")
-    if node_path is None:
-        logger.warning("node is not installed, cannot start UI")
-        ui_ready_event.set()
-        return
-
-    if npm_path is None:
-        logger.warning("npm is not installed, cannot start UI")
+    if node_path is None or npm_path is None:
+        logger.warning(
+            "Node is not installed, cannot start UI. Please refer to https://nodejs.org/download for installation instructions."
+        )
         ui_ready_event.set()
         return
 
@@ -31,14 +35,17 @@ def start_ui(ui_ready_event: Event, api_url: str, ui_port: int):
         os.path.dirname(__file__), "..", "ui", "packages", "lavender-data-ui"
     )
 
-    output = subprocess.run(
+    logger.info("Installing UI dependencies")
+    output = subprocess.Popen(
         [npm_path, "install", "--omit=dev"],
         cwd=ui_dir,
-        check=True,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
-    logger.info(output.stdout.decode())
+    for line in _read_process_output(output):
+        logger.info(line)
 
+    logger.info("Starting UI")
     process = subprocess.Popen(
         [node_path, "server.js"],
         cwd=ui_dir,
@@ -50,19 +57,16 @@ def start_ui(ui_ready_event: Event, api_url: str, ui_port: int):
         stderr=subprocess.PIPE,
     )
 
-    while process.poll() is None:
-        read_fds, _, _ = select.select([process.stdout, process.stderr], [], [], 1)
-        for fd in read_fds:
-            line = fd.readline().decode().strip()
-            if "Ready" in line:
-                ui_ready_event.set()
-            logger.info(line)
+    for line in _read_process_output(process):
+        logger.info(line)
+        if "Ready" in line:
+            ui_ready_event.set()
 
 
 def start_ui_and_wait_for_ready(api_url: str, ui_port: int):
     ui_ready_event = Event()
     ui_thread = Thread(
-        target=start_ui,
+        target=_start_ui,
         args=(ui_ready_event, api_url, ui_port),
     )
     ui_thread.start()
