@@ -59,7 +59,7 @@ class Iteration:
             raise ValueError("Only one of dataset_id or dataset_name can be provided")
 
         if dataset_id is None:
-            dataset_id = get_dataset(dataset_name).id
+            dataset_id = get_dataset(name=dataset_name).id
 
         logger = get_logger(__name__)
         if resume:
