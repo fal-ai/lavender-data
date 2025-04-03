@@ -9,4 +9,4 @@ openapi-python-client:
 
 ui:
 	cd ../lavender-data-ui && pnpm build && cd ../lavender-data
-	cp -r ../lavender-data-ui/.next/standalone/ ui/
+	cp -r ../lavender-data-ui/.next/standalone/ lavender_data/ui/

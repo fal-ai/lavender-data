@@ -55,6 +55,7 @@ export function SyncShardsetButton({
 
   const clientSyncAction = async () => {
     await syncShardset(dataset_id, shardset_id, true);
+    await refreshStatus();
     setIntervalRef(setInterval(() => refreshStatus(), 100));
   };
 

@@ -1,11 +1,11 @@
 {
-  "/_not-found/page": "/_not-found",
   "/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync/route": "/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync",
+  "/_not-found/page": "/_not-found",
   "/api/version/route": "/api/version",
   "/datasets/page": "/datasets",
-  "/page": "/",
-  "/iterations/[iteration_id]/page": "/iterations/[iteration_id]",
   "/datasets/[dataset_id]/page": "/datasets/[dataset_id]",
+  "/page": "/",
   "/iterations/page": "/iterations",
+  "/iterations/[iteration_id]/page": "/iterations/[iteration_id]",
   "/datasets/[dataset_id]/shardsets/[shardset_id]/page": "/datasets/[dataset_id]/shardsets/[shardset_id]"
 }
