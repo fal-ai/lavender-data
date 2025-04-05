@@ -1,5 +1,7 @@
 # Lavender Data
 
+Lavender Data: Streamline Your Pipeline, Offload Your GPUs, and Transform Your ML Workflow from Fragmented Files to Flowing Features
+
 ## Key Features
 
 ### Streaming
@@ -79,10 +81,7 @@ from lavender_data.server import FilterRegistry, Filter
 
 @FilterRegistry.register("uid_mod")
 class UidModFilter(Filter):
-    def __init__(self, mod: int):
-        self.mod = mod
-
-    def filter(self, sample: dict) -> bool:
+    def filter(self, sample: dict, *, mod: int = 2) -> bool:
         return sample["uid"] % self.mod == 0
 ```
 

@@ -1,6 +1,5 @@
-import json
 from abc import ABC
-from typing_extensions import Generic, TypeVar, Any
+from typing_extensions import Generic, TypeVar
 
 T = TypeVar("T")
 
@@ -15,19 +14,19 @@ class Registry(ABC, Generic[T]):
         def decorator(_class: T):
             _class.name = name
             cls.classes[name] = _class
+            cls.get(name)
             return _class
 
         return decorator
 
     @classmethod
-    def get(cls, name: str, params: dict[str, Any] = {}) -> T:
+    def get(cls, name: str) -> T:
         if name not in cls.classes:
             raise ValueError(f"{cls.__name__} {name} not found")
         reg_class = cls.classes[name]
-        key = f"{name}:{json.dumps(params)}"
-        if key not in cls.instances:
-            cls.instances[key] = reg_class(**params)
-        return cls.instances[key]
+        if name not in cls.instances:
+            cls.instances[name] = reg_class()
+        return cls.instances[name]
 
     @classmethod
     def list(cls) -> list[str]:

@@ -218,24 +218,9 @@ def get_next(
             raise HTTPException(status_code=400, detail=str(e))
 
     batch_size = state.get_batch_size()
-    iteration_filters = state.get_filters()
-    filters = (
-        [FilterRegistry.get(**f) for f in iteration_filters]
-        if iteration_filters is not None
-        else []
-    )
-    iteration_preprocessors = state.get_preprocessors()
-    preprocessors = (
-        [PreprocessorRegistry.get(**p) for p in iteration_preprocessors]
-        if iteration_preprocessors is not None
-        else []
-    )
-    iteration_collater = state.get_collater()
-    collater = (
-        CollaterRegistry.get(**iteration_collater)
-        if iteration_collater is not None
-        else CollaterRegistry.get("default")
-    )
+    filters = state.get_filters()
+    preprocessors = state.get_preprocessors()
+    collater = state.get_collater()
 
     indices = []
     samples = []
@@ -254,12 +239,16 @@ def get_next(
             logger.exception(msg)
             raise HTTPException(status_code=400, detail=msg)
 
-        filtered = False
-        for should_include in filters:
-            if not should_include(sample):
-                filtered = True
-                break
-        if filtered:
+        should_include = True
+        if filters is not None:
+            for f in filters:
+                should_include = FilterRegistry.get(f["name"]).filter(
+                    sample, **f["params"]
+                )
+                if not should_include:
+                    break
+
+        if not should_include:
             state.filtered(next_item.index)
             continue
 
@@ -267,7 +256,11 @@ def get_next(
         indices.append(next_item.index)
 
     try:
-        batch = collater(samples)
+        batch = (
+            CollaterRegistry.get(collater["name"]).collate(samples)
+            if collater is not None
+            else CollaterRegistry.get("default").collate(samples)
+        )
     except Exception as e:
         logger.exception(f'Error in collater: {e.__class__.__name__}("{str(e)}")')
         raise HTTPException(
@@ -275,15 +268,16 @@ def get_next(
             detail=f'Error in collater: {e.__class__.__name__}("{str(e)}")',
         )
 
-    try:
-        for preprocessor in preprocessors:
-            batch = preprocessor(batch)
-    except Exception as e:
-        logger.exception(f'Error in preprocessor: {e.__class__.__name__}("{str(e)}")')
-        raise HTTPException(
-            status_code=400,
-            detail=f'Error in preprocessor: {e.__class__.__name__}("{str(e)}")',
-        )
+    if preprocessors is not None:
+        try:
+            for p in preprocessors:
+                batch = PreprocessorRegistry.get(p["name"]).process(
+                    batch, **p["params"]
+                )
+        except Exception as e:
+            msg = f'Error in preprocessor: {e.__class__.__name__}("{str(e)}")'
+            logger.exception(msg)
+            raise HTTPException(status_code=400, detail=msg)
 
     if batch_size == 0:
         _batch = {}
