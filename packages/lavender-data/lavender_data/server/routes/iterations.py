@@ -13,7 +13,6 @@ from lavender_data.server.db.models import (
     Iteration,
     IterationPublic,
     DatasetPublic,
-    DatasetColumn,
     DatasetColumnPublic,
     Shardset,
     ShardsetPublic,
@@ -270,10 +269,11 @@ def get_next(
 
     if preprocessors is not None:
         try:
-            for p in preprocessors:
-                batch = PreprocessorRegistry.get(p["name"]).process(
-                    batch, **p["params"]
-                )
+            batch = PreprocessorRegistry.process(
+                [(p["name"], p["params"]) for p in preprocessors],
+                batch,
+                # TODO configurable max_workers
+            )
         except Exception as e:
             msg = f'Error in preprocessor: {e.__class__.__name__}("{str(e)}")'
             logger.exception(msg)

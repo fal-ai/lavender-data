@@ -3,25 +3,18 @@ from abc import ABC, abstractmethod
 from .abc import Registry
 
 
+class FilterRegistry(Registry["Filter"]):
+    pass
+
+
 class Filter(ABC):
-    name: str
+    def __init_subclass__(cls, **kwargs):
+        cls.name = kwargs.pop("name", getattr(cls, "name", cls.__name__))
+        FilterRegistry.register(cls.name, cls)
 
     def __init__(self, **kwargs):
         pass
 
     @abstractmethod
-    def filter(self, sample: dict) -> bool:
+    def filter(self, sample: dict, **kwargs) -> bool:
         raise NotImplementedError
-
-    def __call__(self, sample: dict) -> bool:
-        return self.filter(sample)
-
-
-class FilterRegistry(Registry[Filter]):
-    pass
-
-
-@FilterRegistry.register("default")
-class DefaultFilter(Filter):
-    def filter(self, sample: dict) -> bool:
-        return True

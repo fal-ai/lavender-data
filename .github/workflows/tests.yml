@@ -55,6 +55,7 @@ jobs:
           poetry run python -m unittest lavender_data.shard.test_writer
           poetry run python -m unittest lavender_data.client.test_iteration
           poetry run python -m unittest lavender_data.server.services.test_iterations
+          poetry run python -m unittest lavender_data.server.services.test_registries
         env:
           LAVENDER_DATA_DB_URL: sqlite:///database.db
           LAVENDER_DATA_REDIS_URL: redis://redis:6379/0

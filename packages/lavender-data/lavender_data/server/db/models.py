@@ -1,7 +1,8 @@
 import time
 import random
 import string
-from typing_extensions import Optional, TypedDict, Any
+from typing import Optional, Any
+from typing_extensions import TypedDict
 from datetime import datetime
 from sqlmodel import (
     Field,

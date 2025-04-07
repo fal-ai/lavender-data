@@ -77,10 +77,9 @@ Define custom components:
 
 ```python
 # modules/custom_filter.py
-from lavender_data.server import FilterRegistry, Filter
+from lavender_data.server import Filter
 
-@FilterRegistry.register("uid_mod")
-class UidModFilter(Filter):
+class UidModFilter(Filter, name="uid_mod"):
     def filter(self, sample: dict, *, mod: int = 2) -> bool:
         return sample["uid"] % self.mod == 0
 ```

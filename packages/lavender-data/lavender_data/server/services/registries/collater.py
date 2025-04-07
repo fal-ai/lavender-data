@@ -10,25 +10,23 @@ except ImportError:
     }
 
 
+class CollaterRegistry(Registry["Collater"]):
+    pass
+
+
 class Collater(ABC):
-    name: str
+    def __init_subclass__(cls, **kwargs):
+        cls.name = kwargs.pop("name", getattr(cls, "name", cls.__name__))
+        CollaterRegistry.register(cls.name, cls)
 
     def __init__(self, **kwargs):
         pass
 
     @abstractmethod
-    def collate(self, samples: list[dict]) -> dict:
+    def collate(self, samples: list[dict], **kwargs) -> dict:
         raise NotImplementedError
 
-    def __call__(self, samples: list[dict]) -> dict:
-        return self.collate(samples)
 
-
-class CollaterRegistry(Registry[Collater]):
-    pass
-
-
-@CollaterRegistry.register("default")
-class DefaultCollater(Collater):
+class DefaultCollater(Collater, name="default"):
     def collate(self, samples: list[dict]) -> dict:
         return default_collate(samples)
