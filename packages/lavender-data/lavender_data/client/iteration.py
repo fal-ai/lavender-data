@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union, Literal
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 
 from lavender_data.logging import get_logger
@@ -23,6 +23,32 @@ def noop_collate_fn(x):
     return x[0]
 
 
+def _parse_registry_params(
+    registry_name: Literal["filter", "preprocessor", "collater"],
+    param: Union[tuple[str, dict], str],
+):
+    if isinstance(param, str):
+        name = param
+        params = {}
+    elif isinstance(param, tuple) and len(param) == 2:
+        name = param[0]
+        params = param[1]
+    else:
+        raise ValueError(
+            f"Incorrect parameter for {registry_name}: {param} (expected tuple[str, dict] or str)"
+        )
+
+    d = {"name": name, "params": params}
+    if registry_name == "filter":
+        return IterationFilter.from_dict(d)
+    elif registry_name == "preprocessor":
+        return IterationPreprocessor.from_dict(d)
+    elif registry_name == "collater":
+        return IterationCollater.from_dict(d)
+    else:
+        raise ValueError(f"Invalid registry name: {registry_name}")
+
+
 class Iteration:
     def __init__(
         self,
@@ -42,9 +68,9 @@ class Iteration:
         dataset_id: Optional[str] = None,
         dataset_name: Optional[str] = None,
         shardsets: Optional[list[str]] = None,
-        filters: Optional[list[tuple[str, dict]]] = None,
-        preprocessors: Optional[list[tuple[str, dict]]] = None,
-        collater: Optional[tuple[str, dict]] = None,
+        filters: Optional[list[Union[tuple[str, dict], str]]] = None,
+        preprocessors: Optional[list[Union[tuple[str, dict], str]]] = None,
+        collater: Optional[Union[tuple[str, dict], str]] = None,
         shuffle: Optional[bool] = None,
         shuffle_seed: Optional[int] = None,
         shuffle_block_size: Optional[int] = None,
@@ -77,25 +103,17 @@ class Iteration:
             dataset_id=dataset_id,
             shardsets=shardsets,
             filters=(
-                [
-                    IterationFilter.from_dict({"name": name, "params": params})
-                    for name, params in filters
-                ]
+                [_parse_registry_params("filter", f) for f in filters]
                 if filters is not None
                 else None
             ),
             preprocessors=(
-                [
-                    IterationPreprocessor.from_dict({"name": name, "params": params})
-                    for name, params in preprocessors
-                ]
+                [_parse_registry_params("preprocessor", f) for f in preprocessors]
                 if preprocessors is not None
                 else None
             ),
             collater=(
-                IterationCollater.from_dict(
-                    {"name": collater[0], "params": collater[1]}
-                )
+                _parse_registry_params("collater", collater)
                 if collater is not None
                 else None
             ),

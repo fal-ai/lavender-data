@@ -1,3 +1,4 @@
+import time
 import unittest
 import numpy as np
 
@@ -37,20 +38,40 @@ class TestComponent2(TestComponent, name="test2"):
 
 
 # Test preprocessors
-class CustomPreprocessor1(Preprocessor, name="multiply"):
+class MultiplyPreprocessor(Preprocessor, name="multiply"):
     def process(self, batch: dict, *, multiply: int = 1) -> dict:
-        batch["processed"] = batch["value"] * multiply
+        batch["multiplied"] = batch["value"] * multiply
+        return batch
+
+
+class AddPreprocessor(Preprocessor, name="add"):
+    def process(self, batch: dict, *, add: int = 1) -> dict:
+        batch["added"] = batch["value"] + add
+        return batch
+
+
+class SlowPreprocessor(Preprocessor, name="slow"):
+    def process(self, batch: dict, *, wait: int = 1) -> dict:
+        time.sleep(wait)
+        return batch
+
+
+class AddAfterMultiplyPreprocessor(
+    Preprocessor, name="add_after_multiply", depends_on=["multiply"]
+):
+    def process(self, batch: dict, *, add: int = 1) -> dict:
+        batch["added"] = batch["multiplied"] + add
         return batch
 
 
 # Test filters
-class CustomFilter1(Filter, name="mod"):
+class ModFilter(Filter, name="mod"):
     def filter(self, sample: dict, *, mod: int = 1) -> bool:
         return sample["value"] % mod == 0
 
 
 # Test collaters
-class CustomCollater1(Collater, name="count"):
+class CountCollater(Collater, name="count"):
     def collate(self, samples: list[dict]) -> dict:
         return {"count": len(samples)}
 
@@ -81,11 +102,11 @@ class RegistriesTest(unittest.TestCase):
 
         # Test getting preprocessors
         preprocessor1 = PreprocessorRegistry.get("multiply")
-        self.assertIsInstance(preprocessor1, CustomPreprocessor1)
+        self.assertIsInstance(preprocessor1, MultiplyPreprocessor)
 
         batch = {"value": np.array([1, 2, 3])}
         processed_batch = preprocessor1.process(batch, multiply=2)
-        self.assertEqual(processed_batch["processed"].tolist(), [2, 4, 6])
+        self.assertEqual(processed_batch["multiplied"].tolist(), [2, 4, 6])
 
     def test_filter_registry(self):
         # Test registration
@@ -93,7 +114,7 @@ class RegistriesTest(unittest.TestCase):
 
         # Test getting filters
         filter1 = FilterRegistry.get("mod")
-        self.assertIsInstance(filter1, CustomFilter1)
+        self.assertIsInstance(filter1, ModFilter)
 
         samples = [{"value": 1}, {"value": 2}, {"value": 3}]
         for sample in samples:
@@ -109,8 +130,46 @@ class RegistriesTest(unittest.TestCase):
 
         # Test getting collaters
         collater1 = CollaterRegistry.get("count")
-        self.assertIsInstance(collater1, CustomCollater1)
+        self.assertIsInstance(collater1, CountCollater)
 
         samples = [{"sample": 1}, {"sample": 2}]
         collated = collater1.collate(samples)
         self.assertEqual(collated.get("count"), 2)
+
+    def test_preprocessor_registry_process(self):
+        batch = {"value": np.array([1, 2, 3])}
+
+        # Concurrency
+        self.assertIn("slow", PreprocessorRegistry.list())
+        start = time.time()
+        PreprocessorRegistry.process(
+            [
+                ("slow", {"wait": 1}),
+                ("slow", {"wait": 1}),
+                ("slow", {"wait": 1}),
+                ("slow", {"wait": 1}),
+            ],
+            batch,
+            max_workers=10,
+        )
+        end = time.time()
+        self.assertLessEqual(abs(end - start) - 1, 0.01)
+
+        # depends_on
+        self.assertIn("add_after_multiply", PreprocessorRegistry.list())
+
+        self.assertRaises(
+            ValueError,
+            lambda: PreprocessorRegistry.process(
+                [("add_after_multiply", {"add": 1})], batch
+            ),
+        )
+
+        PreprocessorRegistry.process(
+            [
+                ("multiply", {"multiply": 2}),
+                ("add_after_multiply", {"add": 1}),
+            ],
+            batch,
+        )
+        self.assertEqual(batch["added"].tolist(), [3, 5, 7])
