@@ -10,9 +10,7 @@ from multiprocessing import Process
 import uvicorn
 from lavender_data.server import (
     app,
-    PreprocessorRegistry,
     Preprocessor,
-    FilterRegistry,
     Filter,
 )
 from lavender_data.client.api import (
@@ -30,14 +28,12 @@ def run_server(port: int):
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="error")
 
 
-@FilterRegistry.register("test_filter")
-class TestFilter(Filter):
+class TestFilter(Filter, name="test_filter"):
     def filter(self, sample: dict) -> bool:
         return sample["id"] % 2 == 0
 
 
-@PreprocessorRegistry.register("test_preprocessor")
-class TestPreprocessor(Preprocessor):
+class TestPreprocessor(Preprocessor, name="test_preprocessor"):
     def process(self, sample: dict) -> dict:
         return {"double_id": i * 2 for i in sample["id"]}
 
