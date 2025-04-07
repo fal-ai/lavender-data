@@ -1,21 +1,16 @@
 from lavender_data.server import (
-    PreprocessorRegistry,
     Preprocessor,
-    FilterRegistry,
     Filter,
-    CollaterRegistry,
     Collater,
 )
 
 
-@FilterRegistry.register("uid_mod")
-class UidModFilter(Filter):
+class UidModFilter(Filter, name="uid_mod"):
     def filter(self, sample: dict, *, mod: int = 2) -> bool:
         return sample["uid"] % mod == 0
 
 
-@CollaterRegistry.register("pylist")
-class PyListCollater(Collater):
+class PyListCollater(Collater, name="pylist"):
     def collate(self, samples: list[dict]) -> dict:
         return {
             "uid": [sample["uid"] for sample in samples],
@@ -23,8 +18,7 @@ class PyListCollater(Collater):
         }
 
 
-@PreprocessorRegistry.register("append_new_column")
-class AppendNewColumn(Preprocessor):
+class AppendNewColumn(Preprocessor, name="append_new_column"):
     def process(self, batch: dict) -> dict:
         batch["new_column"] = []
         for uid in batch["uid"]:
