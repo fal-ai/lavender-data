@@ -109,8 +109,8 @@ def create_iteration(
             if preprocessor["name"] not in PreprocessorRegistry.list():
                 raise HTTPException(
                     status_code=400,
-                    detail="preprocessor must be one of the following: "
-                    + ", ".join(PreprocessorRegistry.list()),
+                    detail="preprocessor must be one of the following: ["
+                    + ", ".join(PreprocessorRegistry.list()) + "]",
                 )
 
     if params.filters is not None:
@@ -118,16 +118,16 @@ def create_iteration(
             if f["name"] not in FilterRegistry.list():
                 raise HTTPException(
                     status_code=400,
-                    detail="filter must be one of the following: "
-                    + ", ".join(FilterRegistry.list()),
+                    detail="filter must be one of the following: ["
+                    + ", ".join(FilterRegistry.list()) + "]",
                 )
 
     if params.collater is not None:
         if params.collater["name"] not in CollaterRegistry.list():
             raise HTTPException(
                 status_code=400,
-                detail="collater must be one of the following: "
-                + ", ".join(CollaterRegistry.list()),
+                detail="collater must be one of the following: ["
+                + ", ".join(CollaterRegistry.list()) + "]",
             )
 
     try:
