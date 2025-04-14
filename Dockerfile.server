@@ -1,0 +1,20 @@
+FROM python:3.12-slim
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+    build-essential
+RUN pip install --no-cache-dir poetry==1.8.5
+
+WORKDIR /app/packages/lavender-data
+
+COPY packages/lavender-data/.python-version .
+COPY packages/lavender-data/poetry.lock .
+COPY packages/lavender-data/poetry.toml .
+COPY packages/lavender-data/pyproject.toml .
+COPY packages/lavender-data/openapi-lavender-data-rest/ ./openapi-lavender-data-rest/
+
+RUN poetry install --only=main --no-interaction --no-ansi --no-root --no-dev
+COPY packages/lavender-data/lavender_data/ ./lavender_data/
+
+
+ENTRYPOINT ["poetry", "run", "fastapi", "run", "lavender_data/server/app.py"]

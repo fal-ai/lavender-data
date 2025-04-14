@@ -1,0 +1,69 @@
+---
+title: Cache
+description: Learn about the cache mechanism in Lavender Data
+---
+
+Lavender Data caches yielded samples/batches to avoid redundant processing.
+
+### Cache Key
+
+The cache key is a combination of the hashed iteration parameters and the indices of the samples/batches.
+
+```python
+def hash(o: object) -> str:
+    return hashlib.sha256(json.dumps(o).encode("utf-8")).hexdigest()
+
+iteration_hash = hash({
+    "dataset_id": iteration.dataset.id,
+    "batch_size": iteration.batch_size,
+    "shardsets": [s.id for s in iteration.shardsets],
+    "collater": iteration.collater,
+    "filters": iteration.filters,
+    "preprocessors": iteration.preprocessors,
+})
+
+cache_key = hash({
+    "iteration_hash": iteration_hash,
+    "indices": indices,
+})
+```
+
+Please refer to the [source code](https://github.com/fal-ai/lavender-data/blob/main/packages/lavender-data/lavender_data/server/services/iterations.py) for more details.
+
+### TTL
+
+Cache entries are deleted after a certain time to live (TTL).
+You can set the TTL with the `LAVENDER_DATA_BATCH_CACHE_TTL` environment variable, in seconds.
+
+```bash
+export LAVENDER_DATA_BATCH_CACHE_TTL=300 # 300 seconds
+```
+
+Default value is 5 minutes (300 seconds).
+
+### Ignoring Cache
+
+You can ignore caches and reprocess the data by setting the `no_cache` parameter to `True` on creating the iteration instance.
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    no_cache=True,
+)
+```
+
+### Cache location
+
+Cache is stored in the memory of the server by default.
+
+To support prefetching from the client side, caching can not be disabled.
+If you want to scale out the server to multiple machines or processes, you can use Redis as a cache backend.
+
+Set `LAVENDER_DATA_REDIS_URL` environment variable to the desired Redis URL to use Redis as a cache backend.
+
+```bash
+export LAVENDER_DATA_REDIS_URL=redis://localhost:6379/0
+```
+
+If the server does not have enough memory, consider using Redis or setting a smaller TTL.

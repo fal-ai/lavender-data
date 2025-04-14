@@ -1,0 +1,12 @@
+node_modules
+.next
+
+.venv
+.cache
+.pytest_cache
+__pycache__
+.lavender-data-state
+
+.env*
+
+*.log

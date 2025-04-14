@@ -1,0 +1,148 @@
+---
+title: FAQ
+description: Frequently asked questions about Lavender Data
+---
+
+## General Questions
+
+### What is Lavender Data?
+
+Lavender Data is a modern solution designed to streamline ML data pipelines. It allows you to offload preprocessing from your GPUs, efficiently manage features, and handle large datasets with robust fault tolerance.
+
+### How is Lavender Data different from other data management solutions?
+
+Lavender Data differentiates itself through:
+- Remote preprocessing to offload your GPUs
+- Streaming data with zero disk usage
+- Joinable datasets for efficient feature addition
+- Flexible iteration with online filtering and fault tolerance
+- A comprehensive Web UI for data management and monitoring
+
+### Is Lavender Data open source?
+
+Yes, Lavender Data is open source and available on GitHub. You can contribute to the project, report issues, or suggest features.
+
+## Installation and Setup
+
+### What are the system requirements for Lavender Data?
+
+Lavender Data requires:
+- Python 3.8 or higher
+- Redis server
+- PostgreSQL database
+- Sufficient memory for your dataset streaming needs
+
+### Why do I need Redis and PostgreSQL?
+
+- Redis is used to store the state of iterations
+- PostgreSQL stores dataset metadata
+These databases ensure that your data pipeline is robust and that iterations can be paused and resumed.
+
+### Can I use Lavender Data with my existing ML framework?
+
+Yes, Lavender Data is framework-agnostic. It integrates especially well with PyTorch through the `.to_torch_dataloader()` method, but can be used with any ML framework that can consume Python data.
+
+## Datasets and Shardsets
+
+### How large can my datasets be?
+
+Lavender Data is designed to handle datasets of any size. Since data is streamed and not loaded entirely into memory, you're limited only by your storage capacity, not your RAM.
+
+### What file formats are supported for shards?
+
+Currently, Lavender Data supports:
+- CSV files
+- Parquet files
+- Support for additional formats is planned for future releases.
+
+### Can I add new features to an existing dataset?
+
+Yes, this is one of Lavender Data's key features. You can add new shardsets with additional features without modifying the original data, as long as the new shardset includes the UID column.
+
+### How should I organize my shardsets?
+
+Best practices include:
+- Group related features together in the same shardset
+- Create separate shardsets for features that are only used in specific tasks
+- Keep large features (like embeddings) in their own shardset
+
+## Iteration and Processing
+
+### How does shuffling work across shards?
+
+Lavender Data shuffles data at the sample level, not just at the shard level. This ensures true randomization of your data, which is crucial for effective training.
+
+### What happens if a sample fails during processing?
+
+You can configure the behavior using `failed_sample_policy`:
+- "skip": Skip the failed sample and continue (default)
+- "retry": Attempt to process the sample again
+- "fail": Stop the iteration when a sample fails
+
+### Can I filter samples during iteration?
+
+Yes, you can apply custom filters during iteration to include or exclude samples based on your criteria. This is done on-the-fly without modifying the underlying data.
+
+### How do I resume an interrupted iteration?
+
+If you've named your iteration using `iteration_name`, you can resume it by creating a new iteration with the same name using `Iteration.from_name(iteration_name="my-iteration")`.
+
+## Web UI
+
+### Can I use Lavender Data without the Web UI?
+
+Yes, the Web UI is optional. All functionality is available through the Python API, though the UI provides helpful visualization and monitoring capabilities.
+
+### How do I access the Web UI?
+
+The Web UI is available at the port specified by `--ui-port` when starting the server. By default, this is http://localhost:3000.
+
+### Can multiple users access the Web UI simultaneously?
+
+Yes, the Web UI supports multiple concurrent users. Each user will need to set their own API key when accessing the UI.
+
+## Performance and Optimization
+
+### How can I optimize performance for large datasets?
+
+- Use appropriate `batch_size` for your hardware
+- Adjust `shuffle_block_size` based on available memory
+- Use multiple worker processes when converting to a PyTorch DataLoader
+- Select only the shardsets you need for a specific task
+
+### Does Lavender Data support distributed processing?
+
+Yes, Lavender Data can distribute processing across multiple worker processes. This is particularly useful when using the PyTorch integration.
+
+### How can I monitor the performance of my data pipeline?
+
+You can monitor performance through:
+- The Web UI's iteration detail page
+- Programmatically using `get_iteration_progress()`
+- Server logs which provide detailed information about processing
+
+## Troubleshooting
+
+### The server won't start. What should I check?
+
+1. Ensure Redis and PostgreSQL are running
+2. Verify the correct environment variables are set
+3. Check the server logs for specific error messages
+4. Ensure required ports are available and not blocked by firewalls
+
+### Iteration seems slow. How can I improve it?
+
+1. Increase batch size if memory allows
+2. Reduce preprocessor complexity
+3. If using PyTorch, increase the number of worker processes
+4. Ensure you're only loading the features you need
+
+### Changes to custom modules aren't taking effect
+
+Remember to restart the Lavender Data server after modifying custom modules. The modules are loaded at server startup.
+
+### I'm getting `KeyError` during iteration
+
+This usually indicates that a required column is missing from one of the shardsets. Ensure that all shardsets have the UID column and any columns referenced in your filters, collaters, or preprocessors.
+
+For additional support, please visit our GitHub repository or join our community discussion forum.

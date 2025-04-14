@@ -1,0 +1,149 @@
+---
+title: Dataset Structure
+description: Understanding the dataset structure of Lavender Data
+---
+
+import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+
+
+Lavender Data organizes your data in a hierarchical structure:
+
+![Dataset Layers](/dataset-layers.png)
+
+- **Dataset**: The top-level container for your data, identified by a unique name
+- **Shardset**: A collection of data shards within a dataset, typically representing a group of related columns
+- **Shard**: A single file that contains a subset of the data
+
+This layered approach allows for efficient data management and feature addition without duplicating the entire dataset.
+
+## Shardsets
+
+In Lavender Data, different features (columns) can be organized into separate shardsets. This provides several advantages:
+
+1. **Selective Loading**: Load only the features you need for a specific task
+2. **Easy Feature Addition**: Add new features without modifying existing data
+3. **Optimized Storage**: Group related features together for efficient access
+
+To archive the above goals, we have the following constraints.
+
+<Aside>
+1. **Common UID column**: The UID column must be present in all shardsets of a dataset.
+2. **Sample-Shard Consistency**: If a sample is present in multiple shardsets, it must be in the same shard index across all shardsets.
+</Aside>
+
+To understand these constraints, let's look at an example dataset with two shardsets, `shardset_1` and `shardset_2`.
+`shardset_1` has 100 shards and each shard has 100 samples. 
+`shardset_2` has 100 shards and each shard has 90 samples.
+
+<FileTree>
+- /shardset_1/
+  - shard.00000.csv
+  - shard.00001.csv
+  - ...
+- /shardset_2/
+  - shard.00000.csv
+  - shard.00001.csv
+  - ...
+</FileTree>
+
+### Common UID column
+
+Each sample in a dataset is identified by a unique ID column, specified when creating the dataset. 
+This UID column must be present in all shardsets of a dataset.
+It is used to join data across different shardsets and maintains consistency when adding new features.
+
+In above example, `uid` is the common UID column and must be present in all shardsets.
+
+```
+# /shardset_1/shard.00000.csv
+uid,image_url
+0,https://example.com/image-00000.jpg
+1,https://example.com/image-00001.jpg
+2,https://example.com/image-00002.jpg
+```
+
+```
+# /shardset_2/shard.00000.csv
+uid,caption
+0,Caption for image 00000
+1,Caption for image 00001
+2,Caption for image 00002
+```
+
+### Sample-Shard Consistency
+
+Because one sample can be present in multiple shards in different shardsets,
+lavender data needs to merge these shards to yield a sample.
+However, we don't want to load all the shards into memory to read a single sample.
+
+To solve this, lavender data uses a sample-shard mapping to map each sample to the shards it is present in.
+
+| uid | shard_index |
+|-----|-------------|
+| 0   | 0           |
+| 1   | 0           |
+| ... | ...         |
+| 100 | 1           |
+| 101 | 1           |
+| ... | ...         |
+
+In above example, sample with uid 0 must be present in shard 0 of both shardsets.
+
+```
+uid 0 -> shard 0 of shardset_1 -> /shardset_1/shard.00000.csv
+      -> shard 0 of shardset_2 -> /shardset_2/shard.00000.csv
+```
+
+This way, we can read a sample by loading shards at most the number of shardsets into memory.
+This is possible only if the sample-shard mapping is consistent across all shardsets.
+Therefore, the sample-shard mapping must be consistent across all shardsets.
+
+
+Though, some samples may not be present in all shardsets.
+In above example, we assume that `shardset_2` has only 90 samples while `shardset_1` has 100.
+Let's say sample 90 - 99 are missing in `shardset_2`.
+Even in this case, the sample-shard mapping must be consistent like below.
+
+
+| uid | shard index in `shardset_1` | shard index in `shardset_2` |
+|-----|-----------------------------|-----------------------------|
+| 89  | 0                           | 0                           |
+| 90  | 0                           | (missing)                   |
+| ... | ...                         | ...                         |
+| 99  | 0                           | (missing)                   |
+| 100 | 1                           | 1                           |
+| 101 | 1                           | 1                           |
+| ... | ...                         | ...                         |
+
+
+### Main Shardset
+
+At this point, you may wonder how to iterate over the samples if some samples do not exist in all shardsets.
+What happens if we iterate over the 90-99 samples in `shardset_1`?
+
+During the iteration, we want all samples to have the same columns.
+If not, we are going to see tons of problems like batch collation failure, crash in preprocessing logic, and more.
+
+To solve this, we introduced the concept of **"main shardset"**.
+The main shardset becomes the leftmost table, and the other shardsets are merged into it.
+
+Before starting the iteration, lavender data checks the shardsets and picks the main shardset.
+We use a shardset with the least samples as the main shardset to avoid
+reading unprocessable samples, and to predict the number of total samples
+as accurately as possible. Still, there is a chance of encountering a sample
+that lacks some columns. In this case, we simply skip the sample.
+
+<Aside>
+
+The one with the least samples becomes the main shardset.
+If there are multiple shardsets with the least number of samples, the the oldest one is picked as the main shardset.
+
+</Aside>
+
+
+
+In above example, `shardset_1` has 100 samples and `shardset_2` has 90 samples.
+Therefore, `shardset_2` becomes the main shardset. Sample 90-99 are missing in `shardset_2`,
+those are not included in the iteration.
+
+

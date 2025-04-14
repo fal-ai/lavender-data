@@ -1,0 +1,161 @@
+---
+title: Pipeline
+description: Understanding the pipeline architecture of Lavender Data
+---
+
+Lavender Data's pipeline consists of several components that process your data from storage to application.
+
+![Pipeline Overview](/overview.png)
+
+There are three main components:
+
+- **Filters**: Determine which samples to include/exclude during iteration
+- **Collaters**: Control how individual samples are combined into batches
+- **Preprocessors**: Transform batches before they're returned to your application
+
+
+## Building the Pipeline
+
+Lavender Data allows you to build your own pipeline by defining filters, collaters, and preprocessors.
+
+### Module Directory
+
+First, create a directory to store your components and set the environment variable:
+
+```bash
+mkdir -p ./modules
+export LAVENDER_DATA_MODULES_DIR=./modules
+```
+
+You can also add this to your `.env` file for persistence.
+
+After adding or modifying components, restart the Lavender Data server for the changes to take effect.
+
+```bash
+python3 -m lavender_data.server --host 0.0.0.0 --port 8000 --reload
+```
+
+
+### Filters
+
+Filters determine which samples to include or exclude during iteration. To create a filter:
+
+1. Create a new Python file in your modules directory
+2. Define a class that inherits from `Filter` with a unique name
+3. Implement the `filter` method that returns a boolean
+
+For example, to create a filter that only includes samples with even UIDs:
+
+```python
+# modules/filter.py
+from lavender_data.server import Filter
+
+class UidModFilter(Filter, name="uid_mod"):
+    def filter(self, sample: dict, *, mod: int = 2) -> bool:
+        """
+        Only include samples where uid % mod == 0
+        
+        Args:
+            sample: The individual sample to filter
+            mod: The modulus to use for filtering (default: 2)
+            
+        Returns:
+            bool: True if the sample should be included, False otherwise
+        """
+        return sample["uid"] % mod == 0
+```
+
+Then use it in your iteration:
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    filters=[("uid_mod", {"mod": 2})],  # To give a parameter to the module, use a tuple (name, params)
+    batch_size=10,
+)
+```
+
+### Collaters
+
+Collaters control how individual samples are combined into batches. To create a collater:
+
+1. Create a new Python file in your modules directory
+2. Define a class that inherits from `Collater` with a unique name
+3. Implement the `collate` method that takes a list of samples and returns a dictionary
+
+For example, to create a simple Python list collater:
+
+```python
+# modules/collater.py
+from lavender_data.server import Collater
+
+class PyListCollater(Collater, name="pylist"):
+    def collate(self, samples: list[dict]) -> dict:
+        """
+        Collate samples into a dictionary of lists
+        
+        Args:
+            samples: List of samples to collate
+            
+        Returns:
+            dict: Dictionary with lists for each field
+        """
+        result = {}
+        for key in samples[0].keys():
+            result[key] = [sample[key] for sample in samples]
+        return result
+```
+
+Then use it in your iteration:
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    collater="pylist", # To use a module without parameters, specify the module name only
+    batch_size=10,
+)
+```
+
+### Preprocessors
+
+Preprocessors transform batches before they're returned to your application. To create a preprocessor:
+
+1. Create a new Python file in your modules directory
+2. Define a class that inherits from `Preprocessor` with a unique name
+3. Implement the `process` method that takes a batch and returns a processed batch
+
+For example, to add a new column to each batch:
+
+```python
+# modules/preprocessor.py
+from lavender_data.server import Preprocessor
+
+class AppendNewColumn(Preprocessor, name="append_new_column"):
+    def process(self, batch: dict) -> dict:
+        """
+        Add a new column to the batch
+        
+        Args:
+            batch: The batch to process
+            
+        Returns:
+            dict: The processed batch with a new column
+        """
+        batch["new_column"] = []
+        for uid in batch["uid"]:
+            batch["new_column"].append(f"{uid}_processed")
+        return batch
+```
+
+Then use it in your iteration:
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    preprocessors=["append_new_column"],
+    batch_size=10,
+)
+```

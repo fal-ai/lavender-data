@@ -1,0 +1,61 @@
+---
+title: Lavender Data
+description: Load & evolve datasets efficiently
+hero:
+  tagline: Load & evolve datasets efficiently
+  image:
+    alt: A glittering, brightly colored logo
+    file: ../../assets/logo.png
+  actions:
+    - text: Get started
+      link: /quick-start
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/fal-ai/lavender-data
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<img class="light" src="/fal-logo.svg" alt="fal" width="80px" />
+<img class="dark" src="/fal-logo-dark.svg" alt="fal" width="80px" />
+Lavender Data is a data pipeline framework
+built by [fal.ai](https://fal.ai).
+
+<CardGrid>
+  <Card title="Remote Preprocessing" icon="star">
+    - Preprocess data on a remote server and offload your training GPUs
+    - Load data directly into memory through a network without any disk usage
+    - Support cloud storages
+  </Card>
+  <Card title="Joinable Dataset" icon="random">
+    - Add new features to your dataset without rewriting your data
+    - Selectively load only the features you need for your task
+  </Card>
+  <Card title="Dynamic Data Loading" icon="rocket">
+    - Filter rows or columns on the fly
+    - Resume an iteration from where you left off
+    - Retry or skip failed samples to make it fault tolerant
+    - Shuffle data across shards
+  </Card>
+  <Card title="Web UI" icon="laptop">
+    - Define and preview your datasets
+    - Track the realtime progress of your iterations
+  </Card>
+</CardGrid>
+
+
+## Why Lavender Data?
+
+Traditional ML data pipelines often face several challenges:
+
+1. **GPU Memory Overhead**: Preprocessing on the same GPU used for training
+2. **Disk Space Limitations**: Having to store entire datasets on disk
+3. **Inflexible Data Management**: Difficulty in adding new features or columns
+4. **Poor Fault Tolerance**: Failing when a single sample errors out
+
+Lavender Data solves these problems by providing a flexible, efficient, and robust solution for ML data management and preprocessing.
+
+Ready to get started? Check out our [Quick Start Guide](/quick-start) to begin using Lavender Data in your ML workflow.
+

@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sl-content-width: 60rem;
+  --sl-text-5xl: 2rem;
+  --sl-color-black: #19181a;
+
+  --sl-color-accent: hsl(258 80% 71%); /* Base color */
+  --sl-color-accent-low: hsl(260 73% 54%); /* Darker variant */
+  --sl-color-accent-high: hsl(258 75% 91%); /* Lighter variant */
+  --sl-color-accent-contrast: white; /* Text color that looks good on accent */
+}
+
+.right-sidebar {
+  border-left: 0px !important;
+}
+
+.sidebar-pane,
+.header {
+  background-color: var(--sl-color-bg) !important;
+  border: 0 !important;
+}
+
+.pagination-links a {
+  border: 0;
+  box-shadow: none;
+}
+
+html[data-theme="light"] .dark {
+  display: none;
+}
+
+html[data-theme="dark"] .light {
+  display: none;
+}
