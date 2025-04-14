@@ -1,0 +1,12 @@
+{
+  "/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync/route": "app/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/version/route": "app/api/version/route.js",
+  "/datasets/[dataset_id]/shardsets/[shardset_id]/page": "app/datasets/[dataset_id]/shardsets/[shardset_id]/page.js",
+  "/datasets/page": "app/datasets/page.js",
+  "/iterations/[iteration_id]/page": "app/iterations/[iteration_id]/page.js",
+  "/page": "app/page.js",
+  "/datasets/[dataset_id]/page": "app/datasets/[dataset_id]/page.js",
+  "/set-api-key/page": "app/set-api-key/page.js",
+  "/iterations/page": "app/iterations/page.js"
+}

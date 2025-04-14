@@ -1,0 +1,275 @@
+---
+title: Quick Start
+description: Get started with Lavender Data in minutes
+---
+
+import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+
+
+This guide will walk you through the essential steps to set up the server, create your first dataset, write data to it, and iterate over it.
+
+## Installation
+
+Install the `lavender-data` Python package using pip:
+
+```bash
+pip install lavender-data
+```
+
+This package contains both the server and the client libraries.
+
+### Start the Server
+
+Now, start the Lavender Data server. The server handles data loading, preprocessing, and manages iterations.
+The api is available at `http://localhost:8000` and the web ui is available at `http://localhost:3000` by default.
+
+```bash
+python3 -m lavender_data.server run --host 0.0.0.0 --port 8000 --ui-port 3000 --reload
+```
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--host` | The host address to bind the server to | `0.0.0.0` |
+| `--port` | The port number to listen on for API requests | `8000` |
+| `--reload` | Enable auto-reload on code changes | `False` |
+| `--ui-port` | The port number to listen on for Web UI requests | `3000` |
+| `--disable-ui` | Disable the Web UI | `False` |
+
+
+### Create an API Key
+
+To interact with the server API (either through the Python client or the Web UI), you need an API key. Generate one using this command:
+
+```bash
+python3 -m lavender_data.server create-api-key --note "My Test Key"
+> la-...
+```
+
+Copy the generated key (starting with `la-...`) as you'll need it to initialize the client.
+
+
+### Disable Authentication
+
+To disable authentication, you can set the environment variable `LAVENDER_DATA_DISABLE_AUTH` to `true`.
+
+```bash
+LAVENDER_DATA_DISABLE_AUTH=true python3 -m lavender_data.server run
+```
+
+This is useful when you are running the server locally for development and want to skip creating an API key.
+However, you should not use this in a production environment.
+
+
+## Setup the Dataset
+
+Now that the server is running, you can define your dataset.
+
+
+### Set the API Key
+
+<Tabs syncKey="ui-or-py">
+  <TabItem value="web-ui" label="Web UI">
+
+Navigate to the [ui](http://localhost:3000) in your browser and set the API key.
+
+![Set API Key](/web-ui/web-ui-set-api-key.png)
+
+  </TabItem>
+  <TabItem value="python" label="Python">
+
+In your Python script or notebook, initialize the client API, providing the server URL and your API key.
+You can also set the API key in the environment variable `LAVENDER_DATA_API_KEY`.
+
+```python
+from lavender_data.client import api as lavender
+
+# Replace 'la-...' with the API key you generated
+lavender.init(api_url="http://localhost:8000", api_key="la-...")
+```
+
+  </TabItem>
+</Tabs>
+
+### Create a Dataset
+
+A **Dataset** is the top-level container for your data. Each dataset needs a unique identifier column (`uid_column_name`).
+Let's create a dataset named "my-dataset" with "uid" as the unique identifier, and add a shardset to hold "uid" and "text" columns.
+
+<Tabs syncKey="ui-or-py">
+  <TabItem value="web-ui" label="Web UI">
+
+Navigate to the [datasets page](http://localhost:3000/datasets) in your browser and click on the "+ Dataset" button.
+
+![Datasets Empty](/web-ui/web-ui-datasets-empty.png)
+
+Enter the dataset name and the unique identifier column name.
+
+![Create a Dataset](/web-ui/web-ui-create-dataset.png)
+
+You should now see the dataset in the list. Click on the dataset id to see the dataset details.
+
+![Dataset Created](/web-ui/web-ui-datasets-created.png)
+
+![Empty Dataset](/web-ui/web-ui-dataset-empty.png)
+
+  </TabItem>
+  <TabItem value="python" label="Python">
+
+
+```python
+dataset = lavender.create_dataset(name="my-dataset", uid_column_name="uid")
+```
+
+  </TabItem>
+</Tabs>
+
+
+### Create a Shardset
+
+A **Shardset** represents a collection of related columns (features) stored as **Shards** (files).
+Let's create a shardset to hold "uid", "image_url" and "caption" columns.
+
+Let's say we have a directory containing the shard files for the dataset, and each shard file is a csv file with the following content.
+
+<FileTree>
+- **/path/to/the/shardset/**
+  - shard.00000.csv
+  - shard.00001.csv
+  - shard.00002.csv
+  - shard.00003.csv
+  - ...
+</FileTree>
+
+```
+# /path/to/the/shardset/shard.00000.csv
+uid,image_url,caption
+0,https://example.com/image-00000.jpg,Caption for image 00000
+1,https://example.com/image-00001.jpg,Caption for image 00001
+2,https://example.com/image-00002.jpg,Caption for image 00002
+3,https://example.com/image-00003.jpg,Caption for image 00003
+4,https://example.com/image-00004.jpg,Caption for image 00004
+5,https://example.com/image-00005.jpg,Caption for image 00005
+6,https://example.com/image-00006.jpg,Caption for image 00006
+7,https://example.com/image-00007.jpg,Caption for image 00007
+8,https://example.com/image-00008.jpg,Caption for image 00008
+9,https://example.com/image-00009.jpg,Caption for image 00009
+```
+
+You need to specify the path to the shardset directory as a `location` of the shardset.
+
+<Aside>
+
+Please note that you need to add `file://` prefix if you are using a local directory.
+In above case, the location should be: `file:///path/to/the/shardset/`, not `/path/to/the/shardset`.
+
+`s3://` prefix is also supported in case you want to store shards in an S3 bucket.
+To use S3 bucket, you need to provide AWS credentials in the environment variables:
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (and optionally `AWS_ENDPOINT_URL` if you are using a non-default endpoint)
+
+</Aside>
+
+If you have at least one shard in the directory, the columns will be inferred from the shard and existing shards will be synced automatically.
+You need to specify columns manually if you don't have any shards yet.
+
+<Tabs syncKey="ui-or-py">
+  <TabItem value="web-ui" label="Web UI">
+
+Click on "+ Shardset" button in the dataset detail page.
+Enter the path to the directory containing the shard files.
+If you don't have any shards yet, you need to specify the columns manually.
+
+![Create Shardset](/web-ui/web-ui-create-shardset.png)
+
+If you already have shards, they will be synced automatically.
+You should be able to see them like below.
+
+![Shardset Created](/web-ui/web-ui-dataset-detail.png)
+
+  </TabItem>
+  <TabItem value="python" label="Python">
+
+```python
+# Create the shardset, specifying where the shard files will be stored
+shardset = lavender.create_shardset(
+    dataset_id=dataset.id,
+    location="file:///path/to/the/shardset/",
+)
+
+# If you don't have any shards yet, you need to specify the columns manually.
+shardset = lavender.create_shardset(
+    dataset_id=dataset.id,
+    location="file:///path/to/the/shardset/",
+    columns=[
+        lavender.DatasetColumnOptions(
+            name="uid",
+            description="Unique identifier",
+            type_="int",
+        ),
+        lavender.DatasetColumnOptions(
+            name="image_url",
+            description="Image URL",
+            type_="str",
+        ),
+        lavender.DatasetColumnOptions(
+            name="caption",
+            description="Caption",
+            type_="str",
+        ),
+    ]
+)
+```
+
+  </TabItem>
+</Tabs>
+
+
+## Iterate Over the Dataset
+
+Finally, let's iterate over the dataset. We create an `Iteration` object, specifying which dataset and shardset(s) to use.
+
+```python
+from lavender_data.client import api as lavender, Iteration
+
+lavender.init(api_url="http://localhost:8000", api_key="la-...")
+
+# Create an iteration object for our dataset
+# We'll use a batch size of 10 and shuffle the data
+iteration = Iteration.from_dataset(
+    dataset_name="my-dataset",
+    shardsets=["ss-..."], # Specify which shardset(s) to load data from
+    batch_size=10,
+    shuffle=True,
+)
+
+# Loop through the batches provided by the iteration
+for i, batch in enumerate(iteration):
+    print(f"Batch {i}: {batch}")
+```
+
+This loop will fetch batches of data from the server, handling shuffling and batching automatically.
+
+### Iterate as a PyTorch DataLoader
+
+Lavender Data provides seamless integration with PyTorch. You can convert an `Iteration` directly into a `torch.utils.data.DataLoader`:
+
+```python
+# Ensure you have PyTorch installed: pip install torch
+
+# Convert the Lavender Data iteration into a PyTorch DataLoader
+dataloader = Iteration.from_dataset(
+    dataset_name="my-dataset",
+    shardsets=["ss-..."],
+    batch_size=10,
+    shuffle=True,
+).to_torch_dataloader(
+    prefetch_factor=4,
+)
+
+# Use the DataLoader in your training loop
+if __name__ == "__main__": # Required for multiprocessing with DataLoader
+    for i, batch in enumerate(dataloader):
+        # Process the batch (e.g., move to GPU, feed to model)
+        print(f"Torch Batch {i}: {batch['uid'].shape}")
+```
+
+You've successfully set up Lavender Data, created a dataset, added data, and iterated over it!

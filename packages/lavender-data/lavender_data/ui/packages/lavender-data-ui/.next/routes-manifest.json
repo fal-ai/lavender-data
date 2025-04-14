@@ -1,0 +1,102 @@
+{
+  "version": 3,
+  "pages404": true,
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "dynamicRoutes": [
+    {
+      "page": "/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync",
+      "regex": "^/api/datasets/([^/]+?)/shardsets/([^/]+?)/sync(?:/)?$",
+      "routeKeys": {
+        "nxtPdataset_id": "nxtPdataset_id",
+        "nxtPshardset_id": "nxtPshardset_id"
+      },
+      "namedRegex": "^/api/datasets/(?<nxtPdataset_id>[^/]+?)/shardsets/(?<nxtPshardset_id>[^/]+?)/sync(?:/)?$"
+    },
+    {
+      "page": "/datasets/[dataset_id]",
+      "regex": "^/datasets/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPdataset_id": "nxtPdataset_id"
+      },
+      "namedRegex": "^/datasets/(?<nxtPdataset_id>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/datasets/[dataset_id]/shardsets/[shardset_id]",
+      "regex": "^/datasets/([^/]+?)/shardsets/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPdataset_id": "nxtPdataset_id",
+        "nxtPshardset_id": "nxtPshardset_id"
+      },
+      "namedRegex": "^/datasets/(?<nxtPdataset_id>[^/]+?)/shardsets/(?<nxtPshardset_id>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/iterations/[iteration_id]",
+      "regex": "^/iterations/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPiteration_id": "nxtPiteration_id"
+      },
+      "namedRegex": "^/iterations/(?<nxtPiteration_id>[^/]+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/datasets",
+      "regex": "^/datasets(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/datasets(?:/)?$"
+    },
+    {
+      "page": "/iterations",
+      "regex": "^/iterations(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/iterations(?:/)?$"
+    },
+    {
+      "page": "/set-api-key",
+      "regex": "^/set\\-api\\-key(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/set\\-api\\-key(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "RSC",
+    "varyHeader": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch",
+    "prefetchHeader": "Next-Router-Prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSuffix": ".prefetch.rsc",
+    "prefetchSegmentHeader": "Next-Router-Segment-Prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments"
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  },
+  "rewrites": []
+}

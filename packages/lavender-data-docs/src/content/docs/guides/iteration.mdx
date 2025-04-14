@@ -1,0 +1,201 @@
+---
+title: Iteration
+description: Learn about iteration features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+Lavender Data provides several features for iterating over datasets,
+giving you fine-grained control over how data is processed.
+
+## Shuffling Data
+
+Shuffling is essential for many ML training scenarios.
+Lavender Data provides powerful options for shuffling your data across shards.
+
+### Basic Shuffling
+
+Set `shuffle=True` to shuffle the data.
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    shuffle=True,
+)
+```
+
+### Controlling Randomness
+
+To ensure reproducibility, you can set a seed for the shuffle.
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    shuffle=True,
+    shuffle_seed=42,  # Fixed seed for reproducibility
+)
+```
+
+### Block Size Control
+
+The `shuffle_block_size` parameter controls how many shards are shuffled at once.
+Larger values provide better randomness but use more memory:
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    shuffle=True,
+    shuffle_seed=42,
+    shuffle_block_size=3,  # Shuffle 3 shards at a time
+)
+```
+
+## Cache
+
+Lavender Data caches yielded samples/batches to avoid redundant processing.
+Please refer to the [Cache](/concepts/cache) page for more details.
+
+### Ignoring Cache
+
+You can ignore caches and reprocess the data by setting the `no_cache` parameter to `True` on creating the iteration instance.
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    no_cache=True,
+)
+```
+
+## Fault Tolerance
+
+Lavender Data is designed to handle failures gracefully, ensuring your training pipeline remains robust.
+
+### Handling Failed Samples
+
+By default, Lavender Data will skip failed samples. 
+You can control this behavior with the `stop_on_failure` and `max_retry_count` parameters.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `stop_on_failure` | Stop the iteration if a sample fails, instead of skipping it | `False` |
+| `max_retry_count` | Retry each failed sample up to this number of times | `0` |
+
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    stop_on_failure=True, # Stop the iteration if a sample fails
+    max_retry_count=3, # Retry each failed sample up to 3 times
+)
+```
+
+
+## Resumable Iterations
+
+One of Lavender Data's powerful features is the ability to pause and resume iterations:
+
+### Saving the Iteration ID
+
+You need to save the iteration id to resume it later.
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+)
+print(iteration.id)
+```
+
+### Putting back the Samples In Progress
+
+Before resuming the iteration, you might want to put back
+the samples still in progress. For example, they can still in preprocessing,
+or they are prefetched but not used yet.
+You can put back them into the iteration queue by calling `pushback` method, 
+or through the web UI.
+
+<Tabs syncKey="ui-or-py">
+  <TabItem value="web-ui" label="Web UI">
+
+Click the "Pushback" button in the iteration detail page.
+
+![Pushback](/web-ui/web-ui-iteration-detail.png)
+
+  </TabItem>
+  <TabItem value="python" label="Python">
+
+```python
+iteration.pushback()
+# or
+lavender.pushback(iteration.id)
+```
+
+  </TabItem>
+</Tabs>
+
+
+### Resuming an Iteration
+
+Later, you can resume the iteration from where it left off:
+
+```python
+for batch in Iteration.from_iteration_id("it-..."):
+    # Continue processing from where you left off
+    process_batch(batch)
+```
+
+## Replication PG
+
+For context parallelism, you can set the `replication_pg` parameter.
+It is a list of list of integers, where each inner list is a partition of the ranks.
+For example, `[[0, 1], [2, 3]]` means that rank 0 and 1 are in the first partition,
+and rank 2 and 3 are in the second partition. 
+Within each partition, the ranks get the same samples.
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    replication_pg=[[0, 1], [2, 3]],
+)
+```
+
+
+## PyTorch Integration
+
+Convert your iteration to a PyTorch DataLoader for seamless integration with PyTorch, 
+by calling the `to_torch_dataloader` method.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `prefetch_factor` | Number of batches to prefetch. | `None` |
+| `pin_memory` | Pin memory for faster GPU transfer. | `False` |
+| `pin_memory_device` | Device to pin memory to. | `""` |
+| `in_order` | Whether to iterate in order. <br />If `False`, the order is not guaranteed but can be slightly faster. | `True` |
+| `poll_interval` | How often to check for new samples. <br />Smaller values can make the iteration faster<br />but can lead to more cpu usage on the server side. | `0.01` |
+
+
+```python
+dataloader = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    batch_size=10,
+    shuffle=True,
+).to_torch_dataloader(
+    prefetch_factor=4,
+    pin_memory=True,
+    pin_memory_device="cuda:0",
+    in_order=True,
+)
+
+for batch in dataloader:
+    # Use in PyTorch training loop
+    outputs = model(batch)
+    loss = criterion(outputs, batch["labels"])
+    # ...
+```

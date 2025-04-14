@@ -1,0 +1,14 @@
+[project]
+name = "quick-start"
+version = "0.0.1"
+requires-python = ">=3.12"
+dependencies = [
+    "boto3>=1.37.30",
+    "ipykernel>=6.29.5",
+    "lavender-data",
+]
+
+
+[tool.uv.sources]
+lavender-data = {path = "../../packages/lavender-data", editable = true}
+
