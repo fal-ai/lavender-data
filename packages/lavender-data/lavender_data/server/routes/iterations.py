@@ -27,6 +27,7 @@ from lavender_data.server.services.iterations import (
     IterationStateException,
     Progress,
     get_next_samples,
+    get_iteration_with_same_config,
     process_next_samples,
 )
 from lavender_data.server.services.registries import (
@@ -75,6 +76,9 @@ class CreateIterationParams(BaseModel):
     batch_size: Optional[int] = None
 
     replication_pg: Optional[list[list[int]]] = None
+    rank: Optional[int] = None
+    world_size: Optional[int] = None
+    wait_participant_threshold: Optional[float] = None
 
 
 @router.post("/")
@@ -110,7 +114,8 @@ def create_iteration(
                 raise HTTPException(
                     status_code=400,
                     detail="preprocessor must be one of the following: ["
-                    + ", ".join(PreprocessorRegistry.list()) + "]",
+                    + ", ".join(PreprocessorRegistry.list())
+                    + "]",
                 )
 
     if params.filters is not None:
@@ -119,7 +124,8 @@ def create_iteration(
                 raise HTTPException(
                     status_code=400,
                     detail="filter must be one of the following: ["
-                    + ", ".join(FilterRegistry.list()) + "]",
+                    + ", ".join(FilterRegistry.list())
+                    + "]",
                 )
 
     if params.collater is not None:
@@ -127,7 +133,8 @@ def create_iteration(
             raise HTTPException(
                 status_code=400,
                 detail="collater must be one of the following: ["
-                + ", ".join(CollaterRegistry.list()) + "]",
+                + ", ".join(CollaterRegistry.list())
+                + "]",
             )
 
     try:
@@ -159,6 +166,7 @@ def create_iteration(
 
     iteration = Iteration(
         dataset_id=dataset.id,
+        dataset=dataset,
         total=total_samples,
         filters=params.filters,
         preprocessors=params.preprocessors,
@@ -170,11 +178,51 @@ def create_iteration(
         shardsets=shardsets,
         replication_pg=params.replication_pg,
     )
-    session.add(iteration)
-    session.commit()
-    session.refresh(iteration)
 
-    IterationState(iteration.id, cache).init(iteration)
+    iteration_with_same_config = None
+    iteration_with_same_config_id = get_iteration_with_same_config(iteration, cache)
+    if iteration_with_same_config_id is not None:
+        try:
+            iteration_with_same_config = session.get_one(
+                Iteration, iteration_with_same_config_id
+            )
+
+            state = IterationState(iteration_with_same_config.id, cache)
+            if not state.exists():
+                iteration_with_same_config = None
+
+            if params.rank in state.get_ranks():
+                # this rank already requested to create an iteration with this config
+                # it means "create_iteration" called twice, which happens when
+                # the training script is restarted. thus iteration should be initialized again
+                iteration_with_same_config = None
+
+            if (params.world_size is not None) and (
+                set(state.get_ranks()) == set(range(params.world_size))
+            ):
+                # all nodes have already joined
+                # this means training script is restarted. thus iteration should be initialized again
+                iteration_with_same_config = None
+
+        except NoResultFound:
+            pass
+
+    if iteration_with_same_config is not None:
+        iteration = iteration_with_same_config
+    else:
+        session.add(iteration)
+        session.commit()
+        session.refresh(iteration)
+
+    state = IterationState(iteration.id, cache)
+    state.init(
+        iteration,
+        (
+            (params.wait_participant_threshold or 10)
+            if params.world_size is None
+            else None
+        ),
+    )
 
     return iteration
 

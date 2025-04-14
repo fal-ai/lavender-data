@@ -217,6 +217,9 @@ class LavenderDataClient:
         filters: Optional[list[IterationFilter]] = None,
         preprocessors: Optional[list[IterationPreprocessor]] = None,
         collater: Optional[IterationCollater] = None,
+        rank: int = 0,
+        world_size: Optional[int] = None,
+        wait_participant_threshold: Optional[float] = None,
     ):
         with self._get_client() as client:
             response = create_iteration_iterations_post.sync_detailed(
@@ -232,6 +235,9 @@ class LavenderDataClient:
                     filters=filters,
                     collater=collater,
                     replication_pg=replication_pg,
+                    rank=rank,
+                    world_size=world_size,
+                    wait_participant_threshold=wait_participant_threshold,
                 ),
             )
         return self._check_response(response)
@@ -412,6 +418,9 @@ def create_iteration(
     filters: Optional[list[IterationFilter]] = None,
     preprocessors: Optional[list[IterationPreprocessor]] = None,
     collater: Optional[IterationCollater] = None,
+    rank: int = 0,
+    world_size: Optional[int] = None,
+    wait_participant_threshold: Optional[float] = None,
 ):
     return _client_instance.create_iteration(
         dataset_id=dataset_id,
@@ -424,6 +433,9 @@ def create_iteration(
         filters=filters,
         preprocessors=preprocessors,
         collater=collater,
+        rank=rank,
+        world_size=world_size,
+        wait_participant_threshold=wait_participant_threshold,
     )
 
 

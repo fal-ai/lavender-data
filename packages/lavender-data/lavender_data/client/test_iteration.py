@@ -19,7 +19,6 @@ from lavender_data.client.api import (
     create_dataset,
     create_shardset,
     DatasetColumnOptions,
-    create_shard,
 )
 from lavender_data.client.iteration import Iteration
 
@@ -148,6 +147,51 @@ class TestIteration(unittest.TestCase):
                 self.assertEqual(caption, f"Caption for image {i * batch_size + j:05d}")
                 read_samples += 1
         self.assertEqual(read_samples, self.total_samples)
+
+    def test_iteration_with_rank(self):
+        rank_1 = Iteration.from_dataset(
+            dataset_id=self.dataset_id,
+            shardsets=[self.shardset_id],
+            rank=1,
+            world_size=2,
+        )
+        rank_2 = Iteration.from_dataset(
+            dataset_id=self.dataset_id,
+            shardsets=[self.shardset_id],
+            rank=2,
+            world_size=2,
+        )
+
+        rank_1_samples = []
+        rank_2_samples = []
+        rank_1_stopped = False
+        rank_2_stopped = False
+        for i in tqdm.tqdm(
+            range(self.total_samples * 2),
+        ):
+            if rank_1_stopped and rank_2_stopped:
+                break
+
+            if i % 2 == 0:
+                try:
+                    rank_1_samples.append(next(rank_1))
+                except StopIteration:
+                    rank_1_stopped = True
+            else:
+                try:
+                    rank_2_samples.append(next(rank_2))
+                except StopIteration:
+                    rank_2_stopped = True
+
+        rank_1_image_urls = [sample["image_url"] for sample in rank_1_samples]
+        rank_2_image_urls = [sample["image_url"] for sample in rank_2_samples]
+
+        self.assertEqual(len(rank_1_image_urls), self.total_samples // 2)
+        self.assertEqual(len(rank_2_image_urls), self.total_samples // 2)
+        self.assertEqual(len(set(rank_1_image_urls) & set(rank_2_image_urls)), 0)
+        self.assertEqual(
+            len(set(rank_1_image_urls) | set(rank_2_image_urls)), self.total_samples
+        )
 
     def test_iteration_with_filter(self):
         read_samples = 0

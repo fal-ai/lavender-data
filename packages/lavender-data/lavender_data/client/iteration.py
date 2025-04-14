@@ -58,6 +58,7 @@ class Iteration:
         iteration_id: str,
         total: int,
         no_cache: bool = False,
+        rank: int = 0,
     ):
         self._dataset_id = dataset_id
         self._iteration_id = iteration_id
@@ -66,6 +67,7 @@ class Iteration:
         self.id = iteration_id
         self.last_indices = None
         self.no_cache = no_cache
+        self.rank = rank
 
     @classmethod
     def from_dataset(
@@ -81,6 +83,9 @@ class Iteration:
         shuffle_block_size: Optional[int] = None,
         batch_size: Optional[int] = None,
         replication_pg: Optional[list[list[int]]] = None,
+        rank: int = 0,
+        world_size: Optional[int] = None,
+        wait_participant_threshold: Optional[float] = None,
         no_cache: bool = False,
     ):
         if dataset_id is None and dataset_name is None:
@@ -115,25 +120,32 @@ class Iteration:
             shuffle_block_size=shuffle_block_size,
             batch_size=batch_size,
             replication_pg=replication_pg,
+            rank=rank,
+            world_size=world_size,
+            wait_participant_threshold=wait_participant_threshold,
         )
-        return cls.from_iteration(iteration, no_cache=no_cache)
-
-    @classmethod
-    def from_iteration_id(cls, iteration_id: str, no_cache: bool = False):
-        iteration = get_iteration(iteration_id)
-        return cls.from_iteration(iteration, no_cache=no_cache)
-
-    @classmethod
-    def from_iteration(
-        cls,
-        iteration: GetIterationResponse,
-        no_cache: bool = False,
-    ):
         return cls(
             dataset_id=iteration.dataset_id,
             iteration_id=iteration.id,
             total=iteration.total,
             no_cache=no_cache,
+            rank=rank,
+        )
+
+    @classmethod
+    def from_iteration_id(
+        cls,
+        iteration_id: str,
+        no_cache: bool = False,
+        rank: int = 0,
+    ):
+        iteration = get_iteration(iteration_id)
+        return cls(
+            dataset_id=iteration.dataset_id,
+            iteration_id=iteration.id,
+            total=iteration.total,
+            no_cache=no_cache,
+            rank=rank,
         )
 
     def to_torch_dataloader(
@@ -197,7 +209,7 @@ class Iteration:
         try:
             sample_or_batch = get_next_item(
                 iteration_id=self._iteration_id,
-                rank=0,
+                rank=self.rank,
                 no_cache=self.no_cache,
             )
         except LavenderDataApiError as e:
@@ -211,7 +223,7 @@ class Iteration:
     def _get_next_item_async_request(self) -> str:
         cache_key = get_next_item(
             iteration_id=self._iteration_id,
-            rank=0,
+            rank=self.rank,
             async_mode=True,
             no_cache=self.no_cache,
         )
@@ -220,7 +232,9 @@ class Iteration:
     def _get_next_item_async_result(self, cache_key: str):
         try:
             return get_next_item_async_result(
-                iteration_id=self._iteration_id, cache_key=cache_key
+                iteration_id=self._iteration_id,
+                cache_key=cache_key,
+                rank=self.rank,
             )
         except LavenderDataApiError as e:
             if "Content is still being processed" in str(e):
