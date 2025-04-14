@@ -77,6 +77,9 @@ class RedisCache(CacheInterface):
     def lindex(self, name: str, index: int) -> Optional[str]:
         return self.redis.lindex(name, index)
 
+    def llen(self, name: str) -> int:
+        return self.redis.llen(name)
+
     @contextlib.contextmanager
     def lock(self, key: str, timeout: Optional[int] = None) -> Iterator[None]:
         with self.redis.lock(key, timeout=timeout):

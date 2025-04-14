@@ -66,6 +66,9 @@ class CacheOperations(ABC):
     @abstractmethod
     def lindex(self, name: str, index: int) -> Optional[str]: ...
 
+    @abstractmethod
+    def llen(self, name: str) -> int: ...
+
 
 class CacheInterface(CacheOperations):
     @abstractmethod

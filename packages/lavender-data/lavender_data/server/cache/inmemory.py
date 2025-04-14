@@ -53,6 +53,8 @@ class InMemoryCache(CacheInterface):
     def _ensure_bytes(self, value: Union[str, bytes]) -> bytes:
         if isinstance(value, str):
             return value.encode("utf-8")
+        if isinstance(value, int):
+            return str(value).encode("utf-8")
         return value
 
     # Basic key operations
@@ -67,34 +69,44 @@ class InMemoryCache(CacheInterface):
     ) -> bool:
         """Set key to value with optional expiration"""
         with self._lock:
-            if nx and key in self._data:
+            _key = self._ensure_bytes(key)
+            if nx and _key in self._data:
                 return False
-            if xx and key not in self._data:
+            if xx and _key not in self._data:
                 return False
 
             value = self._ensure_bytes(value)
 
-            self._data[key] = value
+            self._data[_key] = value
 
             # Handle expiration
             if ex:  # seconds
-                self._expiry[key] = time.time() + ex
+                self._expiry[_key] = time.time() + ex
             elif px:  # milliseconds
-                self._expiry[key] = time.time() + (px / 1000)
+                self._expiry[_key] = time.time() + (px / 1000)
 
             return True
 
     def get(self, key: str) -> Optional[bytes]:
         """Get the value of key"""
         with self._lock:
-            if self._check_expiry(key):
+            _key = self._ensure_bytes(key)
+            if self._check_expiry(_key):
                 return None
-            return self._data.get(key)
+            return self._data.get(_key)
 
     def keys(self, pattern: str) -> list[str]:
         """Get all keys matching the pattern"""
         with self._lock:
-            return [k for k in self._data if fnmatch(k, pattern)]
+            return [
+                k
+                for k in (
+                    set(self._data.keys())
+                    | set(self._hash_data.keys())
+                    | set(self._list_data.keys())
+                )
+                if fnmatch(k.decode("utf-8"), pattern)
+            ]
 
     def delete(self, *keys: str) -> int:
         """Delete one or more keys"""
@@ -102,53 +114,60 @@ class InMemoryCache(CacheInterface):
         with self._lock:
             for key in keys:
                 # Remove from all storage types
-                if key in self._data:
-                    del self._data[key]
+                _key = self._ensure_bytes(key)
+                if _key in self._data:
+                    del self._data[_key]
                     deleted += 1
-                if key in self._hash_data:
-                    del self._hash_data[key]
+                if _key in self._hash_data:
+                    del self._hash_data[_key]
                     deleted += 1
-                if key in self._list_data:
-                    del self._list_data[key]
+                if _key in self._list_data:
+                    del self._list_data[_key]
                     deleted += 1
-                if key in self._expiry:
-                    del self._expiry[key]
+                if _key in self._expiry:
+                    del self._expiry[_key]
         return deleted
 
     def exists(self, key: str) -> bool:
         """Check if key exists"""
         with self._lock:
-            if self._check_expiry(key):
+            _key = self._ensure_bytes(key)
+            if self._check_expiry(_key):
                 return False
-            return key in self._data or key in self._hash_data or key in self._list_data
+            return (
+                _key in self._data or _key in self._hash_data or _key in self._list_data
+            )
 
     def expire(self, key: str, seconds: int) -> bool:
         """Set a key's time to live in seconds"""
         with self._lock:
-            if not self.exists(key):
+            _key = self._ensure_bytes(key)
+            if not self.exists(_key):
                 return False
-            self._expiry[key] = time.time() + seconds
+            self._expiry[_key] = time.time() + seconds
             return True
 
     def incr(self, key: str, amount: int = 1) -> int:
         """Increment the value of key by amount"""
         with self._lock:
-            if not self.exists(key):
-                self._data[key] = amount
+            _key = self._ensure_bytes(key)
+            if not self.exists(_key):
+                self._data[_key] = amount
             else:
-                self._data[key] += amount
+                self._data[_key] += amount
 
-            return self._data[key]
+            return self._data[_key]
 
     def decr(self, key: str, amount: int = 1) -> int:
         """Decrement the value of key by amount"""
         with self._lock:
-            if not self.exists(key):
-                self._data[key] = -amount
+            _key = self._ensure_bytes(key)
+            if not self.exists(_key):
+                self._data[_key] = -amount
             else:
-                self._data[key] -= amount
+                self._data[_key] -= amount
 
-            return self._data[key]
+            return self._data[_key]
 
     # Hash operations
     def hset(
@@ -160,18 +179,21 @@ class InMemoryCache(CacheInterface):
     ) -> int:
         """Set key to value within hash name"""
         with self._lock:
-            if name not in self._hash_data:
-                self._hash_data[name] = {}
+            _name = self._ensure_bytes(name)
+            if _name not in self._hash_data:
+                self._hash_data[_name] = {}
 
             if mapping:
                 for k, v in mapping.items():
-                    v = self._ensure_bytes(v)
-                    self._hash_data[name][k] = v
+                    self._hash_data[_name][self._ensure_bytes(k)] = self._ensure_bytes(
+                        v
+                    )
                 return len(mapping)
             elif key is not None and value is not None:
-                is_new = key not in self._hash_data[name]
-                value = self._ensure_bytes(value)
-                self._hash_data[name][key] = value
+                is_new = key not in self._hash_data[_name]
+                self._hash_data[_name][self._ensure_bytes(key)] = self._ensure_bytes(
+                    value
+                )
                 return 1 if is_new else 0
             else:
                 return 0
@@ -179,34 +201,39 @@ class InMemoryCache(CacheInterface):
     def hget(self, name: str, key: str) -> Optional[str]:
         """Get the value of key within the hash name"""
         with self._lock:
-            if self._check_expiry(name):
+            _name = self._ensure_bytes(name)
+            if self._check_expiry(_name):
                 return None
-            if name not in self._hash_data:
+            if _name not in self._hash_data:
                 return None
-            return self._hash_data[name].get(key)
+            _key = self._ensure_bytes(key)
+            return self._hash_data[_name].get(_key)
 
     def hgetall(self, name: str) -> dict[str, str]:
         """Get all the fields and values in a hash"""
         with self._lock:
-            if self._check_expiry(name):
+            _name = self._ensure_bytes(name)
+            if self._check_expiry(_name):
                 return {}
-            return self._hash_data.get(name, {}).copy()
+            return self._hash_data.get(_name, {}).copy()
 
     def hdel(self, name: str, *keys: str) -> int:
         """Delete one or more hash fields"""
         with self._lock:
-            if name not in self._hash_data:
+            _name = self._ensure_bytes(name)
+            if self._check_expiry(_name):
                 return 0
 
             deleted = 0
             for key in keys:
-                if key in self._hash_data[name]:
-                    del self._hash_data[name][key]
+                _key = self._ensure_bytes(key)
+                if _key in self._hash_data[_name]:
+                    del self._hash_data[_name][_key]
                     deleted += 1
 
             # Clean up empty hash
-            if not self._hash_data[name]:
-                del self._hash_data[name]
+            if not self._hash_data[_name]:
+                del self._hash_data[_name]
 
             return deleted
 
@@ -214,95 +241,110 @@ class InMemoryCache(CacheInterface):
     def lpush(self, name: str, *values: str) -> int:
         """Push values onto the head of the list name"""
         with self._lock:
-            if name not in self._list_data:
-                self._list_data[name] = []
+            _name = self._ensure_bytes(name)
+            if _name not in self._list_data:
+                self._list_data[_name] = []
 
             for value in values:
-                self._list_data[name].insert(0, self._ensure_bytes(value))
+                self._list_data[_name].insert(0, self._ensure_bytes(value))
 
-            return len(self._list_data[name])
+            return len(self._list_data[_name])
 
     def rpush(self, name: str, *values: str) -> int:
         """Push values onto the tail of the list name"""
         with self._lock:
-            if name not in self._list_data:
-                self._list_data[name] = []
+            _name = self._ensure_bytes(name)
+            if _name not in self._list_data:
+                self._list_data[_name] = []
 
             for value in values:
-                self._list_data[name].append(self._ensure_bytes(value))
+                self._list_data[_name].append(self._ensure_bytes(value))
 
-            return len(self._list_data[name])
+            return len(self._list_data[_name])
 
     def lpop(self, name: str, count: Optional[int] = None) -> Optional[str]:
         """Remove and return the first item of the list name"""
         with self._lock:
-            if self._check_expiry(name):
+            _name = self._ensure_bytes(name)
+            if self._check_expiry(_name):
                 return None
-            if name not in self._list_data or not self._list_data[name]:
+            if _name not in self._list_data or not self._list_data[_name]:
                 return None
 
             if count is None:
-                value = self._list_data[name].pop(0)
+                value = self._list_data[_name].pop(0)
             else:
                 values = []
                 for _ in range(count):
-                    values.append(self._list_data[name].pop(0))
+                    values.append(self._list_data[_name].pop(0))
                 value = values
 
             # Clean up empty list
-            if not self._list_data[name]:
-                del self._list_data[name]
+            if not self._list_data[_name]:
+                del self._list_data[_name]
 
             return value
 
     def rpop(self, name: str) -> Optional[str]:
         """Remove and return the last item of the list name"""
         with self._lock:
-            if self._check_expiry(name):
+            _name = self._ensure_bytes(name)
+            if self._check_expiry(_name):
                 return None
-            if name not in self._list_data or not self._list_data[name]:
+            if _name not in self._list_data or not self._list_data[_name]:
                 return None
 
-            value = self._list_data[name].pop()
+            value = self._list_data[_name].pop()
 
             # Clean up empty list
-            if not self._list_data[name]:
-                del self._list_data[name]
+            if not self._list_data[_name]:
+                del self._list_data[_name]
 
             return value
 
     def lrange(self, name: str, start: int, end: int) -> list[str]:
         """Return a slice of the list name between position start and end"""
         with self._lock:
-            if self._check_expiry(name):
+            _name = self._ensure_bytes(name)
+            if self._check_expiry(_name):
                 return []
-            if name not in self._list_data:
+            if _name not in self._list_data:
                 return []
 
             # Handle negative indices like Redis does
             if end == -1:
-                end = len(self._list_data[name])
+                end = len(self._list_data[_name])
 
-            return self._list_data[name][start : end + 1]
+            return self._list_data[_name][start : end + 1]
 
     def lindex(self, name: str, index: int) -> Optional[str]:
         """Get the element at index in the list name"""
         with self._lock:
-            if self._check_expiry(name):
+            _name = self._ensure_bytes(name)
+            if self._check_expiry(_name):
                 return None
             try:
-                return self._list_data.get(name, [])[index]
+                return self._list_data.get(_name, [])[index]
             except IndexError:
                 return None
+
+    def llen(self, name: str) -> int:
+        """Get the length of the list name"""
+        with self._lock:
+            _name = self._ensure_bytes(name)
+            if self._check_expiry(_name):
+                return 0
+            return len(self._list_data.get(_name, []))
 
     @contextmanager
     def lock(self, key: str, timeout: Optional[int] = None) -> Iterator[None]:
         """Lock a key for a given timeout"""
-        if key not in self._lock_data:
-            self._lock_data[key] = threading.Lock()
-        self._lock_data[key].acquire(timeout)
+        _key = self._ensure_bytes(key)
+        if _key not in self._lock_data:
+            self._lock_data[_key] = threading.Lock()
+        self._lock_data[_key].acquire(timeout)
         yield
-        self._lock_data[key].release()
+        self._lock_data[_key].release()
 
     @contextmanager
     def pipeline(self):
@@ -321,7 +363,7 @@ def append_result(func):
 
 class InMemoryPipeline(CacheOperations):
     def __init__(self, cache: InMemoryCache):
-        self.cache = cache
+        self.cache: InMemoryCache = cache
         self.results: list[Any] = []
 
     @append_result
@@ -401,6 +443,10 @@ class InMemoryPipeline(CacheOperations):
     @append_result
     def lindex(self, name: str, index: int) -> Optional[str]:
         return self.cache.lindex(name, index)
+
+    @append_result
+    def llen(self, name: str) -> int:
+        return self.cache.llen(name)
 
     def execute(self) -> list[Any]:
         r = self.results
