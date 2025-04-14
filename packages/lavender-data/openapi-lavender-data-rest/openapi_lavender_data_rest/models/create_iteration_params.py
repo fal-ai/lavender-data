@@ -29,6 +29,9 @@ class CreateIterationParams:
         shuffle_block_size (Union[None, Unset, int]):
         batch_size (Union[None, Unset, int]):
         replication_pg (Union[None, Unset, list[list[int]]]):
+        rank (Union[None, Unset, int]):
+        world_size (Union[None, Unset, int]):
+        wait_participant_threshold (Union[None, Unset, float]):
     """
 
     dataset_id: str
@@ -41,6 +44,9 @@ class CreateIterationParams:
     shuffle_block_size: Union[None, Unset, int] = UNSET
     batch_size: Union[None, Unset, int] = UNSET
     replication_pg: Union[None, Unset, list[list[int]]] = UNSET
+    rank: Union[None, Unset, int] = UNSET
+    world_size: Union[None, Unset, int] = UNSET
+    wait_participant_threshold: Union[None, Unset, float] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -126,6 +132,24 @@ class CreateIterationParams:
         else:
             replication_pg = self.replication_pg
 
+        rank: Union[None, Unset, int]
+        if isinstance(self.rank, Unset):
+            rank = UNSET
+        else:
+            rank = self.rank
+
+        world_size: Union[None, Unset, int]
+        if isinstance(self.world_size, Unset):
+            world_size = UNSET
+        else:
+            world_size = self.world_size
+
+        wait_participant_threshold: Union[None, Unset, float]
+        if isinstance(self.wait_participant_threshold, Unset):
+            wait_participant_threshold = UNSET
+        else:
+            wait_participant_threshold = self.wait_participant_threshold
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -151,6 +175,12 @@ class CreateIterationParams:
             field_dict["batch_size"] = batch_size
         if replication_pg is not UNSET:
             field_dict["replication_pg"] = replication_pg
+        if rank is not UNSET:
+            field_dict["rank"] = rank
+        if world_size is not UNSET:
+            field_dict["world_size"] = world_size
+        if wait_participant_threshold is not UNSET:
+            field_dict["wait_participant_threshold"] = wait_participant_threshold
 
         return field_dict
 
@@ -299,6 +329,33 @@ class CreateIterationParams:
 
         replication_pg = _parse_replication_pg(d.pop("replication_pg", UNSET))
 
+        def _parse_rank(data: object) -> Union[None, Unset, int]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(Union[None, Unset, int], data)
+
+        rank = _parse_rank(d.pop("rank", UNSET))
+
+        def _parse_world_size(data: object) -> Union[None, Unset, int]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(Union[None, Unset, int], data)
+
+        world_size = _parse_world_size(d.pop("world_size", UNSET))
+
+        def _parse_wait_participant_threshold(data: object) -> Union[None, Unset, float]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(Union[None, Unset, float], data)
+
+        wait_participant_threshold = _parse_wait_participant_threshold(d.pop("wait_participant_threshold", UNSET))
+
         create_iteration_params = cls(
             dataset_id=dataset_id,
             shardsets=shardsets,
@@ -310,6 +367,9 @@ class CreateIterationParams:
             shuffle_block_size=shuffle_block_size,
             batch_size=batch_size,
             replication_pg=replication_pg,
+            rank=rank,
+            world_size=world_size,
+            wait_participant_threshold=wait_participant_threshold,
         )
 
         create_iteration_params.additional_properties = d

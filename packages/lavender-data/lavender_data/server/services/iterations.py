@@ -73,6 +73,36 @@ def _hash(o: object) -> str:
     ).hexdigest()
 
 
+def get_iteration_hash(iteration: Iteration) -> str:
+    return _hash(
+        {
+            "dataset_id": iteration.dataset.id,
+            "shardsets": [s.id for s in iteration.shardsets],
+            "batch_size": iteration.batch_size,
+            "collater": iteration.collater,
+            "filters": iteration.filters,
+            "preprocessors": iteration.preprocessors,
+            "shuffle": iteration.shuffle,
+            "shuffle_seed": iteration.shuffle_seed,
+            "shuffle_block_size": iteration.shuffle_block_size,
+            "replication_pg": iteration.replication_pg,
+        }
+    )
+
+
+def iteration_hash_key(iteration_hash: str) -> str:
+    return f"iteration_hash:{iteration_hash}"
+
+
+def get_iteration_with_same_config(
+    iteration: Iteration, cache: CacheClient
+) -> Optional[str]:
+    value = cache.get(iteration_hash_key(get_iteration_hash(iteration)))
+    if value is None:
+        return None
+    return value.decode("utf-8")
+
+
 class IterationState:
     _instances = {}
 
@@ -88,7 +118,11 @@ class IterationState:
     def _key(self, key: str) -> str:
         return f"{self.iteration_id}:{key}"
 
-    def _set_iteration_info(self, iteration: Iteration) -> None:
+    def _set_iteration_info(
+        self,
+        iteration: Iteration,
+        wait_participant_threshold: Optional[float] = None,
+    ) -> None:
         uid_column = next(
             (
                 c
@@ -135,18 +169,12 @@ class IterationState:
             if iteration.collater is not None:
                 pipe.set(self._key("collater"), json.dumps(iteration.collater))
 
+            iteration_hash = get_iteration_hash(iteration)
+            pipe.set(self._key("iteration_hash"), get_iteration_hash(iteration))
             pipe.set(
-                self._key("iteration_hash"),
-                _hash(
-                    {
-                        "dataset_id": iteration.dataset.id,
-                        "batch_size": iteration.batch_size,
-                        "shardsets": [s.id for s in iteration.shardsets],
-                        "collater": iteration.collater,
-                        "filters": iteration.filters,
-                        "preprocessors": iteration.preprocessors,
-                    }
-                ),
+                iteration_hash_key(iteration_hash),
+                iteration.id,
+                ex=wait_participant_threshold,
             )
             pipe.execute()
 
@@ -222,22 +250,30 @@ class IterationState:
     def exists(self) -> bool:
         return self.cache.exists(self._key("total"))
 
-    def init(self, iteration: Iteration) -> None:
-        shardsets = [s for s in iteration.shardsets if len(s.shards) > 0]
+    def init(
+        self,
+        iteration: Iteration,
+        wait_participant_threshold: Optional[float] = None,
+    ) -> None:
+        with self.cache.lock(self._key("init")):
+            if self.exists():
+                return
 
-        if len(shardsets) == 0:
-            # never happens unless all shardsets have 0 samples
-            raise IterationStateException(
-                "Please add at least one shardset and one shard to the dataset",
+            shardsets = [s for s in iteration.shardsets if len(s.shards) > 0]
+
+            if len(shardsets) == 0:
+                # never happens unless all shardsets have 0 samples
+                raise IterationStateException(
+                    "Please add at least one shardset and one shard to the dataset",
+                )
+
+            main_shardset = get_main_shardset(shardsets)
+
+            self._set_iteration_info(iteration, wait_participant_threshold)
+            self._set_shardsets_info(shardsets)
+            self._set_main_shardset_info(
+                main_shardset, iteration.shuffle, iteration.shuffle_seed
             )
-
-        main_shardset = get_main_shardset(shardsets)
-
-        self._set_iteration_info(iteration)
-        self._set_shardsets_info(shardsets)
-        self._set_main_shardset_info(
-            main_shardset, iteration.shuffle, iteration.shuffle_seed
-        )
 
     def push_indices(self, rank: int) -> None:
         retrieved_shuffle_seed = self.cache.get(self._key("shuffle_seed"))
@@ -406,6 +442,12 @@ class IterationState:
             for k, v in self.cache.hgetall(self._key("inprogress")).items()
         ]
 
+    def get_ranks(self) -> list[int]:
+        return [
+            int(k.decode("utf-8").split("indices:", 1)[1])
+            for k in self.cache.keys(self._key("indices:*"))
+        ]
+
     def get_current(self) -> int:
         pushed = self.cache.incr(self._key("pushed"), 0)
         inqueue = 0
@@ -420,10 +462,7 @@ class IterationState:
                     pipe.llen(self._key(f"indices:{pg[0]}"))
                 inqueue = sum(pipe.execute())
         else:
-            ranks = [
-                int(k.decode("utf-8").split("indices:", 1)[1])
-                for k in self.cache.keys(self._key("indices:*"))
-            ]
+            ranks = self.get_ranks()
             with self.cache.pipeline() as pipe:
                 for rank in ranks:
                     pipe.llen(self._key(f"indices:{rank}"))

@@ -8,6 +8,21 @@ import { Tabs, TabItem } from "@astrojs/starlight/components";
 Lavender Data provides several features for iterating over datasets,
 giving you fine-grained control over how data is processed.
 
+## Batch Size
+
+The `batch_size` parameter controls the number of samples returned in each batch.
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    batch_size=10,
+)
+
+for batch in iteration:
+    len(batch["uid"]) # 10
+```
+
 ## Shuffling Data
 
 Shuffling is essential for many ML training scenarios.
@@ -149,7 +164,43 @@ for batch in Iteration.from_iteration_id("it-..."):
     process_batch(batch)
 ```
 
-## Replication PG
+
+## Rank
+
+For data parallelism, you can set the `rank` parameter to specify the rank of the node.
+The server will see the `world_size` and `rank` parameters to determine whether to
+create a new iteration or return an existing one.
+By this way the iteration object will be shared among all the ranks.
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    rank=os.environ["RANK"],
+    world_size=os.environ["WORLD_SIZE"],
+)
+
+retrieved = list(iteration)
+len(retrieved) # len(dataset) // world_size
+```
+
+### Dynamic World Size
+
+If you don't know the world size beforehand, you can set the `wait_participant_threshold` parameter.
+This will wait for `wait_participant_threshold` seconds for other nodes to join the iteration.
+If some nodes join after the threshold, a new iteration will be created for them.
+
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    rank=os.environ["RANK"],
+    wait_participant_threshold=10,
+)
+```
+
+### Replication PG
 
 For context parallelism, you can set the `replication_pg` parameter.
 It is a list of list of integers, where each inner list is a partition of the ranks.
@@ -161,6 +212,7 @@ Within each partition, the ranks get the same samples.
 iteration = Iteration.from_dataset(
     dataset_id=dataset.id,
     shardsets=[shardset.id],
+    rank=os.environ["RANK"],
     replication_pg=[[0, 1], [2, 3]],
 )
 ```
