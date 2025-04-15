@@ -13,7 +13,7 @@ from lavender_data.server import (
     Preprocessor,
     Filter,
 )
-from lavender_data.server.scripts.create_api_key import create_api_key
+from lavender_data.server.cli import create_api_key
 from lavender_data.client.api import (
     init,
     create_dataset,
