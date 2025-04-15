@@ -1,25 +1,8 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
-from sqlmodel import SQLModel
-from sqlmodel import delete, insert
 
-from lavender_data.server.distributed import CurrentCluster
-from lavender_data.server.db import DbSession
-from lavender_data.server.db.models import (
-    Dataset,
-    DatasetPublic,
-    DatasetColumn,
-    DatasetColumnPublic,
-    Shardset,
-    ShardsetPublic,
-    Shard,
-    ShardPublic,
-    Iteration,
-    IterationPublic,
-    IterationShardsetLink,
-    ApiKey,
-    ApiKeyPublic,
-)
+from lavender_data.server.distributed import CurrentCluster, SyncParams
+
 
 router = APIRouter(
     prefix="/cluster",
@@ -40,44 +23,42 @@ def register(
 ) -> None:
     if not cluster.is_head:
         raise HTTPException(status_code=403, detail="Not allowed")
-    background_tasks.add_task(cluster.accept_node, params.node_url)
+    background_tasks.add_task(cluster.on_register, params.node_url)
 
 
-class SyncParams(BaseModel):
-    datasets: list[DatasetPublic]
-    dataset_columns: list[DatasetColumnPublic]
-    shardsets: list[ShardsetPublic]
-    shards: list[ShardPublic]
-    iterations: list[IterationPublic]
-    iteration_shardset_links: list[IterationShardsetLink]
-    api_keys: list[ApiKeyPublic]
+class DeregisterParams(BaseModel):
+    node_url: str
 
 
-def _dump(publics: list[SQLModel]) -> list[dict]:
-    return [public.model_dump() for public in publics]
+@router.post("/deregister")
+def deregister(
+    params: DeregisterParams,
+    cluster: CurrentCluster,
+) -> None:
+    if not cluster.is_head:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    cluster.on_deregister(params.node_url)
+
+
+class HeartbeatParams(BaseModel):
+    node_url: str
+
+
+@router.post("/heartbeat")
+def heartbeat(
+    params: HeartbeatParams,
+    cluster: CurrentCluster,
+) -> None:
+    if not cluster.is_head:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    cluster.on_heartbeat(params.node_url)
 
 
 @router.post("/sync")
 def sync(
     params: SyncParams,
-    session: DbSession,
+    cluster: CurrentCluster,
 ) -> None:
-    session.begin()
-    session.exec(delete(IterationShardsetLink))
-    session.exec(delete(Iteration))
-    session.exec(delete(Shard))
-    session.exec(delete(DatasetColumn))
-    session.exec(delete(Shardset))
-    session.exec(delete(Dataset))
-    session.exec(delete(ApiKey))
-
-    session.exec(insert(ApiKey).values(_dump(params.api_keys)))
-    session.exec(insert(Dataset).values(_dump(params.datasets)))
-    session.exec(insert(Shardset).values(_dump(params.shardsets)))
-    session.exec(insert(DatasetColumn).values(_dump(params.dataset_columns)))
-    session.exec(insert(Shard).values(_dump(params.shards)))
-    session.exec(insert(Iteration).values(_dump(params.iterations)))
-    session.exec(
-        insert(IterationShardsetLink).values(_dump(params.iteration_shardset_links))
-    )
-    session.commit()
+    if cluster.is_head:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    cluster.on_sync(params)
