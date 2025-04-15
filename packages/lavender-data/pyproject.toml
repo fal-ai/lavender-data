@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lavender-data"
-version = "0.0.4"
+version = "0.0.5"
 description = "Load & evolve datasets efficiently"
 authors = [
   "Hanch Han <cndghks15@gmail.com>"
@@ -13,6 +13,9 @@ packages = [
   {include = "lavender_data", from = "."},
   {include = "openapi_lavender_data_rest", from = "./openapi-lavender-data-rest"},
 ]
+
+[tool.poetry.scripts]
+lavender-data = "lavender_data.__main__:main"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4"

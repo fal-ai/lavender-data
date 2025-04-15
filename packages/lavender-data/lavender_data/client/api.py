@@ -26,6 +26,7 @@ from openapi_lavender_data_rest.api.iterations import (
     get_iterations_iterations_get,
     complete_index_iterations_iteration_id_complete_index_post,
     pushback_iterations_iteration_id_pushback_post,
+    get_progress_iterations_iteration_id_progress_get,
 )
 
 # models
@@ -275,7 +276,7 @@ class LavenderDataClient:
     def get_next_item(
         self,
         iteration_id: str,
-        rank: Optional[int] = None,
+        rank: int = 0,
         async_mode: bool = False,
         no_cache: bool = False,
     ):
@@ -317,6 +318,14 @@ class LavenderDataClient:
     def pushback(self, iteration_id: str):
         with self._get_client() as client:
             response = pushback_iterations_iteration_id_pushback_post.sync_detailed(
+                client=client,
+                iteration_id=iteration_id,
+            )
+        return self._check_response(response)
+
+    def get_progress(self, iteration_id: str):
+        with self._get_client() as client:
+            response = get_progress_iterations_iteration_id_progress_get.sync_detailed(
                 client=client,
                 iteration_id=iteration_id,
             )
@@ -456,7 +465,7 @@ def get_iteration(iteration_id: str):
 @ensure_client()
 def get_next_item(
     iteration_id: str,
-    rank: Optional[int] = None,
+    rank: int = 0,
     async_mode: bool = False,
     no_cache: bool = False,
 ):
@@ -483,3 +492,8 @@ def complete_index(iteration_id: str, index: int):
 @ensure_client()
 def pushback(iteration_id: str):
     return _client_instance.pushback(iteration_id=iteration_id)
+
+
+@ensure_client()
+def get_progress(iteration_id: str):
+    return _client_instance.get_progress(iteration_id=iteration_id)
