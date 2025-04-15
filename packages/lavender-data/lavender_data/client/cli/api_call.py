@@ -34,6 +34,11 @@ def get_shardset(api_url: str, api_key: str, dataset_id: str, shardset_id: str):
         return api.get_shardset(dataset_id=dataset_id, shardset_id=shardset_id)
 
 
+def create_shardset(api_url: str, api_key: str, dataset_id: str, location: str):
+    with init(api_url=api_url, api_key=api_key):
+        return api.create_shardset(dataset_id=dataset_id, location=location, columns=[])
+
+
 def create_shard(
     api_url: str,
     api_key: str,

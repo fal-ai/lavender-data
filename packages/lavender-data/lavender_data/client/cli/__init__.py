@@ -8,6 +8,7 @@ from .api_call import (
     get_dataset,
     create_dataset,
     get_shardset,
+    create_shardset,
     create_shard,
     get_iterations,
     get_iteration,
@@ -52,6 +53,10 @@ class ClientCLI:
         self.shardsets_get = self.shardsets_command_parser.add_parser("get")
         self.shardsets_get.add_argument("--dataset-id", type=str, required=True)
         self.shardsets_get.add_argument("--shardset-id", type=str, required=True)
+
+        self.shardsets_create = self.shardsets_command_parser.add_parser("create")
+        self.shardsets_create.add_argument("--dataset-id", type=str, required=True)
+        self.shardsets_create.add_argument("--location", type=str, required=True)
 
         self.shards_parser = subparsers.add_parser("shards")
         self.shards_command_parser = self.shards_parser.add_subparsers(dest="command")
@@ -132,6 +137,10 @@ class ClientCLI:
             if args.command == "get":
                 result = get_shardset(
                     args.api_url, args.api_key, args.dataset_id, args.shardset_id
+                ).to_dict()
+            elif args.command == "create":
+                result = create_shardset(
+                    args.api_url, args.api_key, args.dataset_id, args.location
                 ).to_dict()
             else:
                 self.shardsets_parser.print_help()
