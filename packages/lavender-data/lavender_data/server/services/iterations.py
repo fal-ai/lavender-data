@@ -610,3 +610,18 @@ def process_next_samples(params: ProcessNextSamplesParams) -> bytes:
     batch["_lavender_data_current"] = current
 
     return serialize_sample(batch)
+
+
+def process_next_samples_and_cache(
+    params: ProcessNextSamplesParams,
+    cache_key: str,
+    cache_ttl: int,
+    cache: CacheClient,
+):
+    logger = get_logger(__name__)
+    try:
+        content = process_next_samples(params)
+        cache.set(cache_key, content, ex=cache_ttl)
+    except Exception as e:
+        logger.exception(f"Error processing next samples: {e}")
+        cache.set(cache_key, f"error:{e}", ex=cache_ttl)

@@ -30,6 +30,7 @@ from lavender_data.server.services.iterations import (
     get_iteration_with_same_config,
     ProcessNextSamplesParams,
     process_next_samples,
+    process_next_samples_and_cache,
 )
 from lavender_data.server.services.registries import (
     PreprocessorRegistry,
@@ -247,20 +248,6 @@ def get_iteration(iteration_id: str, session: DbSession) -> GetIterationResponse
     return iteration
 
 
-def process_next_samples_task(
-    params: ProcessNextSamplesParams,
-    cache_key: str,
-    cache_ttl: int,
-    cache: CacheClient,
-):
-    try:
-        content = process_next_samples(params)
-        cache.set(cache_key, content, ex=cache_ttl)
-    except Exception as e:
-        logger.exception(f"Error processing next samples: {e}")
-        cache.set(cache_key, f"error:{e}", ex=cache_ttl)
-
-
 def get_iteration_state(
     iteration_id: str, cache: CacheClient, session: DbSession
 ) -> IterationState:
@@ -312,7 +299,6 @@ def get_next(
 
 class SubmitNextResponse(BaseModel):
     cache_key: str
-    address: Optional[str] = None
 
 
 @router.post("/{iteration_id}/next")
@@ -336,10 +322,6 @@ def submit_next(
         batch_size=state.get_batch_size(),
     )
 
-    address = None
-    # if settings.lavender_data_cluster_enabled:
-    #     address = settings.lavender_data_cluster_address
-
     cache_key = state.get_batch_cache_key(indices)
     cache_ttl = settings.lavender_data_batch_cache_ttl
     if cache.exists(cache_key) and not no_cache:
@@ -347,14 +329,14 @@ def submit_next(
     else:
         cache.set(cache_key, "pending", ex=cache_ttl)
         background_tasks.add_task(
-            process_next_samples_task,
+            process_next_samples_and_cache,
             params=params,
             cache_key=cache_key,
             cache_ttl=cache_ttl,
             cache=cache,
         )
 
-    return SubmitNextResponse(cache_key=cache_key, address=address)
+    return SubmitNextResponse(cache_key=cache_key)
 
 
 @router.post("/{iteration_id}/next/{cache_key}")
@@ -373,7 +355,7 @@ def submit_next_samples(
     else:
         cache.set(cache_key, "pending", ex=cache_ttl)
         background_tasks.add_task(
-            process_next_samples_task,
+            process_next_samples_and_cache,
             params=params,
             cache_key=cache_key,
             cache_ttl=cache_ttl,

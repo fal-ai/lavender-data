@@ -198,7 +198,7 @@ class InMemoryCache(CacheInterface):
             else:
                 return 0
 
-    def hget(self, name: str, key: str) -> Optional[str]:
+    def hget(self, name: str, key: str) -> Optional[bytes]:
         """Get the value of key within the hash name"""
         with self._lock:
             _name = self._ensure_bytes(name)
@@ -209,7 +209,7 @@ class InMemoryCache(CacheInterface):
             _key = self._ensure_bytes(key)
             return self._hash_data[_name].get(_key)
 
-    def hgetall(self, name: str) -> dict[str, str]:
+    def hgetall(self, name: str) -> dict:
         """Get all the fields and values in a hash"""
         with self._lock:
             _name = self._ensure_bytes(name)
@@ -262,7 +262,7 @@ class InMemoryCache(CacheInterface):
 
             return len(self._list_data[_name])
 
-    def lpop(self, name: str, count: Optional[int] = None) -> Optional[str]:
+    def lpop(self, name: str, count: Optional[int] = None) -> Optional[bytes]:
         """Remove and return the first item of the list name"""
         with self._lock:
             _name = self._ensure_bytes(name)
@@ -285,7 +285,7 @@ class InMemoryCache(CacheInterface):
 
             return value
 
-    def rpop(self, name: str) -> Optional[str]:
+    def rpop(self, name: str) -> Optional[bytes]:
         """Remove and return the last item of the list name"""
         with self._lock:
             _name = self._ensure_bytes(name)
@@ -302,7 +302,7 @@ class InMemoryCache(CacheInterface):
 
             return value
 
-    def lrange(self, name: str, start: int, end: int) -> list[str]:
+    def lrange(self, name: str, start: int, end: int) -> list[bytes]:
         """Return a slice of the list name between position start and end"""
         with self._lock:
             _name = self._ensure_bytes(name)
@@ -317,7 +317,7 @@ class InMemoryCache(CacheInterface):
 
             return self._list_data[_name][start : end + 1]
 
-    def lindex(self, name: str, index: int) -> Optional[str]:
+    def lindex(self, name: str, index: int) -> Optional[bytes]:
         """Get the element at index in the list name"""
         with self._lock:
             _name = self._ensure_bytes(name)
@@ -335,6 +335,24 @@ class InMemoryCache(CacheInterface):
             if self._check_expiry(_name):
                 return 0
             return len(self._list_data.get(_name, []))
+
+    def lrem(self, name: str, count: int, value: str) -> int:
+        """Remove the first count occurrences of value from the list name"""
+        with self._lock:
+            _name = self._ensure_bytes(name)
+            _value = self._ensure_bytes(value)
+            if self._check_expiry(_name):
+                return 0
+            if _name not in self._list_data:
+                return 0
+            if count == 0:
+                before = len(self._list_data[_name])
+                self._list_data[_name] = [
+                    v for v in self._list_data[_name] if v != _value
+                ]
+                return before - len(self._list_data[_name])
+            if count != 0:
+                raise ValueError("Non-zero count not supported in in-memory cache yet")
 
     @contextmanager
     def lock(self, key: str, timeout: Optional[int] = None) -> Iterator[None]:
@@ -409,7 +427,7 @@ class InMemoryPipeline(CacheOperations):
         return self.cache.hset(name, key, value, mapping)
 
     @append_result
-    def hget(self, name: str, key: str) -> Optional[str]:
+    def hget(self, name: str, key: str) -> Optional[bytes]:
         return self.cache.hget(name, key)
 
     @append_result
@@ -429,24 +447,28 @@ class InMemoryPipeline(CacheOperations):
         return self.cache.rpush(name, *values)
 
     @append_result
-    def lpop(self, name: str, count: Optional[int] = None) -> Optional[str]:
+    def lpop(self, name: str, count: Optional[int] = None) -> Optional[bytes]:
         return self.cache.lpop(name, count)
 
     @append_result
-    def rpop(self, name: str) -> Optional[str]:
+    def rpop(self, name: str) -> Optional[bytes]:
         return self.cache.rpop(name)
 
     @append_result
-    def lrange(self, name: str, start: int, end: int) -> list[str]:
+    def lrange(self, name: str, start: int, end: int) -> list[bytes]:
         return self.cache.lrange(name, start, end)
 
     @append_result
-    def lindex(self, name: str, index: int) -> Optional[str]:
+    def lindex(self, name: str, index: int) -> Optional[bytes]:
         return self.cache.lindex(name, index)
 
     @append_result
     def llen(self, name: str) -> int:
         return self.cache.llen(name)
+
+    @append_result
+    def lrem(self, name: str, count: int, value: str) -> int:
+        return self.cache.lrem(name, count, value)
 
     def execute(self) -> list[Any]:
         r = self.results

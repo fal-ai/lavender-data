@@ -9,11 +9,13 @@ from lavender_data.logging import get_logger
 
 from .db import setup_db, create_db_and_tables
 from .cache import setup_cache, register_worker, deregister_worker
+from .distributed import setup_cluster
 from .reader import setup_reader
 from .routes import (
     datasets_router,
     iterations_router,
     registries_router,
+    cluster_router,
     root_router,
 )
 
@@ -39,6 +41,13 @@ async def lifespan(app: FastAPI):
 
     rank = register_worker()
     app.state.rank = rank
+
+    if settings.lavender_data_cluster_enabled:
+        setup_cluster(
+            is_head=settings.lavender_data_cluster_head,
+            head_url=settings.lavender_data_cluster_head_url,
+            broadcast_url=settings.lavender_data_cluster_broadcast_url,
+        )
 
     if settings.lavender_data_disable_auth:
         logger.warning("Authentication is disabled")
@@ -73,3 +82,4 @@ app.include_router(root_router)
 app.include_router(datasets_router)
 app.include_router(iterations_router)
 app.include_router(registries_router)
+app.include_router(cluster_router)
