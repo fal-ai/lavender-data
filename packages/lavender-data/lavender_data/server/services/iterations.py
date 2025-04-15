@@ -547,22 +547,30 @@ def get_next_samples(
             state.filtered(next_item.index)
             continue
 
-        samples.append(sample)
         indices.append(next_item.index)
+        samples.append(sample)
 
     return indices, samples
 
 
-def process_next_samples(
-    state: IterationState,
-    indices: list[int],
-    samples: list[dict],
-) -> bytes:
+class ProcessNextSamplesParams(BaseModel):
+    current: int
+    indices: list[int]
+    samples: list[dict]
+    collater: Optional[IterationCollater] = None
+    preprocessors: Optional[list[IterationPreprocessor]] = None
+    batch_size: int
+
+
+def process_next_samples(params: ProcessNextSamplesParams) -> bytes:
     logger = get_logger(__name__)
 
-    batch_size = state.get_batch_size()
-    preprocessors = state.get_preprocessors()
-    collater = state.get_collater()
+    current = params.current
+    indices = params.indices
+    samples = params.samples
+    collater = params.collater
+    preprocessors = params.preprocessors
+    batch_size = params.batch_size
 
     try:
         batch = (
@@ -599,6 +607,6 @@ def process_next_samples(
         batch = _batch
 
     batch["_lavender_data_indices"] = indices
-    batch["_lavender_data_current"] = state.count_batch()
+    batch["_lavender_data_current"] = current
 
     return serialize_sample(batch)

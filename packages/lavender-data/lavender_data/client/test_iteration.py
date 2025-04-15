@@ -39,10 +39,10 @@ class TestPreprocessor(Preprocessor, name="test_preprocessor"):
 
 class TestIteration(unittest.TestCase):
     def setUp(self):
-        port = random.randint(10000, 40000)
+        self.port = random.randint(10000, 40000)
         self.server = Process(
             target=run_server,
-            args=(port,),
+            args=(self.port,),
             daemon=True,
         )
         self.server.start()
@@ -50,10 +50,9 @@ class TestIteration(unittest.TestCase):
         time.sleep(2)
 
         api_key = create_api_key()
-        init(
-            api_url=f"http://localhost:{port}",
-            api_key=f"{api_key.id}:{api_key.secret}",
-        )
+        self.api_url = f"http://localhost:{self.port}"
+        self.api_key = f"{api_key.id}:{api_key.secret}"
+        init(api_url=self.api_url, api_key=self.api_key)
 
         shard_count = 10
         samples_per_shard = 10
@@ -222,5 +221,41 @@ class TestIteration(unittest.TestCase):
             total=self.total_samples,
         ):
             self.assertEqual(sample["double_id"], i * 2)
+            read_samples += 1
+        self.assertEqual(read_samples, self.total_samples)
+
+    def test_iteration_to_torch_dataloader(self):
+        read_samples = 0
+
+        dataloader = Iteration.from_dataset(
+            self.dataset_id,
+            shardsets=[self.shardset_id],
+        ).to_torch_dataloader()
+
+        for i, sample in enumerate(tqdm.tqdm(dataloader)):
+            self.assertEqual(
+                sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
+            )
+            self.assertEqual(sample["caption"], f"Caption for image {i:05d}")
+            read_samples += 1
+        self.assertEqual(read_samples, self.total_samples)
+
+    def test_iteration_to_torch_dataloader_with_prefetch_factor(self):
+        read_samples = 0
+
+        dataloader = Iteration.from_dataset(
+            self.dataset_id,
+            shardsets=[self.shardset_id],
+            api_url=self.api_url,
+            api_key=self.api_key,
+        ).to_torch_dataloader(
+            prefetch_factor=4,
+        )
+
+        for i, sample in enumerate(tqdm.tqdm(dataloader)):
+            self.assertEqual(
+                sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
+            )
+            self.assertEqual(sample["caption"], f"Caption for image {i:05d}")
             read_samples += 1
         self.assertEqual(read_samples, self.total_samples)

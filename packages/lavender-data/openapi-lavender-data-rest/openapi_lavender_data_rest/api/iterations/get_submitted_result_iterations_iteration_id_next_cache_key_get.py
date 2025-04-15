@@ -7,27 +7,16 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...types import UNSET, File, Response, Unset
+from ...types import File, Response
 
 
 def _get_kwargs(
     iteration_id: str,
-    *,
-    rank: Union[Unset, int] = 0,
-    no_cache: Union[Unset, bool] = False,
+    cache_key: str,
 ) -> dict[str, Any]:
-    params: dict[str, Any] = {}
-
-    params["rank"] = rank
-
-    params["no_cache"] = no_cache
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
-
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": f"/iterations/{iteration_id}/next",
-        "params": params,
+        "url": f"/iterations/{iteration_id}/next/{cache_key}",
     }
 
     return _kwargs
@@ -63,17 +52,15 @@ def _build_response(
 
 def sync_detailed(
     iteration_id: str,
+    cache_key: str,
     *,
     client: AuthenticatedClient,
-    rank: Union[Unset, int] = 0,
-    no_cache: Union[Unset, bool] = False,
 ) -> Response[Union[File, HTTPValidationError]]:
-    """Get Next
+    """Get Submitted Result
 
     Args:
         iteration_id (str):
-        rank (Union[Unset, int]):  Default: 0.
-        no_cache (Union[Unset, bool]):  Default: False.
+        cache_key (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -85,8 +72,7 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         iteration_id=iteration_id,
-        rank=rank,
-        no_cache=no_cache,
+        cache_key=cache_key,
     )
 
     response = client.get_httpx_client().request(
@@ -98,17 +84,15 @@ def sync_detailed(
 
 def sync(
     iteration_id: str,
+    cache_key: str,
     *,
     client: AuthenticatedClient,
-    rank: Union[Unset, int] = 0,
-    no_cache: Union[Unset, bool] = False,
 ) -> Optional[Union[File, HTTPValidationError]]:
-    """Get Next
+    """Get Submitted Result
 
     Args:
         iteration_id (str):
-        rank (Union[Unset, int]):  Default: 0.
-        no_cache (Union[Unset, bool]):  Default: False.
+        cache_key (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -120,25 +104,22 @@ def sync(
 
     return sync_detailed(
         iteration_id=iteration_id,
+        cache_key=cache_key,
         client=client,
-        rank=rank,
-        no_cache=no_cache,
     ).parsed
 
 
 async def asyncio_detailed(
     iteration_id: str,
+    cache_key: str,
     *,
     client: AuthenticatedClient,
-    rank: Union[Unset, int] = 0,
-    no_cache: Union[Unset, bool] = False,
 ) -> Response[Union[File, HTTPValidationError]]:
-    """Get Next
+    """Get Submitted Result
 
     Args:
         iteration_id (str):
-        rank (Union[Unset, int]):  Default: 0.
-        no_cache (Union[Unset, bool]):  Default: False.
+        cache_key (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -150,8 +131,7 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         iteration_id=iteration_id,
-        rank=rank,
-        no_cache=no_cache,
+        cache_key=cache_key,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -161,17 +141,15 @@ async def asyncio_detailed(
 
 async def asyncio(
     iteration_id: str,
+    cache_key: str,
     *,
     client: AuthenticatedClient,
-    rank: Union[Unset, int] = 0,
-    no_cache: Union[Unset, bool] = False,
 ) -> Optional[Union[File, HTTPValidationError]]:
-    """Get Next
+    """Get Submitted Result
 
     Args:
         iteration_id (str):
-        rank (Union[Unset, int]):  Default: 0.
-        no_cache (Union[Unset, bool]):  Default: False.
+        cache_key (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -184,8 +162,7 @@ async def asyncio(
     return (
         await asyncio_detailed(
             iteration_id=iteration_id,
+            cache_key=cache_key,
             client=client,
-            rank=rank,
-            no_cache=no_cache,
         )
     ).parsed

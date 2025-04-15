@@ -22,10 +22,13 @@ from .iteration_preprocessor_params import IterationPreprocessorParams
 from .iteration_public import IterationPublic
 from .preview_dataset_response import PreviewDatasetResponse
 from .preview_dataset_response_samples_item import PreviewDatasetResponseSamplesItem
+from .process_next_samples_params import ProcessNextSamplesParams
+from .process_next_samples_params_samples_item import ProcessNextSamplesParamsSamplesItem
 from .progress import Progress
 from .shard_public import ShardPublic
 from .shardset_public import ShardsetPublic
 from .shardset_with_shards import ShardsetWithShards
+from .submit_next_response import SubmitNextResponse
 from .sync_shardset_params import SyncShardsetParams
 from .sync_shardset_status import SyncShardsetStatus
 from .validation_error import ValidationError
@@ -54,10 +57,13 @@ __all__ = (
     "IterationPublic",
     "PreviewDatasetResponse",
     "PreviewDatasetResponseSamplesItem",
+    "ProcessNextSamplesParams",
+    "ProcessNextSamplesParamsSamplesItem",
     "Progress",
     "ShardPublic",
     "ShardsetPublic",
     "ShardsetWithShards",
+    "SubmitNextResponse",
     "SyncShardsetParams",
     "SyncShardsetStatus",
     "ValidationError",

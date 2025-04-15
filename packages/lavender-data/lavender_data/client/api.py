@@ -21,7 +21,8 @@ from openapi_lavender_data_rest.api.datasets import (
 from openapi_lavender_data_rest.api.iterations import (
     create_iteration_iterations_post,
     get_next_iterations_iteration_id_next_get,
-    get_next_async_result_iterations_iteration_id_next_cache_key_get,
+    submit_next_iterations_iteration_id_next_post,
+    get_submitted_result_iterations_iteration_id_next_cache_key_get,
     get_iteration_iterations_iteration_id_get,
     get_iterations_iterations_get,
     complete_index_iterations_iteration_id_complete_index_post,
@@ -71,7 +72,7 @@ class LavenderDataClient:
         api_url: str = "http://localhost:8000",
         api_key: Optional[str] = None,
     ):
-        self.url = api_url
+        self.api_url = api_url
         self.api_key = api_key or os.getenv("LAVENDER_DATA_API_KEY")
 
         try:
@@ -84,10 +85,10 @@ class LavenderDataClient:
     @contextmanager
     def _get_client(self):
         if self.api_key is None:
-            _client = Client(base_url=self.url)
+            _client = Client(base_url=self.api_url)
         else:
             _client = AuthenticatedClient(
-                base_url=self.url,
+                base_url=self.api_url,
                 token=base64.b64encode(self.api_key.encode()).decode(),
                 prefix="Basic",
             )
@@ -277,7 +278,6 @@ class LavenderDataClient:
         self,
         iteration_id: str,
         rank: int = 0,
-        async_mode: bool = False,
         no_cache: bool = False,
     ):
         with self._get_client() as client:
@@ -285,18 +285,29 @@ class LavenderDataClient:
                 client=client,
                 iteration_id=iteration_id,
                 rank=rank,
-                async_mode=async_mode,
                 no_cache=no_cache,
             )
         content = self._check_response(response).payload.read()
-        if async_mode:
-            return content.decode("utf-8")
-        else:
-            return deserialize_sample(content)
+        return deserialize_sample(content)
 
-    def get_next_item_async_result(self, iteration_id: str, cache_key: str):
+    def submit_next_item(
+        self,
+        iteration_id: str,
+        rank: int = 0,
+        no_cache: bool = False,
+    ):
         with self._get_client() as client:
-            response = get_next_async_result_iterations_iteration_id_next_cache_key_get.sync_detailed(
+            response = submit_next_iterations_iteration_id_next_post.sync_detailed(
+                client=client,
+                iteration_id=iteration_id,
+                rank=rank,
+                no_cache=no_cache,
+            )
+        return self._check_response(response)
+
+    def get_submitted_result(self, iteration_id: str, cache_key: str):
+        with self._get_client() as client:
+            response = get_submitted_result_iterations_iteration_id_next_cache_key_get.sync_detailed(
                 client=client,
                 iteration_id=iteration_id,
                 cache_key=cache_key,
@@ -339,9 +350,13 @@ _client_instance = None
 def ensure_client():
     global _client_instance
     if _client_instance is None:
-        raise ValueError(
-            "Lavender Data client is not initialized. Please call lavender_data.client.api.init() first."
-        )
+        try:
+            init(
+                api_url=os.getenv("LAVENDER_DATA_API_URL", "http://localhost:8000"),
+                api_key=os.getenv("LAVENDER_DATA_API_KEY", None),
+            )
+        except Exception as e:
+            raise e
     yield _client_instance
 
 
@@ -352,6 +367,15 @@ def init(api_url: str = "http://localhost:8000", api_key: Optional[str] = None):
     """
     global _client_instance
     _client_instance = LavenderDataClient(api_url=api_url, api_key=api_key)
+    return _client_instance
+
+
+def get_initialized_client():
+    global _client_instance
+    if _client_instance is None:
+        raise ValueError(
+            "Lavender Data client is not initialized. Please call lavender_data.client.api.init() first."
+        )
     return _client_instance
 
 
@@ -466,20 +490,29 @@ def get_iteration(iteration_id: str):
 def get_next_item(
     iteration_id: str,
     rank: int = 0,
-    async_mode: bool = False,
     no_cache: bool = False,
 ):
     return _client_instance.get_next_item(
         iteration_id=iteration_id,
         rank=rank,
-        async_mode=async_mode,
         no_cache=no_cache,
     )
 
 
 @ensure_client()
-def get_next_item_async_result(iteration_id: str, cache_key: str):
-    return _client_instance.get_next_item_async_result(
+def submit_next_item(
+    iteration_id: str,
+    rank: int = 0,
+    no_cache: bool = False,
+):
+    return _client_instance.submit_next_item(
+        iteration_id=iteration_id, rank=rank, no_cache=no_cache
+    )
+
+
+@ensure_client()
+def get_submitted_result(iteration_id: str, cache_key: str):
+    return _client_instance.get_submitted_result(
         iteration_id=iteration_id, cache_key=cache_key
     )
 

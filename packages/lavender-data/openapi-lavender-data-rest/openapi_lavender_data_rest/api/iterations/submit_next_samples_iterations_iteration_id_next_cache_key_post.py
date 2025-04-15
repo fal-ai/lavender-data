@@ -7,29 +7,37 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
+from ...models.process_next_samples_params import ProcessNextSamplesParams
 from ...types import UNSET, File, Response, Unset
 
 
 def _get_kwargs(
     iteration_id: str,
+    cache_key: str,
     *,
-    rank: Union[Unset, int] = 0,
+    body: ProcessNextSamplesParams,
     no_cache: Union[Unset, bool] = False,
 ) -> dict[str, Any]:
-    params: dict[str, Any] = {}
+    headers: dict[str, Any] = {}
 
-    params["rank"] = rank
+    params: dict[str, Any] = {}
 
     params["no_cache"] = no_cache
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
-        "method": "get",
-        "url": f"/iterations/{iteration_id}/next",
+        "method": "post",
+        "url": f"/iterations/{iteration_id}/next/{cache_key}",
         "params": params,
     }
 
+    _body = body.to_dict()
+
+    _kwargs["json"] = _body
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -37,7 +45,7 @@ def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
 ) -> Optional[Union[File, HTTPValidationError]]:
     if response.status_code == 200:
-        response_200 = File(payload=BytesIO(response.content))
+        response_200 = File(payload=BytesIO(response.json()))
 
         return response_200
     if response.status_code == 422:
@@ -63,17 +71,19 @@ def _build_response(
 
 def sync_detailed(
     iteration_id: str,
+    cache_key: str,
     *,
     client: AuthenticatedClient,
-    rank: Union[Unset, int] = 0,
+    body: ProcessNextSamplesParams,
     no_cache: Union[Unset, bool] = False,
 ) -> Response[Union[File, HTTPValidationError]]:
-    """Get Next
+    """Submit Next Samples
 
     Args:
         iteration_id (str):
-        rank (Union[Unset, int]):  Default: 0.
+        cache_key (str):
         no_cache (Union[Unset, bool]):  Default: False.
+        body (ProcessNextSamplesParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -85,7 +95,8 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         iteration_id=iteration_id,
-        rank=rank,
+        cache_key=cache_key,
+        body=body,
         no_cache=no_cache,
     )
 
@@ -98,17 +109,19 @@ def sync_detailed(
 
 def sync(
     iteration_id: str,
+    cache_key: str,
     *,
     client: AuthenticatedClient,
-    rank: Union[Unset, int] = 0,
+    body: ProcessNextSamplesParams,
     no_cache: Union[Unset, bool] = False,
 ) -> Optional[Union[File, HTTPValidationError]]:
-    """Get Next
+    """Submit Next Samples
 
     Args:
         iteration_id (str):
-        rank (Union[Unset, int]):  Default: 0.
+        cache_key (str):
         no_cache (Union[Unset, bool]):  Default: False.
+        body (ProcessNextSamplesParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -120,25 +133,28 @@ def sync(
 
     return sync_detailed(
         iteration_id=iteration_id,
+        cache_key=cache_key,
         client=client,
-        rank=rank,
+        body=body,
         no_cache=no_cache,
     ).parsed
 
 
 async def asyncio_detailed(
     iteration_id: str,
+    cache_key: str,
     *,
     client: AuthenticatedClient,
-    rank: Union[Unset, int] = 0,
+    body: ProcessNextSamplesParams,
     no_cache: Union[Unset, bool] = False,
 ) -> Response[Union[File, HTTPValidationError]]:
-    """Get Next
+    """Submit Next Samples
 
     Args:
         iteration_id (str):
-        rank (Union[Unset, int]):  Default: 0.
+        cache_key (str):
         no_cache (Union[Unset, bool]):  Default: False.
+        body (ProcessNextSamplesParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -150,7 +166,8 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         iteration_id=iteration_id,
-        rank=rank,
+        cache_key=cache_key,
+        body=body,
         no_cache=no_cache,
     )
 
@@ -161,17 +178,19 @@ async def asyncio_detailed(
 
 async def asyncio(
     iteration_id: str,
+    cache_key: str,
     *,
     client: AuthenticatedClient,
-    rank: Union[Unset, int] = 0,
+    body: ProcessNextSamplesParams,
     no_cache: Union[Unset, bool] = False,
 ) -> Optional[Union[File, HTTPValidationError]]:
-    """Get Next
+    """Submit Next Samples
 
     Args:
         iteration_id (str):
-        rank (Union[Unset, int]):  Default: 0.
+        cache_key (str):
         no_cache (Union[Unset, bool]):  Default: False.
+        body (ProcessNextSamplesParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -184,8 +203,9 @@ async def asyncio(
     return (
         await asyncio_detailed(
             iteration_id=iteration_id,
+            cache_key=cache_key,
             client=client,
-            rank=rank,
+            body=body,
             no_cache=no_cache,
         )
     ).parsed

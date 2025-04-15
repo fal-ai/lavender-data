@@ -3,15 +3,8 @@ from typing import Optional, Union, Literal
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 
 from lavender_data.client.api import (
-    complete_index,
-    pushback,
-    create_iteration,
-    get_iterations,
-    get_iteration,
-    get_next_item,
-    get_next_item_async_result,
-    get_dataset,
-    GetIterationResponse,
+    LavenderDataClient,
+    get_initialized_client,
     LavenderDataApiError,
     IterationFilter,
     IterationPreprocessor,
@@ -51,6 +44,13 @@ def _parse_registry_params(
         raise ValueError(f"Invalid registry name: {registry_name}")
 
 
+def _api(api_url: Optional[str] = None, api_key: Optional[str] = None):
+    if api_url is not None:
+        return LavenderDataClient(api_url=api_url, api_key=api_key)
+    else:
+        return get_initialized_client()
+
+
 class Iteration:
     def __init__(
         self,
@@ -59,6 +59,8 @@ class Iteration:
         total: int,
         no_cache: bool = False,
         rank: int = 0,
+        api_url: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
         self._dataset_id = dataset_id
         self._iteration_id = iteration_id
@@ -68,6 +70,12 @@ class Iteration:
         self.last_indices = None
         self.no_cache = no_cache
         self.rank = rank
+
+        self.api_url = api_url
+        self.api_key = api_key
+
+    def _api(self):
+        return _api(self.api_url, self.api_key)
 
     @classmethod
     def from_dataset(
@@ -87,6 +95,8 @@ class Iteration:
         world_size: Optional[int] = None,
         wait_participant_threshold: Optional[float] = None,
         no_cache: bool = False,
+        api_url: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
         if dataset_id is None and dataset_name is None:
             raise ValueError("Either dataset_id or dataset_name must be provided")
@@ -95,9 +105,9 @@ class Iteration:
             raise ValueError("Only one of dataset_id or dataset_name can be provided")
 
         if dataset_id is None:
-            dataset_id = get_dataset(name=dataset_name).id
+            dataset_id = _api(api_url, api_key).get_dataset(name=dataset_name).id
 
-        iteration = create_iteration(
+        iteration = _api(api_url, api_key).create_iteration(
             dataset_id=dataset_id,
             shardsets=shardsets,
             filters=(
@@ -130,6 +140,8 @@ class Iteration:
             total=iteration.total,
             no_cache=no_cache,
             rank=rank,
+            api_url=api_url,
+            api_key=api_key,
         )
 
     @classmethod
@@ -138,14 +150,18 @@ class Iteration:
         iteration_id: str,
         no_cache: bool = False,
         rank: int = 0,
+        api_url: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
-        iteration = get_iteration(iteration_id)
+        iteration = _api(api_url, api_key).get_iteration(iteration_id)
         return cls(
             dataset_id=iteration.dataset_id,
             iteration_id=iteration.id,
             total=iteration.total,
             no_cache=no_cache,
             rank=rank,
+            api_url=api_url,
+            api_key=api_key,
         )
 
     def to_torch_dataloader(
@@ -184,10 +200,10 @@ class Iteration:
         )
 
     def complete(self, index: int):
-        complete_index(self._iteration_id, index)
+        self._api().complete_index(self._iteration_id, index)
 
     def pushback(self):
-        pushback(self._iteration_id)
+        self._api().pushback(self._iteration_id)
 
     def __len__(self):
         return self._total
@@ -207,7 +223,7 @@ class Iteration:
 
     def _get_next_item(self):
         try:
-            sample_or_batch = get_next_item(
+            sample_or_batch = self._api().get_next_item(
                 iteration_id=self._iteration_id,
                 rank=self.rank,
                 no_cache=self.no_cache,
@@ -220,27 +236,29 @@ class Iteration:
 
         return sample_or_batch
 
-    def _get_next_item_async_request(self) -> str:
-        cache_key = get_next_item(
-            iteration_id=self._iteration_id,
-            rank=self.rank,
-            async_mode=True,
-            no_cache=self.no_cache,
+    def _submit_next_item(self) -> str:
+        cache_key = (
+            self._api()
+            .submit_next_item(
+                iteration_id=self._iteration_id,
+                rank=self.rank,
+                no_cache=self.no_cache,
+            )
+            .cache_key
         )
         return cache_key
 
-    def _get_next_item_async_result(self, cache_key: str):
+    def _get_submitted_result(self, cache_key: str):
         try:
-            return get_next_item_async_result(
+            return self._api().get_submitted_result(
                 iteration_id=self._iteration_id,
                 cache_key=cache_key,
-                rank=self.rank,
             )
         except LavenderDataApiError as e:
-            if "Content is still being processed" in str(e):
+            if "Data is still being processed" in str(e):
                 return None
-            elif "Content not found" in str(e):
-                raise ValueError("Content not found")
+            elif "Cache key not found" in str(e):
+                raise ValueError("Cache key not found")
             elif "No more indices to pop" in str(e):
                 raise StopIteration
             else:
@@ -254,6 +272,9 @@ class Iteration:
 
     def __iter__(self):
         return self
+
+    def __getitem__(self, index: int):
+        return next(self)
 
 
 class AsyncIteration:
@@ -274,9 +295,9 @@ class AsyncIteration:
         self.current = 0
         self.stopped = False
 
-    def _get_next_item_async_result(self, cache_key: str):
+    def _get_submitted_result(self, cache_key: str):
         while True:
-            data = self.iteration._get_next_item_async_result(cache_key)
+            data = self.iteration._get_submitted_result(cache_key)
             if data is not None:
                 return data
             else:
@@ -292,7 +313,7 @@ class AsyncIteration:
 
         while len(self.futures) < queue_size:
             try:
-                cache_key = self.iteration._get_next_item_async_request()
+                cache_key = self.iteration._submit_next_item()
             except LavenderDataApiError as e:
                 if "No more indices to pop" in str(e):
                     self.stopped = True
@@ -300,7 +321,7 @@ class AsyncIteration:
                 else:
                     raise e
             future = self.executor.submit(
-                self._get_next_item_async_result, cache_key=cache_key
+                self._get_submitted_result, cache_key=cache_key
             )
             self.futures.append(future)
 

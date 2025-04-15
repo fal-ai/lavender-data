@@ -28,6 +28,7 @@ from lavender_data.server.services.iterations import (
     Progress,
     get_next_samples,
     get_iteration_with_same_config,
+    ProcessNextSamplesParams,
     process_next_samples,
 )
 from lavender_data.server.services.registries import (
@@ -247,33 +248,22 @@ def get_iteration(iteration_id: str, session: DbSession) -> GetIterationResponse
 
 
 def process_next_samples_task(
-    iteration_id: str,
-    indices: list[int],
-    samples: list[dict],
+    params: ProcessNextSamplesParams,
     cache_key: str,
     cache_ttl: int,
     cache: CacheClient,
 ):
     try:
-        state = IterationState(iteration_id, cache)
-        content = process_next_samples(state, indices, samples)
+        content = process_next_samples(params)
         cache.set(cache_key, content, ex=cache_ttl)
     except Exception as e:
-        logger.exception(f"Error processing next samples for iteration {iteration_id}")
+        logger.exception(f"Error processing next samples: {e}")
         cache.set(cache_key, f"error:{e}", ex=cache_ttl)
 
 
-@router.get("/{iteration_id}/next")
-def get_next(
-    iteration_id: str,
-    session: DbSession,
-    cache: CacheClient,
-    settings: AppSettings,
-    background_tasks: BackgroundTasks,
-    rank: int = 0,
-    async_mode: bool = False,
-    no_cache: bool = False,
-) -> bytes:
+def get_iteration_state(
+    iteration_id: str, cache: CacheClient, session: DbSession
+) -> IterationState:
     state = IterationState(iteration_id, cache)
     if not state.exists():
         try:
@@ -285,40 +275,122 @@ def get_next(
             state.init(iteration)
         except IterationStateException as e:
             raise HTTPException(status_code=400, detail=str(e))
+    return state
 
+
+@router.get("/{iteration_id}/next")
+def get_next(
+    iteration_id: str,
+    session: DbSession,
+    cache: CacheClient,
+    settings: AppSettings,
+    rank: int = 0,
+    no_cache: bool = False,
+) -> bytes:
+    state = get_iteration_state(iteration_id, cache, session)
     indices, samples = get_next_samples(state, rank)
+    params = ProcessNextSamplesParams(
+        current=state.count_batch(),
+        indices=indices,
+        samples=samples,
+        collater=state.get_collater(),
+        preprocessors=state.get_preprocessors(),
+        batch_size=state.get_batch_size(),
+    )
 
-    if async_mode:
-        cache_key = state.get_batch_cache_key(indices)
-        cache_ttl = settings.lavender_data_batch_cache_ttl
-        if cache.exists(cache_key) and not no_cache:
-            cache.expire(cache_key, cache_ttl)
-        else:
-            cache.set(cache_key, "pending", ex=cache_ttl)
-            background_tasks.add_task(
-                process_next_samples_task,
-                iteration_id=iteration_id,
-                indices=indices,
-                samples=samples,
-                cache_key=cache_key,
-                cache_ttl=cache_ttl,
-                cache=cache,
-            )
-        return Response(content=cache_key, media_type="application/octet-stream")
+    cache_key = state.get_batch_cache_key(indices)
+    cache_ttl = settings.lavender_data_batch_cache_ttl
+    if cache.exists(cache_key) and not no_cache:
+        cache.expire(cache_key, cache_ttl)
+        content = cache.get(cache_key)
     else:
-        content = process_next_samples(state, indices, samples)
-        return Response(content=content, media_type="application/octet-stream")
+        content = process_next_samples(params)
+        cache.set(cache_key, content, ex=cache_ttl)
+
+    return Response(content=content, media_type="application/octet-stream")
+
+
+class SubmitNextResponse(BaseModel):
+    cache_key: str
+    address: Optional[str] = None
+
+
+@router.post("/{iteration_id}/next")
+def submit_next(
+    iteration_id: str,
+    session: DbSession,
+    cache: CacheClient,
+    settings: AppSettings,
+    background_tasks: BackgroundTasks,
+    rank: int = 0,
+    no_cache: bool = False,
+) -> SubmitNextResponse:
+    state = get_iteration_state(iteration_id, cache, session)
+    indices, samples = get_next_samples(state, rank)
+    params = ProcessNextSamplesParams(
+        current=state.count_batch(),
+        indices=indices,
+        samples=samples,
+        collater=state.get_collater(),
+        preprocessors=state.get_preprocessors(),
+        batch_size=state.get_batch_size(),
+    )
+
+    address = None
+    # if settings.lavender_data_cluster_enabled:
+    #     address = settings.lavender_data_cluster_address
+
+    cache_key = state.get_batch_cache_key(indices)
+    cache_ttl = settings.lavender_data_batch_cache_ttl
+    if cache.exists(cache_key) and not no_cache:
+        cache.expire(cache_key, cache_ttl)
+    else:
+        cache.set(cache_key, "pending", ex=cache_ttl)
+        background_tasks.add_task(
+            process_next_samples_task,
+            params=params,
+            cache_key=cache_key,
+            cache_ttl=cache_ttl,
+            cache=cache,
+        )
+
+    return SubmitNextResponse(cache_key=cache_key, address=address)
+
+
+@router.post("/{iteration_id}/next/{cache_key}")
+def submit_next_samples(
+    iteration_id: str,
+    cache_key: str,
+    params: ProcessNextSamplesParams,
+    cache: CacheClient,
+    settings: AppSettings,
+    background_tasks: BackgroundTasks,
+    no_cache: bool = False,
+) -> bytes:
+    cache_ttl = settings.lavender_data_batch_cache_ttl
+    if cache.exists(cache_key) and not no_cache:
+        cache.expire(cache_key, cache_ttl)
+    else:
+        cache.set(cache_key, "pending", ex=cache_ttl)
+        background_tasks.add_task(
+            process_next_samples_task,
+            params=params,
+            cache_key=cache_key,
+            cache_ttl=cache_ttl,
+            cache=cache,
+        )
+    return Response(content=cache_key, media_type="application/octet-stream")
 
 
 @router.get("/{iteration_id}/next/{cache_key}")
-def get_next_async_result(
+def get_submitted_result(
     iteration_id: str, cache_key: str, cache: CacheClient
 ) -> bytes:
     content = cache.get(cache_key)
     if content is None:
-        raise HTTPException(status_code=404, detail="Content not found")
+        raise HTTPException(status_code=404, detail="Cache key not found")
     if content == b"pending":
-        raise HTTPException(status_code=202, detail="Content is still being processed")
+        raise HTTPException(status_code=202, detail="Data is still being processed")
     if content.startswith(b"error:"):
         raise HTTPException(status_code=400, detail=content[6:].decode("utf-8"))
     return Response(content=content, media_type="application/octet-stream")
