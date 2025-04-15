@@ -113,8 +113,3 @@ def complete_index(api_url: str, api_key: str, iteration_id: str, index: int):
 def pushback(api_url: str, api_key: str, iteration_id: str):
     with init(api_url=api_url, api_key=api_key):
         return api.pushback(iteration_id=iteration_id)
-
-
-def get_progress(api_url: str, api_key: str, iteration_id: str):
-    with init(api_url=api_url, api_key=api_key):
-        return api.get_progress(iteration_id=iteration_id)
