@@ -24,7 +24,7 @@ Now, start the Lavender Data server. The server handles data loading, preprocess
 The api is available at `http://localhost:8000` and the web ui is available at `http://localhost:3000` by default.
 
 ```bash
-python3 -m lavender_data.server run --host 0.0.0.0 --port 8000 --ui-port 3000 --reload
+lavender-data server run --host 0.0.0.0 --port 8000 --ui-port 3000 --reload
 ```
 
 | Parameter | Description | Default |
@@ -41,7 +41,7 @@ python3 -m lavender_data.server run --host 0.0.0.0 --port 8000 --ui-port 3000 --
 To interact with the server API (either through the Python client or the Web UI), you need an API key. Generate one using this command:
 
 ```bash
-python3 -m lavender_data.server create-api-key --note "My Test Key"
+lavender-data server create-api-key --note "My Test Key"
 > la-...
 ```
 
@@ -53,7 +53,7 @@ Copy the generated key (starting with `la-...`) as you'll need it to initialize 
 To disable authentication, you can set the environment variable `LAVENDER_DATA_DISABLE_AUTH` to `true`.
 
 ```bash
-LAVENDER_DATA_DISABLE_AUTH=true python3 -m lavender_data.server run
+LAVENDER_DATA_DISABLE_AUTH=true lavender-data server run
 ```
 
 This is useful when you are running the server locally for development and want to skip creating an API key.
@@ -88,6 +88,16 @@ lavender.init(api_url="http://localhost:8000", api_key="la-...")
 ```
 
   </TabItem>
+  <TabItem value="cli" label="CLI">
+
+In your terminal, set the API key using the `--api-key` flag.
+
+
+```bash
+lavender-data client --api-url http://localhost:8000 --api-key la-... -h
+```
+
+  </TabItem>
 </Tabs>
 
 ### Create a Dataset
@@ -118,6 +128,13 @@ You should now see the dataset in the list. Click on the dataset id to see the d
 
 ```python
 dataset = lavender.create_dataset(name="my-dataset", uid_column_name="uid")
+```
+
+  </TabItem>
+  <TabItem value="cli" label="CLI">
+
+```bash
+lavender-data client datasets create --name my-dataset --uid-column-name uid
 ```
 
   </TabItem>
@@ -220,6 +237,13 @@ shardset = lavender.create_shardset(
 ```
 
   </TabItem>
+  <TabItem value="cli" label="CLI">
+
+```bash
+lavender-data client shardsets create --dataset-id ds-... --location file:///path/to/the/shardset/
+```
+
+  </TabItem>
 </Tabs>
 
 
@@ -271,5 +295,72 @@ if __name__ == "__main__": # Required for multiprocessing with DataLoader
         # Process the batch (e.g., move to GPU, feed to model)
         print(f"Torch Batch {i}: {batch['uid'].shape}")
 ```
+
+## Check the Progress
+
+You can check the progress of an iteration in the web UI or using the Python/CLI client.
+The progress object has the following fields:
+
+- Total: The total number of samples to process in the iteration.
+- Current: The latest index of the sample that is being processed.
+- Inprogress: The samples that are being processed. Includes the index of the sample, the timestamp when it started, and the rank of the worker that is processing it.
+- Completed: The number of samples that have been completed.
+- Filtered: The number of samples that have been filtered out.
+- Failed: The number of samples that have failed to process.
+
+
+<Tabs syncKey="ui-or-py">
+  <TabItem value="web-ui" label="Web UI">
+
+Navigate to the [iterations page](http://localhost:3000/iterations) in your browser and click on the iteration id to see the iteration details.
+
+![Iterations](/web-ui/web-ui-iterations.png)
+
+![Iteration Detail](/web-ui/web-ui-iteration-detail.png)
+
+  </TabItem>
+  <TabItem value="python" label="Python">
+
+```python
+# List all iterations for a dataset
+iterations = lavender.get_iterations(
+    dataset_id=dataset.id,
+)
+
+# Get the progress of an iteration
+progress = lavender.get_progress(
+    iteration_id=iterations[0].id,
+)
+```
+
+  </TabItem>
+  <TabItem value="cli" label="CLI">
+
+```bash
+# List all iterations for a dataset
+lavender-data client iterations list --dataset-id ds-...
+> {"dataset_id": "ds-...", "id": "it-...", ...}
+> ...
+
+# Get the progress of an iteration
+lavender-data client iterations get-progress it-...
+> {
+>   "total": 100,
+>   "current": 3,
+>   "inprogress": [
+>     {
+>       "index": 2,
+>       "rank": 0,
+>       "started_at": 1744688747.979773
+>     }
+>   ],
+>   "completed": 2,
+>   "filtered": 0,
+>   "failed": 0
+> }
+```
+
+  </TabItem>
+</Tabs>
 
 You've successfully set up Lavender Data, created a dataset, added data, and iterated over it!
