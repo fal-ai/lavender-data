@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 
-from lavender_data.server.distributed import CurrentCluster, SyncParams
+from lavender_data.server.distributed import CurrentCluster
+from lavender_data.server.distributed.cluster import SyncParams
 
 
 router = APIRouter(
