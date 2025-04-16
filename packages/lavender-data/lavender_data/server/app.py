@@ -47,6 +47,7 @@ async def lifespan(app: FastAPI):
             is_head=settings.lavender_data_cluster_head,
             head_url=settings.lavender_data_cluster_head_url,
             node_url=settings.lavender_data_cluster_node_url,
+            secret=settings.lavender_data_cluster_secret,
         )
 
     if settings.lavender_data_disable_auth:

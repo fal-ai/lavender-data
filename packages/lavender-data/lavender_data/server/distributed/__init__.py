@@ -1,6 +1,7 @@
 from typing import Annotated, Optional
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBasicCredentials, HTTPBasic
 
 from .cluster import Cluster
 
@@ -11,9 +12,12 @@ def setup_cluster(
     is_head: bool,
     head_url: str,
     node_url: str,
+    secret: str,
 ) -> Cluster:
     global cluster
-    cluster = Cluster(is_head, head_url, node_url)
+    if secret == "":
+        raise ValueError("LAVENDER_DATA_CLUSTER_SECRET is not set")
+    cluster = Cluster(is_head, head_url, node_url, secret)
     return cluster
 
 
@@ -32,3 +36,19 @@ def get_cluster() -> Optional[Cluster]:
 
 
 CurrentCluster = Annotated[Optional[Cluster], Depends(get_cluster)]
+
+http_basic = HTTPBasic()
+AuthorizationHeader = Annotated[HTTPBasicCredentials, Depends(http_basic)]
+
+
+def validate_token(auth: AuthorizationHeader, cluster: CurrentCluster):
+    salt = auth.username
+    hashed = auth.password
+
+    if not cluster.is_valid_auth(salt, hashed):
+        raise HTTPException(status_code=401, detail="API key is locked")
+
+    return cluster
+
+
+ClusterAuth: Cluster = Depends(validate_token)

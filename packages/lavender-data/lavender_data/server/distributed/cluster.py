@@ -1,5 +1,8 @@
 import time
 import threading
+import base64
+import hashlib
+import secrets
 from typing import Optional, Type
 from datetime import datetime
 import httpx
@@ -112,12 +115,14 @@ class Cluster:
         is_head: bool,
         head_url: str,
         node_url: str,
+        secret: str,
         heartbeat_interval: float = 10.0,
         heartbeat_threshold: int = 3,
     ):
         self.is_head = is_head
         self.head_url = head_url.rstrip("/")
         self.node_url = node_url.rstrip("/")
+        self.secret = secret
         self.heartbeat_interval = heartbeat_interval
         self.heartbeat_threshold = heartbeat_threshold
 
@@ -127,6 +132,43 @@ class Cluster:
         else:
             self.register()
             self.start_heartbeat()
+
+    def _get_auth_password(self, salt: str) -> str:
+        return hashlib.sha256(f"{salt}:{self.secret}".encode()).hexdigest()
+
+    def is_valid_auth(self, salt: str, password: str) -> bool:
+        return self._get_auth_password(salt) == password
+
+    def _auth_header(self) -> dict:
+        username = secrets.token_hex(16)  # salt
+        password = self._get_auth_password(username)
+        token = base64.b64encode(f"{username}:{password}".encode()).decode()
+        return {"Authorization": f"Basic {token}"}
+
+    def _post(self, node_url: str, path: str, json: dict):
+        _path = path.lstrip("/")
+        response = httpx.post(
+            f"{node_url}/{_path}",
+            json=json,
+            headers=self._auth_header(),
+        )
+        if response.status_code == 401:
+            raise RuntimeError(
+                "Invalid cluster auth. Please check if LAVENDER_DATA_CLUSTER_SECRET is correct."
+            )
+        return response.json()
+
+    def _get(self, node_url: str, path: str) -> dict:
+        _path = path.lstrip("/")
+        response = httpx.get(
+            f"{node_url}/{_path}",
+            headers=self._auth_header(),
+        )
+        if response.status_code == 401:
+            raise RuntimeError(
+                "Invalid cluster auth. Please check if LAVENDER_DATA_CLUSTER_SECRET is correct."
+            )
+        return response.json()
 
     def _key(self, key: str) -> str:
         return f"lavender_data:cluster:{key}"
@@ -163,7 +205,7 @@ class Cluster:
         start = time.time()
         while True:
             try:
-                httpx.get(f"{node_url}/version")
+                self._get(node_url, "/version")
                 break
             except httpx.ConnectError:
                 time.sleep(interval)
@@ -182,10 +224,7 @@ class Cluster:
     def register(self):
         logger.info(f"Waiting for head node to be ready: {self.head_url}")
         self._wait_until_node_ready(self.head_url)
-        httpx.post(
-            f"{self.head_url}/cluster/register",
-            json={"node_url": self.node_url},
-        )
+        self._post(self.head_url, "/cluster/register", {"node_url": self.node_url})
 
     @only_head
     def on_register(self, node_url: str):
@@ -198,10 +237,7 @@ class Cluster:
 
     @only_worker
     def deregister(self):
-        httpx.post(
-            f"{self.head_url}/cluster/deregister",
-            json={"node_url": self.node_url},
-        )
+        self._post(self.head_url, "/cluster/deregister", {"node_url": self.node_url})
 
     @only_head
     def on_deregister(self, node_url: str):
@@ -210,10 +246,7 @@ class Cluster:
 
     @only_worker
     def heartbeat(self):
-        httpx.post(
-            f"{self.head_url}/cluster/heartbeat",
-            json={"node_url": self.node_url},
-        )
+        self._post(self.head_url, "/cluster/heartbeat", {"node_url": self.node_url})
 
     @only_head
     def on_heartbeat(self, node_url: str):
@@ -284,13 +317,18 @@ class Cluster:
         if target_node_url is None:
             with ThreadPoolExecutor(max_workers=10) as executor:
                 futures = [
-                    executor.submit(httpx.post, f"{node_url}/cluster/sync", json=json)
+                    executor.submit(
+                        self._post,
+                        node_url,
+                        "/cluster/sync",
+                        json,
+                    )
                     for node_url in self._node_urls()
                 ]
                 for future in as_completed(futures):
                     future.result()
         else:
-            httpx.post(f"{target_node_url}/cluster/sync", json=json)
+            self._post(target_node_url, "/cluster/sync", json)
 
     @only_worker
     def on_sync_initial(self, params: SyncParams):
@@ -333,24 +371,21 @@ class Cluster:
                 with ThreadPoolExecutor(max_workers=10) as executor:
                     futures = [
                         executor.submit(
-                            httpx.post,
-                            f"{node_url}/cluster/sync-changes?delete={_delete}",
-                            json=json,
+                            self._post,
+                            node_url,
+                            f"/cluster/sync-changes?delete={_delete}",
+                            json,
                         )
                         for node_url in self._node_urls()
                     ]
                     for future in as_completed(futures):
                         future.result()
             else:
-                httpx.post(
-                    f"{self.head_url}/cluster/sync-changes?delete={_delete}",
-                    json=json,
+                self._post(
+                    self.head_url, f"/cluster/sync-changes?delete={_delete}", json
                 )
         else:
-            httpx.post(
-                f"{target_node_url}/cluster/sync-changes?delete={_delete}",
-                json=json,
-            )
+            self._post(target_node_url, f"/cluster/sync-changes?delete={_delete}", json)
 
     def on_sync_changes(
         self,
