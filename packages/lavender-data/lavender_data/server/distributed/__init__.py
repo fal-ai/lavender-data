@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import Depends
 from pydantic import BaseModel
-from sqlmodel import SQLModel, select, delete, insert
+from sqlmodel import SQLModel, select, delete, insert, update
 
 from lavender_data.logging import get_logger
 from lavender_data.server.cache import CacheInterface, get_cache
@@ -69,6 +69,39 @@ def _dump(publics: list[SQLModel]) -> list[dict]:
     return [public.model_dump() for public in publics]
 
 
+def _get_table_and_rows(
+    params: SyncParams,
+) -> list[tuple[Type[SQLModel], list[SQLModel]]]:
+    return [
+        (ApiKey, params.api_keys),
+        (Dataset, params.datasets),
+        (Shardset, params.shardsets),
+        (DatasetColumn, params.dataset_columns),
+        (Shard, params.shards),
+        (Iteration, params.iterations),
+        (IterationShardsetLink, params.iteration_shardset_links),
+    ]
+
+
+def _table_name(entity: SQLModel) -> str:
+    if isinstance(entity, Dataset) or isinstance(entity, DatasetPublic):
+        return "datasets"
+    elif isinstance(entity, DatasetColumn) or isinstance(entity, DatasetColumnPublic):
+        return "dataset_columns"
+    elif isinstance(entity, Shardset) or isinstance(entity, ShardsetPublic):
+        return "shardsets"
+    elif isinstance(entity, Shard) or isinstance(entity, ShardPublic):
+        return "shards"
+    elif isinstance(entity, Iteration) or isinstance(entity, IterationPublic):
+        return "iterations"
+    elif isinstance(entity, IterationShardsetLink):
+        return "iteration_shardset_links"
+    elif isinstance(entity, ApiKey) or isinstance(entity, ApiKeyPublic):
+        return "api_keys"
+    else:
+        raise ValueError(f"Unknown table: {entity.__class__.__name__}")
+
+
 class Cluster:
     def __init__(
         self,
@@ -100,15 +133,18 @@ class Cluster:
     def _db(self) -> DbSession:
         return next(get_session())
 
+    def _model_to_dict(self, model: SQLModel) -> dict:
+        d = model.model_dump()
+        for k, v in d.items():
+            if isinstance(v, datetime):
+                d[k] = v.isoformat()
+        return d
+
     def _dump_table(self, table: Type[SQLModel]) -> list[dict]:
-        rows = self._db().exec(select(table)).all()
-        dicts = []
-        for row in rows:
-            d = row.model_dump()
-            for k, v in d.items():
-                if isinstance(v, datetime):
-                    d[k] = v.isoformat()
-            dicts.append(d)
+        session = self._db()
+        rows = session.exec(select(table)).all()
+        dicts = [self._model_to_dict(row) for row in rows]
+        session.close()
         return dicts
 
     def _node_urls(self) -> list[str]:
@@ -147,7 +183,7 @@ class Cluster:
         if node_url != self.head_url:
             self._wait_until_node_ready(node_url)
             self.on_heartbeat(node_url)
-            self.sync(node_url)
+            self.sync_initial(node_url)
             logger.info(f"Node {node_url} registered")
 
     @only_worker
@@ -171,6 +207,10 @@ class Cluster:
 
     @only_head
     def on_heartbeat(self, node_url: str):
+        if node_url not in self._node_urls():
+            self.on_register(node_url)
+            return
+
         self._cache().set(
             self._key(f"heartbeat:{node_url}"), time.time(), ex=24 * 60 * 60
         )
@@ -182,7 +222,7 @@ class Cluster:
                 try:
                     self.heartbeat()
                 except Exception as e:
-                    logger.error(f"Error sending heartbeat: {e}")
+                    logger.error(f"Failed to send heartbeat to {self.head_url}: {e}")
                 time.sleep(self.heartbeat_interval)
 
         self.heartbeat_thread = threading.Thread(target=_heartbeat, daemon=True)
@@ -217,7 +257,7 @@ class Cluster:
         self.check_heartbeat_thread.start()
 
     @only_head
-    def sync(self, target_node_url: Optional[str] = None):
+    def sync_initial(self, target_node_url: Optional[str] = None):
         json = {
             "datasets": self._dump_table(Dataset),
             "dataset_columns": self._dump_table(DatasetColumn),
@@ -239,27 +279,106 @@ class Cluster:
             httpx.post(f"{target_node_url}/cluster/sync", json=json)
 
     @only_worker
-    def on_sync(self, params: SyncParams):
+    def on_sync_initial(self, params: SyncParams):
         session = self._db()
         session.begin()
-        session.exec(delete(IterationShardsetLink))
-        session.exec(delete(Iteration))
-        session.exec(delete(Shard))
-        session.exec(delete(DatasetColumn))
-        session.exec(delete(Shardset))
-        session.exec(delete(Dataset))
-        session.exec(delete(ApiKey))
 
-        session.exec(insert(ApiKey).values(_dump(params.api_keys)))
-        session.exec(insert(Dataset).values(_dump(params.datasets)))
-        session.exec(insert(Shardset).values(_dump(params.shardsets)))
-        session.exec(insert(DatasetColumn).values(_dump(params.dataset_columns)))
-        session.exec(insert(Shard).values(_dump(params.shards)))
-        session.exec(insert(Iteration).values(_dump(params.iterations)))
-        session.exec(
-            insert(IterationShardsetLink).values(_dump(params.iteration_shardset_links))
-        )
+        for table, _ in reversed(_get_table_and_rows(params)):
+            session.exec(delete(table))
+
+        for table, rows in _get_table_and_rows(params):
+            if len(rows) == 0:
+                continue
+            session.exec(insert(table).values(_dump(rows)))
+
         session.commit()
+        session.close()
+
+    def sync_changes(
+        self,
+        resources: list[SQLModel],
+        delete: bool = False,
+        target_node_url: Optional[str] = None,
+    ):
+        json = {
+            "datasets": [],
+            "dataset_columns": [],
+            "shardsets": [],
+            "shards": [],
+            "iterations": [],
+            "iteration_shardset_links": [],
+            "api_keys": [],
+        }
+
+        for entity in resources:
+            json[_table_name(entity)].append(self._model_to_dict(entity))
+
+        _delete = "true" if delete else "false"
+        if target_node_url is None:
+            if self.is_head:
+                with ThreadPoolExecutor(max_workers=10) as executor:
+                    futures = [
+                        executor.submit(
+                            httpx.post,
+                            f"{node_url}/cluster/sync-changes?delete={_delete}",
+                            json=json,
+                        )
+                        for node_url in self._node_urls()
+                    ]
+                    for future in as_completed(futures):
+                        future.result()
+            else:
+                httpx.post(
+                    f"{self.head_url}/cluster/sync-changes?delete={_delete}",
+                    json=json,
+                )
+        else:
+            httpx.post(
+                f"{target_node_url}/cluster/sync-changes?delete={_delete}",
+                json=json,
+            )
+
+    def on_sync_changes(
+        self,
+        params: SyncParams,
+        delete: bool = False,
+    ):
+        session = self._db()
+        session.begin()
+
+        for table, rows in _get_table_and_rows(params):
+            if len(rows) == 0:
+                continue
+
+            if delete:
+                # delete
+                session.exec(delete(table).where(table.id.in_([r.id for r in rows])))
+            else:
+                # upsert
+                existings = session.exec(
+                    select(table).where(table.id.in_([r.id for r in rows]))
+                ).all()
+                existing_ids = [e.id for e in existings]
+
+                update_params = [r for r in rows if r.id in existing_ids]
+                for r in update_params:
+                    session.exec(
+                        update(table).where(table.id == r.id).values(r.model_dump())
+                    )
+
+                insert_params = [r for r in rows if r.id not in existing_ids]
+                if len(insert_params) > 0:
+                    session.exec(insert(table).values(_dump(insert_params)))
+
+        session.commit()
+        session.close()
+
+        if self.is_head:
+            # propagate changes to other nodes
+            self.sync_changes(
+                [row for _, rows in _get_table_and_rows(params) for row in rows],
+                delete,
+            )
 
 
 cluster = None

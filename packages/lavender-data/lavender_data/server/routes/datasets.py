@@ -19,6 +19,7 @@ from lavender_data.server.db.models import (
     DatasetColumnPublic,
 )
 from lavender_data.server.cache import CacheClient
+from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.reader import (
     ReaderInstance,
     GlobalSampleIndex,
@@ -177,7 +178,11 @@ class CreateDatasetParams(BaseModel):
 
 
 @router.post("/")
-def create_dataset(params: CreateDatasetParams, session: DbSession) -> DatasetPublic:
+def create_dataset(
+    params: CreateDatasetParams,
+    session: DbSession,
+    cluster: CurrentCluster,
+) -> DatasetPublic:
     dataset = Dataset(name=params.name, uid_column_name=params.uid_column_name)
     session.add(dataset)
     try:
@@ -186,6 +191,10 @@ def create_dataset(params: CreateDatasetParams, session: DbSession) -> DatasetPu
         if "unique constraint" in str(e) and "name" in str(e):
             raise HTTPException(status_code=409, detail="Dataset name must be unique")
         raise
+
+    session.refresh(dataset)
+    cluster.sync_changes([dataset])
+
     return dataset
 
 
@@ -233,6 +242,7 @@ def create_shardset(
     session: DbSession,
     cache: CacheClient,
     background_tasks: BackgroundTasks,
+    cluster: CurrentCluster,
 ) -> CreateShardsetResponse:
     try:
         dataset = session.get_one(Dataset, dataset_id)
@@ -305,6 +315,9 @@ def create_shardset(
         raise
 
     session.refresh(shardset)
+
+    cluster.sync_changes([shardset])
+    # TODO cluster sync shards
 
     cache.hset(
         _sync_status_key(shardset.id),
@@ -383,6 +396,7 @@ def create_shard(
     shardset_id: str,
     params: CreateShardParams,
     session: DbSession,
+    cluster: CurrentCluster,
 ) -> ShardPublic:
     try:
         shardset = session.exec(
@@ -444,12 +458,16 @@ def create_shard(
 
     session.commit()
 
-    return session.exec(
+    shard = session.exec(
         select(Shard).where(
             Shard.shardset_id == shardset.id,
             Shard.index == params.index,
         )
     ).one()
+
+    cluster.sync_changes([shard])
+
+    return shard
 
 
 class SyncShardsetParams(BaseModel):

@@ -55,10 +55,19 @@ def heartbeat(
 
 
 @router.post("/sync")
-def sync(
+def sync_initial(
     params: SyncParams,
     cluster: CurrentCluster,
 ) -> None:
     if cluster.is_head:
         raise HTTPException(status_code=403, detail="Not allowed")
-    cluster.on_sync(params)
+    cluster.on_sync_initial(params)
+
+
+@router.post("/sync-changes")
+def sync_changes(
+    params: SyncParams,
+    cluster: CurrentCluster,
+    delete: bool = False,
+) -> None:
+    cluster.on_sync_changes(params, delete)

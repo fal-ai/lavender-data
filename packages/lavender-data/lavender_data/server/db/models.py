@@ -138,6 +138,7 @@ Iteration
 
 
 class IterationShardsetLink(SQLModel, table=True):
+    id: str = Field(primary_key=True, default_factory=generate_uid("is"))
     iteration_id: str = Field(primary_key=True, foreign_key="iteration.id")
     shardset_id: str = Field(primary_key=True, foreign_key="shardset.id")
 

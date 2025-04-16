@@ -22,6 +22,7 @@ from lavender_data.server.db.models import (
     IterationPreprocessor,
     IterationCollater,
 )
+from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.services.iterations import (
     IterationState,
     IterationStateException,
@@ -85,7 +86,10 @@ class CreateIterationParams(BaseModel):
 
 @router.post("/")
 def create_iteration(
-    params: CreateIterationParams, session: DbSession, cache: CacheClient
+    params: CreateIterationParams,
+    session: DbSession,
+    cache: CacheClient,
+    cluster: CurrentCluster,
 ) -> IterationPublic:
     shuffle = params.shuffle or False
     batch_size = params.batch_size or 0
@@ -215,6 +219,8 @@ def create_iteration(
         session.add(iteration)
         session.commit()
         session.refresh(iteration)
+
+    cluster.sync_changes([iteration])
 
     state = IterationState(iteration.id, cache)
     state.init(
