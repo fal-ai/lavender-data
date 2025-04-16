@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
     if settings.lavender_data_modules_dir:
         import_from_directory(settings.lavender_data_modules_dir)
 
-    setup_reader(int(settings.lavender_data_reader_disk_cache_size))
+    setup_reader(settings.lavender_data_reader_disk_cache_size)
 
     rank = register_worker()
     app.state.rank = rank

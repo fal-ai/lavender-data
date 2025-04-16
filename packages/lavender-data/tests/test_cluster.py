@@ -7,7 +7,7 @@ import subprocess
 
 from lavender_data.client import api
 
-from .utils.shards import create_test_shards
+from tests.utils.shards import create_test_shards
 
 
 class TestCluster(unittest.TestCase):
