@@ -44,9 +44,16 @@ export function SyncShardsetButton({
   }, []);
 
   useEffect(() => {
-    if (syncStatus != null && intervalRef == null) {
+    if (
+      intervalRef == null &&
+      syncStatus != null &&
+      syncStatus.status != 'done'
+    ) {
       setIntervalRef(setInterval(() => refreshStatus(), 100));
-    } else if (syncStatus == null && intervalRef != null) {
+    } else if (
+      intervalRef != null &&
+      (syncStatus == null || syncStatus.status == 'done')
+    ) {
       clearInterval(intervalRef);
       setIntervalRef(null);
       router.refresh();
@@ -73,12 +80,12 @@ export function SyncShardsetButton({
               }
             />
             <div className="text-sm text-muted-foreground">
-              {syncStatus.status}
-            </div>
-            <div className="text-sm text-muted-foreground">
               {syncStatus.shard_count > 0
                 ? `${syncStatus.done_count} / ${syncStatus.shard_count}`
                 : ''}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {syncStatus.status}
             </div>
           </div>
         )}
