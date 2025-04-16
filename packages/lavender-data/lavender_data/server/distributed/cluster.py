@@ -368,6 +368,9 @@ class Cluster:
         _delete = "true" if delete else "false"
         if target_node_url is None:
             if self.is_head:
+                if len(self._node_urls()) == 0:
+                    return
+
                 with ThreadPoolExecutor(max_workers=10) as executor:
                     futures = [
                         executor.submit(

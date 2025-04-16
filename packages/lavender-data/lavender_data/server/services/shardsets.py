@@ -7,7 +7,7 @@ from sqlmodel import select, update, insert
 
 from lavender_data.logging import get_logger
 from lavender_data.storage import list_files
-from lavender_data.shard import inspect_shard
+from lavender_data.shard.inspect import OrphanShardInfo, inspect_shard
 from lavender_data.shard.readers.exceptions import ReaderColumnsRequired
 from lavender_data.server.cache import get_cache
 from lavender_data.server.db import Shardset, Shard, get_session
@@ -61,15 +61,12 @@ class SyncShardsetStatus(BaseModel):
     shard_count: int
 
 
-def sync_shardset_location(
-    shardset_id: str,
+def inspect_shardset_location(
     shardset_location: str,
-    shardset_shard_samples: list[int],
-    shardset_shard_locations: list[str],
+    skip_basenames: list[str] = [],
     num_workers: int = 10,
-    overwrite: bool = False,
     cache_key: Optional[str] = None,
-) -> str:
+) -> list[OrphanShardInfo]:
     def _inspect_shard(shard_location: str, shard_index: int):
         return inspect_shard(shard_location), shard_index
 
@@ -81,25 +78,17 @@ def sync_shardset_location(
         cache = None
         status = None
 
+    shard_infos: list[tuple[int, OrphanShardInfo]] = []
+    shard_index = 0
+
     try:
         shard_basenames = sorted(list_files(shardset_location))
-        shard_index = 0
-        total_samples = 0
 
-        if not overwrite:
-            shard_basenames = [
-                shard_basename
-                for shard_basename in shard_basenames
-                if os.path.join(shardset_location, shard_basename)
-                not in shardset_shard_locations
-            ]
-            shard_index = len(shardset_shard_samples)
-            total_samples = sum(shardset_shard_samples)
-
-        session = next(get_session())
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
             futures = []
             for shard_basename in shard_basenames:
+                if shard_basename in skip_basenames:
+                    continue
                 shard_location = os.path.join(shardset_location, shard_basename)
                 future = executor.submit(
                     _inspect_shard,
@@ -120,41 +109,83 @@ def sync_shardset_location(
                     status.done_count += 1
                     cache.hset(cache_key, mapping=status.model_dump())
 
-                # TODO upsert https://github.com/fastapi/sqlmodel/issues/59
-                updated = False
-                if overwrite:
-                    result = session.exec(
-                        update(Shard)
-                        .where(
-                            Shard.shardset_id == shardset_id,
-                            Shard.index == current_shard_index,
-                        )
-                        .values(
-                            location=orphan_shard.location,
-                            filesize=orphan_shard.filesize,
-                            samples=orphan_shard.samples,
-                            format=orphan_shard.format,
-                        )
-                    )
-                    if result.rowcount > 0:
-                        updated = True
+                shard_infos.append((current_shard_index, orphan_shard))
 
-                if not updated:
-                    session.exec(
-                        insert(Shard).values(
-                            shardset_id=shardset_id,
-                            location=orphan_shard.location,
-                            filesize=orphan_shard.filesize,
-                            samples=orphan_shard.samples,
-                            format=orphan_shard.format,
-                            index=current_shard_index,
-                        )
-                    )
+        shard_infos.sort(key=lambda x: x[0])
+    except ReaderColumnsRequired as e:
+        logger.warning(f"Failed to inspect shardset {shardset_location}: {e}")
+    except Exception as e:
+        logger.exception(f"Error inspecting shardset {shardset_location}: {e}")
 
-                total_samples += orphan_shard.samples
-                logger.info(
-                    f"Shard {current_shard_index+1}/{shard_index} ({orphan_shard.location}) synced to {shardset_id}"
+    if cache_key and cache:
+        cache.delete(cache_key)
+
+    return [x[1] for x in shard_infos]
+
+
+def sync_shardset_location(
+    shardset_id: str,
+    shardset_location: str,
+    shardset_shard_samples: list[int],
+    shardset_shard_locations: list[str],
+    num_workers: int = 10,
+    overwrite: bool = False,
+    cache_key: Optional[str] = None,
+):
+    try:
+        shard_infos = inspect_shardset_location(
+            shardset_location,
+            skip_basenames=[] if overwrite else shardset_shard_locations,
+            num_workers=num_workers,
+            cache_key=cache_key,
+        )
+
+        if overwrite:
+            shard_index = 0
+            total_samples = 0
+        else:
+            shard_index = len(shardset_shard_samples)
+            total_samples = sum(shardset_shard_samples)
+
+        session = next(get_session())
+        for i, orphan_shard in enumerate(shard_infos):
+            current_shard_index = shard_index + i
+
+            # TODO upsert https://github.com/fastapi/sqlmodel/issues/59
+            updated = False
+            if overwrite:
+                result = session.exec(
+                    update(Shard)
+                    .where(
+                        Shard.shardset_id == shardset_id,
+                        Shard.index == current_shard_index,
+                    )
+                    .values(
+                        location=orphan_shard.location,
+                        filesize=orphan_shard.filesize,
+                        samples=orphan_shard.samples,
+                        format=orphan_shard.format,
+                    )
                 )
+                if result.rowcount > 0:
+                    updated = True
+
+            if not updated:
+                session.exec(
+                    insert(Shard).values(
+                        shardset_id=shardset_id,
+                        location=orphan_shard.location,
+                        filesize=orphan_shard.filesize,
+                        samples=orphan_shard.samples,
+                        format=orphan_shard.format,
+                        index=current_shard_index,
+                    )
+                )
+
+            total_samples += orphan_shard.samples
+            logger.info(
+                f"Shard {current_shard_index+1}/{shard_index} ({orphan_shard.location}) synced to {shardset_id}"
+            )
 
         session.exec(
             update(Shardset)
@@ -165,11 +196,6 @@ def sync_shardset_location(
             )
         )
         session.commit()
-
-        if cache:
-            cache.delete(cache_key)
-
-        return session.exec(select(Shardset).where(Shardset.id == shardset_id)).one()
     except ReaderColumnsRequired as e:
         logger.warning(
             f"Failed to sync shardset {shardset_id} at {shardset_location}: {e}"
@@ -178,6 +204,3 @@ def sync_shardset_location(
         logger.exception(
             f"Error syncing shardset {shardset_id} at {shardset_location}: {e}"
         )
-    finally:
-        if cache_key and cache:
-            cache.delete(cache_key)

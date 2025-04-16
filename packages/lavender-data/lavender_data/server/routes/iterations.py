@@ -220,7 +220,8 @@ def create_iteration(
         session.commit()
         session.refresh(iteration)
 
-    cluster.sync_changes([iteration])
+    if cluster:
+        cluster.sync_changes([iteration])
 
     state = IterationState(iteration.id, cache)
     state.init(
