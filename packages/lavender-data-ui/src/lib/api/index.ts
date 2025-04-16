@@ -5,19 +5,12 @@ import type { paths } from './v1';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-export const client = createClient<paths>({
-  baseUrl: API_URL,
-  fetch: (url) => {
-    return fetch(url, { cache: 'no-store' });
-  },
-});
-
 export const getClient = async () => {
+  const baseUrl = process.env.API_URL || 'http://localhost:8000';
   const cookieStore = await cookies();
   const apiKey = cookieStore.get('lavender-data-api-key')?.value;
   return createClient<paths>({
-    baseUrl: API_URL,
+    baseUrl,
     headers: apiKey
       ? {
           Authorization: `Basic ${apiKey}`,
@@ -34,8 +27,9 @@ export const getClient = async () => {
 };
 
 export const getManualAuthClient = async (apiKey: string) => {
+  const baseUrl = process.env.API_URL || 'http://localhost:8000';
   return createClient<paths>({
-    baseUrl: API_URL,
+    baseUrl,
     headers: {
       Authorization: `Basic ${apiKey}`,
     },

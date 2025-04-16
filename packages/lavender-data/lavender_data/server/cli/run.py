@@ -47,7 +47,7 @@ def _start_ui(ui_ready_event: Event, api_url: str, ui_port: int):
         [node_path, "server.js"],
         cwd=ui_dir,
         env={
-            "NEXT_PUBLIC_API_URL": api_url,
+            "API_URL": api_url,
             "PORT": str(ui_port),
         },
         stdout=subprocess.PIPE,
