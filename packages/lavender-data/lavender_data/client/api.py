@@ -29,6 +29,9 @@ from openapi_lavender_data_rest.api.iterations import (
     pushback_iterations_iteration_id_pushback_post,
     get_progress_iterations_iteration_id_progress_get,
 )
+from openapi_lavender_data_rest.api.cluster import (
+    get_nodes_cluster_nodes_get,
+)
 
 # models
 from openapi_lavender_data_rest.models.http_validation_error import HTTPValidationError
@@ -170,7 +173,7 @@ class LavenderDataClient:
         return self._check_response(response)
 
     def create_shardset(
-        self, dataset_id: str, location: str, columns: list[DatasetColumnOptions]
+        self, dataset_id: str, location: str, columns: list[DatasetColumnOptions] = []
     ):
         with self._get_client() as client:
             response = create_shardset_datasets_dataset_id_shardsets_post.sync_detailed(
@@ -342,6 +345,13 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
+    def get_node_statuses(self):
+        with self._get_client() as client:
+            response = get_nodes_cluster_nodes_get.sync_detailed(
+                client=client,
+            )
+        return self._check_response(response)
+
 
 _client_instance = None
 
@@ -409,7 +419,7 @@ def get_shardset(dataset_id: str, shardset_id: str):
 
 @ensure_client()
 def create_shardset(
-    dataset_id: str, location: str, columns: list[DatasetColumnOptions]
+    dataset_id: str, location: str, columns: list[DatasetColumnOptions] = []
 ):
     return _client_instance.create_shardset(
         dataset_id=dataset_id, location=location, columns=columns
@@ -530,3 +540,8 @@ def pushback(iteration_id: str):
 @ensure_client()
 def get_progress(iteration_id: str):
     return _client_instance.get_progress(iteration_id=iteration_id)
+
+
+@ensure_client()
+def get_node_statuses():
+    return _client_instance.get_node_statuses()

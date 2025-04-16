@@ -64,6 +64,11 @@ class SyncParams(BaseModel):
     api_keys: list[ApiKeyPublic]
 
 
+class NodeStatus(BaseModel):
+    node_url: str
+    last_heartbeat: Optional[float]
+
+
 def _dump(publics: list[SQLModel]) -> list[dict]:
     return [public.model_dump() for public in publics]
 
@@ -167,6 +172,12 @@ class Cluster:
                     f"Node {node_url} did not start in {timeout} seconds"
                 )
 
+    def get_node_statuses(self) -> list[NodeStatus]:
+        return [
+            NodeStatus(node_url=node_url, last_heartbeat=self._last_heartbeat(node_url))
+            for node_url in self._node_urls()
+        ]
+
     @only_worker
     def register(self):
         logger.info(f"Waiting for head node to be ready: {self.head_url}")
@@ -227,21 +238,25 @@ class Cluster:
         self.heartbeat_thread = threading.Thread(target=_heartbeat, daemon=True)
         self.heartbeat_thread.start()
 
+    def _last_heartbeat(self, node_url: str) -> Optional[float]:
+        heartbeat = self._cache().get(self._key(f"heartbeat:{node_url}"))
+        if heartbeat is None:
+            return None
+        return float(heartbeat)
+
     @only_head
     def start_check_heartbeat(self):
         def _check_heartbeat():
             while True:
                 try:
                     for node_url in self._node_urls():
-                        heartbeat = self._cache().get(
-                            self._key(f"heartbeat:{node_url}")
-                        )
+                        heartbeat = self._last_heartbeat(node_url)
                         if heartbeat is None:
                             self.on_deregister(node_url)
                             continue
 
                         if (
-                            time.time() - float(heartbeat)
+                            time.time() - heartbeat
                             > self.heartbeat_threshold * self.heartbeat_interval
                         ):
                             self.on_deregister(node_url)

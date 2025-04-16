@@ -5,17 +5,14 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.http_validation_error import HTTPValidationError
+from ...models.node_status import NodeStatus
 from ...types import Response
 
 
-def _get_kwargs(
-    iteration_id: str,
-    index: int,
-) -> dict[str, Any]:
+def _get_kwargs() -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
-        "method": "post",
-        "url": f"/iterations/{iteration_id}/complete/{index}",
+        "method": "get",
+        "url": "/cluster/nodes",
     }
 
     return _kwargs
@@ -23,14 +20,16 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[Any, HTTPValidationError]]:
+) -> Optional[list["NodeStatus"]]:
     if response.status_code == 200:
-        response_200 = response.json()
-        return response_200
-    if response.status_code == 422:
-        response_422 = HTTPValidationError.from_dict(response.json())
+        response_200 = []
+        _response_200 = response.json()
+        for response_200_item_data in _response_200:
+            response_200_item = NodeStatus.from_dict(response_200_item_data)
 
-        return response_422
+            response_200.append(response_200_item)
+
+        return response_200
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -39,7 +38,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[Any, HTTPValidationError]]:
+) -> Response[list["NodeStatus"]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -49,29 +48,20 @@ def _build_response(
 
 
 def sync_detailed(
-    iteration_id: str,
-    index: int,
     *,
-    client: AuthenticatedClient,
-) -> Response[Union[Any, HTTPValidationError]]:
-    """Complete Index
-
-    Args:
-        iteration_id (str):
-        index (int):
+    client: Union[AuthenticatedClient, Client],
+) -> Response[list["NodeStatus"]]:
+    """Get Nodes
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, HTTPValidationError]]
+        Response[list['NodeStatus']]
     """
 
-    kwargs = _get_kwargs(
-        iteration_id=iteration_id,
-        index=index,
-    )
+    kwargs = _get_kwargs()
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -81,56 +71,39 @@ def sync_detailed(
 
 
 def sync(
-    iteration_id: str,
-    index: int,
     *,
-    client: AuthenticatedClient,
-) -> Optional[Union[Any, HTTPValidationError]]:
-    """Complete Index
-
-    Args:
-        iteration_id (str):
-        index (int):
+    client: Union[AuthenticatedClient, Client],
+) -> Optional[list["NodeStatus"]]:
+    """Get Nodes
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, HTTPValidationError]
+        list['NodeStatus']
     """
 
     return sync_detailed(
-        iteration_id=iteration_id,
-        index=index,
         client=client,
     ).parsed
 
 
 async def asyncio_detailed(
-    iteration_id: str,
-    index: int,
     *,
-    client: AuthenticatedClient,
-) -> Response[Union[Any, HTTPValidationError]]:
-    """Complete Index
-
-    Args:
-        iteration_id (str):
-        index (int):
+    client: Union[AuthenticatedClient, Client],
+) -> Response[list["NodeStatus"]]:
+    """Get Nodes
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, HTTPValidationError]]
+        Response[list['NodeStatus']]
     """
 
-    kwargs = _get_kwargs(
-        iteration_id=iteration_id,
-        index=index,
-    )
+    kwargs = _get_kwargs()
 
     response = await client.get_async_httpx_client().request(**kwargs)
 
@@ -138,29 +111,21 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    iteration_id: str,
-    index: int,
     *,
-    client: AuthenticatedClient,
-) -> Optional[Union[Any, HTTPValidationError]]:
-    """Complete Index
-
-    Args:
-        iteration_id (str):
-        index (int):
+    client: Union[AuthenticatedClient, Client],
+) -> Optional[list["NodeStatus"]]:
+    """Get Nodes
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, HTTPValidationError]
+        list['NodeStatus']
     """
 
     return (
         await asyncio_detailed(
-            iteration_id=iteration_id,
-            index=index,
             client=client,
         )
     ).parsed

@@ -1,46 +1,65 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="SubmitNextResponse")
+from ..types import UNSET, Unset
+
+T = TypeVar("T", bound="IterationShardsetLink")
 
 
 @_attrs_define
-class SubmitNextResponse:
+class IterationShardsetLink:
     """
     Attributes:
-        cache_key (str):
+        iteration_id (str):
+        shardset_id (str):
+        id (Union[Unset, str]):
     """
 
-    cache_key: str
+    iteration_id: str
+    shardset_id: str
+    id: Union[Unset, str] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        cache_key = self.cache_key
+        iteration_id = self.iteration_id
+
+        shardset_id = self.shardset_id
+
+        id = self.id
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "cache_key": cache_key,
+                "iteration_id": iteration_id,
+                "shardset_id": shardset_id,
             }
         )
+        if id is not UNSET:
+            field_dict["id"] = id
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        cache_key = d.pop("cache_key")
+        iteration_id = d.pop("iteration_id")
 
-        submit_next_response = cls(
-            cache_key=cache_key,
+        shardset_id = d.pop("shardset_id")
+
+        id = d.pop("id", UNSET)
+
+        iteration_shardset_link = cls(
+            iteration_id=iteration_id,
+            shardset_id=shardset_id,
+            id=id,
         )
 
-        submit_next_response.additional_properties = d
-        return submit_next_response
+        iteration_shardset_link.additional_properties = d
+        return iteration_shardset_link
 
     @property
     def additional_keys(self) -> list[str]:

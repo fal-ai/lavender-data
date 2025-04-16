@@ -1,5 +1,4 @@
 from http import HTTPStatus
-from io import BytesIO
 from typing import Any, Optional, Union
 
 import httpx
@@ -7,29 +6,19 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.process_next_samples_params import ProcessNextSamplesParams
-from ...types import UNSET, File, Response, Unset
+from ...models.sync_params import SyncParams
+from ...types import Response
 
 
 def _get_kwargs(
-    iteration_id: str,
-    cache_key: str,
     *,
-    body: ProcessNextSamplesParams,
-    no_cache: Union[Unset, bool] = False,
+    body: SyncParams,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
-    params: dict[str, Any] = {}
-
-    params["no_cache"] = no_cache
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
-
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": f"/iterations/{iteration_id}/next/{cache_key}",
-        "params": params,
+        "url": "/cluster/sync",
     }
 
     _body = body.to_dict()
@@ -43,10 +32,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[File, HTTPValidationError]]:
+) -> Optional[Union[Any, HTTPValidationError]]:
     if response.status_code == 200:
-        response_200 = File(payload=BytesIO(response.json()))
-
+        response_200 = response.json()
         return response_200
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
@@ -60,7 +48,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[File, HTTPValidationError]]:
+) -> Response[Union[Any, HTTPValidationError]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -70,34 +58,25 @@ def _build_response(
 
 
 def sync_detailed(
-    iteration_id: str,
-    cache_key: str,
     *,
-    client: AuthenticatedClient,
-    body: ProcessNextSamplesParams,
-    no_cache: Union[Unset, bool] = False,
-) -> Response[Union[File, HTTPValidationError]]:
-    """Submit Next Samples
+    client: Union[AuthenticatedClient, Client],
+    body: SyncParams,
+) -> Response[Union[Any, HTTPValidationError]]:
+    """Sync Initial
 
     Args:
-        iteration_id (str):
-        cache_key (str):
-        no_cache (Union[Unset, bool]):  Default: False.
-        body (ProcessNextSamplesParams):
+        body (SyncParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[File, HTTPValidationError]]
+        Response[Union[Any, HTTPValidationError]]
     """
 
     kwargs = _get_kwargs(
-        iteration_id=iteration_id,
-        cache_key=cache_key,
         body=body,
-        no_cache=no_cache,
     )
 
     response = client.get_httpx_client().request(
@@ -108,67 +87,49 @@ def sync_detailed(
 
 
 def sync(
-    iteration_id: str,
-    cache_key: str,
     *,
-    client: AuthenticatedClient,
-    body: ProcessNextSamplesParams,
-    no_cache: Union[Unset, bool] = False,
-) -> Optional[Union[File, HTTPValidationError]]:
-    """Submit Next Samples
+    client: Union[AuthenticatedClient, Client],
+    body: SyncParams,
+) -> Optional[Union[Any, HTTPValidationError]]:
+    """Sync Initial
 
     Args:
-        iteration_id (str):
-        cache_key (str):
-        no_cache (Union[Unset, bool]):  Default: False.
-        body (ProcessNextSamplesParams):
+        body (SyncParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[File, HTTPValidationError]
+        Union[Any, HTTPValidationError]
     """
 
     return sync_detailed(
-        iteration_id=iteration_id,
-        cache_key=cache_key,
         client=client,
         body=body,
-        no_cache=no_cache,
     ).parsed
 
 
 async def asyncio_detailed(
-    iteration_id: str,
-    cache_key: str,
     *,
-    client: AuthenticatedClient,
-    body: ProcessNextSamplesParams,
-    no_cache: Union[Unset, bool] = False,
-) -> Response[Union[File, HTTPValidationError]]:
-    """Submit Next Samples
+    client: Union[AuthenticatedClient, Client],
+    body: SyncParams,
+) -> Response[Union[Any, HTTPValidationError]]:
+    """Sync Initial
 
     Args:
-        iteration_id (str):
-        cache_key (str):
-        no_cache (Union[Unset, bool]):  Default: False.
-        body (ProcessNextSamplesParams):
+        body (SyncParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[File, HTTPValidationError]]
+        Response[Union[Any, HTTPValidationError]]
     """
 
     kwargs = _get_kwargs(
-        iteration_id=iteration_id,
-        cache_key=cache_key,
         body=body,
-        no_cache=no_cache,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -177,35 +138,26 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    iteration_id: str,
-    cache_key: str,
     *,
-    client: AuthenticatedClient,
-    body: ProcessNextSamplesParams,
-    no_cache: Union[Unset, bool] = False,
-) -> Optional[Union[File, HTTPValidationError]]:
-    """Submit Next Samples
+    client: Union[AuthenticatedClient, Client],
+    body: SyncParams,
+) -> Optional[Union[Any, HTTPValidationError]]:
+    """Sync Initial
 
     Args:
-        iteration_id (str):
-        cache_key (str):
-        no_cache (Union[Unset, bool]):  Default: False.
-        body (ProcessNextSamplesParams):
+        body (SyncParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[File, HTTPValidationError]
+        Union[Any, HTTPValidationError]
     """
 
     return (
         await asyncio_detailed(
-            iteration_id=iteration_id,
-            cache_key=cache_key,
             client=client,
             body=body,
-            no_cache=no_cache,
         )
     ).parsed

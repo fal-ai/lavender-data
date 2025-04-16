@@ -4,27 +4,27 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="SubmitNextResponse")
+T = TypeVar("T", bound="HeartbeatParams")
 
 
 @_attrs_define
-class SubmitNextResponse:
+class HeartbeatParams:
     """
     Attributes:
-        cache_key (str):
+        node_url (str):
     """
 
-    cache_key: str
+    node_url: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        cache_key = self.cache_key
+        node_url = self.node_url
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "cache_key": cache_key,
+                "node_url": node_url,
             }
         )
 
@@ -33,14 +33,14 @@ class SubmitNextResponse:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        cache_key = d.pop("cache_key")
+        node_url = d.pop("node_url")
 
-        submit_next_response = cls(
-            cache_key=cache_key,
+        heartbeat_params = cls(
+            node_url=node_url,
         )
 
-        submit_next_response.additional_properties = d
-        return submit_next_response
+        heartbeat_params.additional_properties = d
+        return heartbeat_params
 
     @property
     def additional_keys(self) -> list[str]:

@@ -22,6 +22,8 @@ from lavender_data.client.api import (
 )
 from lavender_data.client.iteration import Iteration
 
+from .utils.test_shards import create_test_shards
+
 
 def run_server(port: int):
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="error")
@@ -63,25 +65,12 @@ class TestIteration(unittest.TestCase):
         self.dataset_id = response.id
 
         # Create test data
-        test_dir = f".cache/{self.dataset_id}"
-        os.makedirs(test_dir, exist_ok=True)
-        for i in range(shard_count):
-            with open(f"{test_dir}/shard.{i:05d}.csv", "w") as f:
-                writer = csv.writer(f)
-                writer.writerow(["id", "image_url", "caption"])
-                for j in range(samples_per_shard):
-                    writer.writerow(
-                        [
-                            (i * samples_per_shard) + j,
-                            f"https://example.com/image-{(i * samples_per_shard) + j:05d}.jpg",
-                            f"Caption for image {(i * samples_per_shard) + j:05d}",
-                        ]
-                    )
+        location = create_test_shards(self.dataset_id, shard_count, samples_per_shard)
 
         # Create shardset containing image_url and caption
         response = create_shardset(
             dataset_id=self.dataset_id,
-            location=f"file://{test_dir}",
+            location=location,
             columns=[
                 DatasetColumnOptions(
                     name="id",

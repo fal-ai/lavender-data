@@ -345,7 +345,7 @@ def submit_next(
     return SubmitNextResponse(cache_key=cache_key)
 
 
-@router.post("/{iteration_id}/next/{cache_key}")
+# @router.post("/{iteration_id}/next/{cache_key}")
 def submit_next_samples(
     iteration_id: str,
     cache_key: str,

@@ -5,19 +5,28 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.heartbeat_params import HeartbeatParams
 from ...models.http_validation_error import HTTPValidationError
 from ...types import Response
 
 
 def _get_kwargs(
-    iteration_id: str,
-    index: int,
+    *,
+    body: HeartbeatParams,
 ) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": f"/iterations/{iteration_id}/complete/{index}",
+        "url": "/cluster/heartbeat",
     }
 
+    _body = body.to_dict()
+
+    _kwargs["json"] = _body
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -49,16 +58,14 @@ def _build_response(
 
 
 def sync_detailed(
-    iteration_id: str,
-    index: int,
     *,
-    client: AuthenticatedClient,
+    client: Union[AuthenticatedClient, Client],
+    body: HeartbeatParams,
 ) -> Response[Union[Any, HTTPValidationError]]:
-    """Complete Index
+    """Heartbeat
 
     Args:
-        iteration_id (str):
-        index (int):
+        body (HeartbeatParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -69,8 +76,7 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        iteration_id=iteration_id,
-        index=index,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -81,16 +87,14 @@ def sync_detailed(
 
 
 def sync(
-    iteration_id: str,
-    index: int,
     *,
-    client: AuthenticatedClient,
+    client: Union[AuthenticatedClient, Client],
+    body: HeartbeatParams,
 ) -> Optional[Union[Any, HTTPValidationError]]:
-    """Complete Index
+    """Heartbeat
 
     Args:
-        iteration_id (str):
-        index (int):
+        body (HeartbeatParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -101,23 +105,20 @@ def sync(
     """
 
     return sync_detailed(
-        iteration_id=iteration_id,
-        index=index,
         client=client,
+        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
-    iteration_id: str,
-    index: int,
     *,
-    client: AuthenticatedClient,
+    client: Union[AuthenticatedClient, Client],
+    body: HeartbeatParams,
 ) -> Response[Union[Any, HTTPValidationError]]:
-    """Complete Index
+    """Heartbeat
 
     Args:
-        iteration_id (str):
-        index (int):
+        body (HeartbeatParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -128,8 +129,7 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
-        iteration_id=iteration_id,
-        index=index,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -138,16 +138,14 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    iteration_id: str,
-    index: int,
     *,
-    client: AuthenticatedClient,
+    client: Union[AuthenticatedClient, Client],
+    body: HeartbeatParams,
 ) -> Optional[Union[Any, HTTPValidationError]]:
-    """Complete Index
+    """Heartbeat
 
     Args:
-        iteration_id (str):
-        index (int):
+        body (HeartbeatParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -159,8 +157,7 @@ async def asyncio(
 
     return (
         await asyncio_detailed(
-            iteration_id=iteration_id,
-            index=index,
             client=client,
+            body=body,
         )
     ).parsed

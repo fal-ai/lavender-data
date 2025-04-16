@@ -1,30 +1,36 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="SubmitNextResponse")
+T = TypeVar("T", bound="NodeStatus")
 
 
 @_attrs_define
-class SubmitNextResponse:
+class NodeStatus:
     """
     Attributes:
-        cache_key (str):
+        node_url (str):
+        last_heartbeat (Union[None, float]):
     """
 
-    cache_key: str
+    node_url: str
+    last_heartbeat: Union[None, float]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        cache_key = self.cache_key
+        node_url = self.node_url
+
+        last_heartbeat: Union[None, float]
+        last_heartbeat = self.last_heartbeat
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "cache_key": cache_key,
+                "node_url": node_url,
+                "last_heartbeat": last_heartbeat,
             }
         )
 
@@ -33,14 +39,22 @@ class SubmitNextResponse:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        cache_key = d.pop("cache_key")
+        node_url = d.pop("node_url")
 
-        submit_next_response = cls(
-            cache_key=cache_key,
+        def _parse_last_heartbeat(data: object) -> Union[None, float]:
+            if data is None:
+                return data
+            return cast(Union[None, float], data)
+
+        last_heartbeat = _parse_last_heartbeat(d.pop("last_heartbeat"))
+
+        node_status = cls(
+            node_url=node_url,
+            last_heartbeat=last_heartbeat,
         )
 
-        submit_next_response.additional_properties = d
-        return submit_next_response
+        node_status.additional_properties = d
+        return node_status
 
     @property
     def additional_keys(self) -> list[str]:

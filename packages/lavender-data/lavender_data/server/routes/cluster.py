@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 
 from lavender_data.server.distributed import CurrentCluster
-from lavender_data.server.distributed.cluster import SyncParams
+from lavender_data.server.distributed.cluster import SyncParams, NodeStatus
 
 
 router = APIRouter(
@@ -72,3 +72,12 @@ def sync_changes(
     delete: bool = False,
 ) -> None:
     cluster.on_sync_changes(params, delete)
+
+
+@router.get("/nodes")
+def get_nodes(
+    cluster: CurrentCluster,
+) -> list[NodeStatus]:
+    if not cluster.is_head:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    return cluster.get_node_statuses()
