@@ -1,8 +1,7 @@
 // @ts-check
 import { defineConfig, passthroughImageService } from "astro/config";
 import starlight from "@astrojs/starlight";
-
-import tailwind from "@astrojs/tailwind";
+import tailwindcss from "@tailwindcss/vite";
 
 // https://astro.build/config
 export default defineConfig({
@@ -16,7 +15,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: "Lavender Data",
-      favicon: "/src/assets/favicon.ico",
+      favicon: "/public/favicon.ico",
       head: [
         {
           tag: "meta",
@@ -79,8 +78,8 @@ export default defineConfig({
         // },
       ],
     }),
-    tailwind({
-      applyBaseStyles: false,
-    }),
   ],
+  vite: {
+    plugins: [tailwindcss()],
+  },
 });
