@@ -333,6 +333,7 @@ def create_shardset(
             status="pending",
             done_count=0,
             shard_count=0,
+            shards=[],
         ).model_dump(),
     )
     background_tasks.add_task(
@@ -341,6 +342,7 @@ def create_shardset(
         shardset_location=shardset.location,
         shardset_shard_samples=[s.samples for s in shardset.shards],
         shardset_shard_locations=[s.location for s in shardset.shards],
+        dataset_id=dataset.id,
         num_workers=10,
         overwrite=False,
         cache_key=_sync_status_key(shardset.id),
@@ -473,9 +475,6 @@ def create_shard(
         )
     ).one()
 
-    if cluster:
-        cluster.sync_changes([shard])
-
     return shard
 
 
@@ -528,6 +527,7 @@ def sync_shardset(
         shardset_location=shardset.location,
         shardset_shard_samples=[s.samples for s in shardset.shards],
         shardset_shard_locations=[s.location for s in shardset.shards],
+        dataset_id=dataset_id,
         num_workers=10,
         overwrite=params.overwrite,
         cache_key=_sync_status_key(shardset.id),

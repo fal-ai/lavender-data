@@ -1,5 +1,6 @@
 import time
 import threading
+import re
 import base64
 import hashlib
 import secrets
@@ -13,6 +14,7 @@ from sqlmodel import SQLModel, select, delete, insert, update
 
 from lavender_data.logging import get_logger
 from lavender_data.server.cache import CacheInterface, get_cache
+from lavender_data.server.auth import generate_api_key_secret
 from lavender_data.server.db import DbSession, get_session
 from lavender_data.server.db.models import (
     Dataset,
@@ -109,6 +111,16 @@ def _table_name(entity: SQLModel) -> str:
         raise ValueError(f"Unknown table: {entity.__class__.__name__}")
 
 
+def to_http_basic_auth(username: str, password: str) -> dict:
+    token = base64.b64encode(f"{username}:{password}".encode()).decode()
+    return {"Authorization": f"Basic {token}"}
+
+
+allowed_api_paths = [
+    r"/datasets/(.+)/shardsets/(.+)/sync",
+]
+
+
 class Cluster:
     def __init__(
         self,
@@ -116,6 +128,7 @@ class Cluster:
         head_url: str,
         node_url: str,
         secret: str,
+        disable_auth: bool = False,
         heartbeat_interval: float = 10.0,
         heartbeat_threshold: int = 3,
     ):
@@ -123,8 +136,10 @@ class Cluster:
         self.head_url = head_url.rstrip("/")
         self.node_url = node_url.rstrip("/")
         self.secret = secret
+        self.disable_auth = disable_auth
         self.heartbeat_interval = heartbeat_interval
         self.heartbeat_threshold = heartbeat_threshold
+        self.api_key_note = "_CLUSTER"
 
         if self.is_head:
             self.on_register(head_url)
@@ -140,35 +155,136 @@ class Cluster:
         return self._get_auth_password(salt) == password
 
     def _auth_header(self) -> dict:
+        if self.disable_auth:
+            return {}
+
         username = secrets.token_hex(16)  # salt
         password = self._get_auth_password(username)
-        token = base64.b64encode(f"{username}:{password}".encode()).decode()
-        return {"Authorization": f"Basic {token}"}
+        return to_http_basic_auth(username, password)
 
-    def _post(self, node_url: str, path: str, json: dict):
+    @only_head
+    def _api_key_header(self) -> dict:
+        # to call api of other nodes.
+        # only allowed to the head node, to prevent the race condition.
+        if self.disable_auth:
+            return {}
+
+        session = self._db()
+
+        api_key = session.exec(
+            select(ApiKey).where(
+                ApiKey.locked == False, ApiKey.note == self.api_key_note
+            )
+        ).one_or_none()
+        if api_key is None:
+            session.exec(
+                insert(ApiKey).values(
+                    secret=generate_api_key_secret(),
+                    locked=False,
+                    note=self.api_key_note,
+                )
+            )
+            session.commit()
+            api_key = session.exec(
+                select(ApiKey).where(
+                    ApiKey.locked == False, ApiKey.note == self.api_key_note
+                )
+            ).one()
+            self.sync_changes([api_key])
+
+        session.close()
+
+        return to_http_basic_auth(api_key.id, api_key.secret)
+
+    def _post(
+        self, node_url: str, path: str, json: dict = {}, use_api_key: bool = False
+    ):
         _path = path.lstrip("/")
         response = httpx.post(
             f"{node_url}/{_path}",
             json=json,
-            headers=self._auth_header(),
+            headers=self._auth_header() if not use_api_key else self._api_key_header(),
         )
         if response.status_code == 401:
             raise RuntimeError(
                 "Invalid cluster auth. Please check if LAVENDER_DATA_CLUSTER_SECRET is correct."
             )
+        response.raise_for_status()
         return response.json()
 
-    def _get(self, node_url: str, path: str) -> dict:
+    def _get(self, node_url: str, path: str, use_api_key: bool = False) -> dict:
         _path = path.lstrip("/")
         response = httpx.get(
             f"{node_url}/{_path}",
-            headers=self._auth_header(),
+            headers=self._auth_header() if not use_api_key else self._api_key_header(),
         )
         if response.status_code == 401:
             raise RuntimeError(
                 "Invalid cluster auth. Please check if LAVENDER_DATA_CLUSTER_SECRET is correct."
             )
+        response.raise_for_status()
         return response.json()
+
+    @only_head
+    def _broadcast_post(
+        self, path: str, json: dict, use_api_key: bool = False
+    ) -> list[tuple[str, Optional[dict]]]:
+        node_urls = self._node_urls()
+        if len(node_urls) == 0:
+            return []
+
+        def _post(node_url: str, path: str, json: dict, use_api_key: bool):
+            try:
+                return node_url, self._post(node_url, path, json, use_api_key)
+            except Exception as e:
+                logger.error(f"Failed to post to {node_url}: {e}")
+                return node_url, None
+
+        results = []
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [
+                executor.submit(
+                    _post,
+                    node_url=node_url,
+                    path=path,
+                    json=json,
+                    use_api_key=use_api_key,
+                )
+                for node_url in node_urls
+            ]
+            for future in as_completed(futures):
+                results.append(future.result())
+        return results
+
+    @only_head
+    def _broadcast_get(
+        self, path: str, use_api_key: bool = False
+    ) -> list[tuple[str, Optional[dict]]]:
+        node_urls = self._node_urls()
+        if len(node_urls) == 0:
+            return []
+
+        def _get(node_url: str, path: str, use_api_key: bool):
+            try:
+                return node_url, self._get(node_url, path, use_api_key)
+            except Exception as e:
+                logger.error(f"Failed to get from {node_url}: {e}")
+                return node_url, None
+
+        results = []
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [
+                executor.submit(
+                    _get,
+                    node_url=node_url,
+                    path=path,
+                    use_api_key=use_api_key,
+                )
+                for node_url in node_urls
+            ]
+            for future in as_completed(futures):
+                results.append(future.result())
+        return results
 
     def _key(self, key: str) -> str:
         return f"lavender_data:cluster:{key}"
@@ -315,18 +431,7 @@ class Cluster:
             "api_keys": self._dump_table(ApiKey),
         }
         if target_node_url is None:
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                futures = [
-                    executor.submit(
-                        self._post,
-                        node_url,
-                        "/cluster/sync",
-                        json,
-                    )
-                    for node_url in self._node_urls()
-                ]
-                for future in as_completed(futures):
-                    future.result()
+            self._broadcast_post("/cluster/sync", json)
         else:
             self._post(target_node_url, "/cluster/sync", json)
 
@@ -336,9 +441,15 @@ class Cluster:
         session.begin()
 
         for table, _ in reversed(_get_table_and_rows(params)):
+            if isinstance(table, Shard):
+                continue
+
             session.exec(delete(table))
 
         for table, rows in _get_table_and_rows(params):
+            if isinstance(table, Shard):
+                continue
+
             if len(rows) == 0:
                 continue
             session.exec(insert(table).values(_dump(rows)))
@@ -368,21 +479,7 @@ class Cluster:
         _delete = "true" if delete else "false"
         if target_node_url is None:
             if self.is_head:
-                if len(self._node_urls()) == 0:
-                    return
-
-                with ThreadPoolExecutor(max_workers=10) as executor:
-                    futures = [
-                        executor.submit(
-                            self._post,
-                            node_url,
-                            f"/cluster/sync-changes?delete={_delete}",
-                            json,
-                        )
-                        for node_url in self._node_urls()
-                    ]
-                    for future in as_completed(futures):
-                        future.result()
+                self._broadcast_post(f"/cluster/sync-changes?delete={_delete}", json)
             else:
                 self._post(
                     self.head_url, f"/cluster/sync-changes?delete={_delete}", json
@@ -399,6 +496,9 @@ class Cluster:
         session.begin()
 
         for table, rows in _get_table_and_rows(params):
+            if isinstance(table, Shard):
+                continue
+
             if len(rows) == 0:
                 continue
 
@@ -431,3 +531,27 @@ class Cluster:
                 [row for _, rows in _get_table_and_rows(params) for row in rows],
                 delete,
             )
+
+    @only_head
+    def api_nodes_post(self, path: str, json: dict):
+        if not any(
+            [
+                True if re.match(allowed_path, path) else False
+                for allowed_path in allowed_api_paths
+            ]
+        ):
+            raise ValueError(f"Invalid path: {path}")
+
+        return self._broadcast_post(path, json, use_api_key=True)
+
+    @only_head
+    def api_nodes_get(self, path: str):
+        if not any(
+            [
+                True if re.match(allowed_path, path) else False
+                for allowed_path in allowed_api_paths
+            ]
+        ):
+            raise ValueError(f"Invalid path: {path}")
+
+        return self._broadcast_get(path, use_api_key=True)

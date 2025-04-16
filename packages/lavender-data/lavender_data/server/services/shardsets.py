@@ -12,6 +12,7 @@ from lavender_data.shard.inspect import OrphanShardInfo, inspect_shard
 from lavender_data.shard.readers.exceptions import ReaderColumnsRequired
 from lavender_data.server.cache import get_cache
 from lavender_data.server.db import Shardset, Shard, get_session
+from lavender_data.server.distributed import get_cluster
 
 logger = get_logger(__name__)
 
@@ -145,17 +146,48 @@ def sync_shardset_location(
     shardset_location: str,
     shardset_shard_samples: list[int],
     shardset_shard_locations: list[str],
+    dataset_id: str,
     num_workers: int = 10,
     overwrite: bool = False,
     cache_key: Optional[str] = None,
 ):
     try:
+        cluster = get_cluster()
+        need_cluster_sync = cluster is not None and cluster.is_head
+
+        if need_cluster_sync:
+            cluster.api_nodes_post(
+                f"/datasets/{dataset_id}/shardsets/{shardset_id}/sync",
+                {
+                    "shardset_location": shardset_location,
+                    "shardset_shard_samples": shardset_shard_samples,
+                },
+            )
+
         shard_infos = inspect_shardset_location(
             shardset_location,
             skip_basenames=[] if overwrite else shardset_shard_locations,
             num_workers=num_workers,
             cache_key=cache_key,
         )
+
+        if need_cluster_sync:
+            not_yet_done = True
+            while not_yet_done:
+                not_yet_done = False
+                for node_url, result in cluster.api_nodes_get(
+                    f"/datasets/{dataset_id}/shardsets/{shardset_id}/sync"
+                ):
+                    if result is None:
+                        logger.warning(
+                            f"Failed to sync shardset {shardset_id} at {shardset_location} from {node_url}"
+                        )
+                        continue
+
+                    shard_info = [OrphanShardInfo(**s) for s in result["shards"]]
+                    if shard_info.status != "done":
+                        not_yet_done = True
+                        continue
 
         if overwrite:
             shard_index = 0
