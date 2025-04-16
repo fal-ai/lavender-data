@@ -234,7 +234,6 @@ class Iteration:
             return get_next_item_async_result(
                 iteration_id=self._iteration_id,
                 cache_key=cache_key,
-                rank=self.rank,
             )
         except LavenderDataApiError as e:
             if "Content is still being processed" in str(e):
