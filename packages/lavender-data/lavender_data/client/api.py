@@ -16,7 +16,7 @@ from openapi_lavender_data_rest.api.datasets import (
     get_shardset_datasets_dataset_id_shardsets_shardset_id_get,
     create_dataset_datasets_post,
     create_shardset_datasets_dataset_id_shardsets_post,
-    create_shard_datasets_dataset_id_shardsets_shardset_id_shards_post,
+    sync_shardset_datasets_dataset_id_shardsets_shardset_id_sync_post,
 )
 from openapi_lavender_data_rest.api.iterations import (
     create_iteration_iterations_post,
@@ -39,11 +39,11 @@ from openapi_lavender_data_rest.models.create_dataset_params import CreateDatase
 from openapi_lavender_data_rest.models.create_shardset_params import (
     CreateShardsetParams,
 )
+from openapi_lavender_data_rest.models.sync_shardset_params import SyncShardsetParams
 from openapi_lavender_data_rest.models.dataset_column_options import (
     DatasetColumnOptions,
 )
 from openapi_lavender_data_rest.models.get_dataset_response import GetDatasetResponse
-from openapi_lavender_data_rest.models.create_shard_params import CreateShardParams
 from openapi_lavender_data_rest.models.create_iteration_params import (
     CreateIterationParams,
 )
@@ -183,28 +183,13 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
-    def create_shard(
-        self,
-        dataset_id: str,
-        shardset_id: str,
-        location: str,
-        filesize: int,
-        samples: int,
-        format: str,
-        index: int,
-        overwrite: bool = False,
-    ):
+    def sync_shardset(self, dataset_id: str, shardset_id: str, overwrite: bool = False):
         with self._get_client() as client:
-            response = create_shard_datasets_dataset_id_shardsets_shardset_id_shards_post.sync_detailed(
+            response = sync_shardset_datasets_dataset_id_shardsets_shardset_id_sync_post.sync_detailed(
                 client=client,
                 dataset_id=dataset_id,
                 shardset_id=shardset_id,
-                body=CreateShardParams(
-                    location=location,
-                    filesize=filesize,
-                    samples=samples,
-                    format_=format,
-                    index=index,
+                body=SyncShardsetParams(
                     overwrite=overwrite,
                 ),
             )
@@ -427,25 +412,9 @@ def create_shardset(
 
 
 @ensure_client()
-def create_shard(
-    dataset_id: str,
-    shardset_id: str,
-    location: str,
-    filesize: int,
-    samples: int,
-    format: str,
-    index: int,
-    overwrite: bool = False,
-):
-    return _client_instance.create_shard(
-        dataset_id=dataset_id,
-        shardset_id=shardset_id,
-        location=location,
-        filesize=filesize,
-        samples=samples,
-        format=format,
-        index=index,
-        overwrite=overwrite,
+def sync_shardset(dataset_id: str, shardset_id: str, overwrite: bool = False):
+    return _client_instance.sync_shardset(
+        dataset_id=dataset_id, shardset_id=shardset_id, overwrite=overwrite
     )
 
 

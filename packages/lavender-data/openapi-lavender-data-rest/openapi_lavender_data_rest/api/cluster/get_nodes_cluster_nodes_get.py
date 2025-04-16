@@ -49,7 +49,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient,
 ) -> Response[list["NodeStatus"]]:
     """Get Nodes
 
@@ -72,7 +72,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient,
 ) -> Optional[list["NodeStatus"]]:
     """Get Nodes
 
@@ -91,7 +91,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient,
 ) -> Response[list["NodeStatus"]]:
     """Get Nodes
 
@@ -112,7 +112,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient,
 ) -> Optional[list["NodeStatus"]]:
     """Get Nodes
 

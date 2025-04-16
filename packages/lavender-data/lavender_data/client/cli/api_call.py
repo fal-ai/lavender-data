@@ -39,28 +39,12 @@ def create_shardset(api_url: str, api_key: str, dataset_id: str, location: str):
         return api.create_shardset(dataset_id=dataset_id, location=location, columns=[])
 
 
-def create_shard(
-    api_url: str,
-    api_key: str,
-    dataset_id: str,
-    shardset_id: str,
-    location: str,
-    filesize: int,
-    samples: int,
-    format: str,
-    index: int,
-    overwrite: bool,
+def sync_shardset(
+    api_url: str, api_key: str, dataset_id: str, shardset_id: str, overwrite: bool
 ):
     with init(api_url=api_url, api_key=api_key):
-        return api.create_shard(
-            dataset_id=dataset_id,
-            shardset_id=shardset_id,
-            location=location,
-            filesize=filesize,
-            samples=samples,
-            format=format,
-            index=index,
-            overwrite=overwrite,
+        return api.sync_shardset(
+            dataset_id=dataset_id, shardset_id=shardset_id, overwrite=overwrite
         )
 
 

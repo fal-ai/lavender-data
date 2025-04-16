@@ -1,89 +1,84 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
+if TYPE_CHECKING:
+    from ..models.orphan_shard_info_columns import OrphanShardInfoColumns
 
-T = TypeVar("T", bound="CreateShardParams")
+
+T = TypeVar("T", bound="OrphanShardInfo")
 
 
 @_attrs_define
-class CreateShardParams:
+class OrphanShardInfo:
     """
     Attributes:
-        location (str):
-        filesize (int):
         samples (int):
+        location (str):
         format_ (str):
-        index (int):
-        overwrite (Union[Unset, bool]):  Default: False.
+        filesize (int):
+        columns (OrphanShardInfoColumns):
     """
 
-    location: str
-    filesize: int
     samples: int
+    location: str
     format_: str
-    index: int
-    overwrite: Union[Unset, bool] = False
+    filesize: int
+    columns: "OrphanShardInfoColumns"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        location = self.location
-
-        filesize = self.filesize
-
         samples = self.samples
+
+        location = self.location
 
         format_ = self.format_
 
-        index = self.index
+        filesize = self.filesize
 
-        overwrite = self.overwrite
+        columns = self.columns.to_dict()
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "location": location,
-                "filesize": filesize,
                 "samples": samples,
+                "location": location,
                 "format": format_,
-                "index": index,
+                "filesize": filesize,
+                "columns": columns,
             }
         )
-        if overwrite is not UNSET:
-            field_dict["overwrite"] = overwrite
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.orphan_shard_info_columns import OrphanShardInfoColumns
+
         d = dict(src_dict)
-        location = d.pop("location")
-
-        filesize = d.pop("filesize")
-
         samples = d.pop("samples")
+
+        location = d.pop("location")
 
         format_ = d.pop("format")
 
-        index = d.pop("index")
+        filesize = d.pop("filesize")
 
-        overwrite = d.pop("overwrite", UNSET)
+        columns = OrphanShardInfoColumns.from_dict(d.pop("columns"))
 
-        create_shard_params = cls(
-            location=location,
-            filesize=filesize,
+        orphan_shard_info = cls(
             samples=samples,
+            location=location,
             format_=format_,
-            index=index,
-            overwrite=overwrite,
+            filesize=filesize,
+            columns=columns,
         )
 
-        create_shard_params.additional_properties = d
-        return create_shard_params
+        orphan_shard_info.additional_properties = d
+        return orphan_shard_info
 
     @property
     def additional_keys(self) -> list[str]:

@@ -1,8 +1,6 @@
 import unittest
 import time
 import random
-import csv
-import os
 import shutil
 import tqdm
 from multiprocessing import Process
@@ -89,6 +87,7 @@ class TestIteration(unittest.TestCase):
                 ),
             ],
         )
+        time.sleep(1)
         self.shardset_id = response.id
 
     def tearDown(self):

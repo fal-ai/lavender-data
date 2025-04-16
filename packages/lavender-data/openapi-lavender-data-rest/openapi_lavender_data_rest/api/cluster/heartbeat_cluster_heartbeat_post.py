@@ -59,7 +59,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient,
     body: HeartbeatParams,
 ) -> Response[Union[Any, HTTPValidationError]]:
     """Heartbeat
@@ -88,7 +88,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient,
     body: HeartbeatParams,
 ) -> Optional[Union[Any, HTTPValidationError]]:
     """Heartbeat
@@ -112,7 +112,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient,
     body: HeartbeatParams,
 ) -> Response[Union[Any, HTTPValidationError]]:
     """Heartbeat
@@ -139,7 +139,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient,
     body: HeartbeatParams,
 ) -> Optional[Union[Any, HTTPValidationError]]:
     """Heartbeat

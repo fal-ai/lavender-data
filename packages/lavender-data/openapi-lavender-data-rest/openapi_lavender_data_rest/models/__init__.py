@@ -3,7 +3,6 @@
 from .api_key_public import ApiKeyPublic
 from .create_dataset_params import CreateDatasetParams
 from .create_iteration_params import CreateIterationParams
-from .create_shard_params import CreateShardParams
 from .create_shardset_params import CreateShardsetParams
 from .create_shardset_response import CreateShardsetResponse
 from .dataset_column_options import DatasetColumnOptions
@@ -25,6 +24,8 @@ from .iteration_preprocessor_params import IterationPreprocessorParams
 from .iteration_public import IterationPublic
 from .iteration_shardset_link import IterationShardsetLink
 from .node_status import NodeStatus
+from .orphan_shard_info import OrphanShardInfo
+from .orphan_shard_info_columns import OrphanShardInfoColumns
 from .preview_dataset_response import PreviewDatasetResponse
 from .preview_dataset_response_samples_item import PreviewDatasetResponseSamplesItem
 from .progress import Progress
@@ -43,7 +44,6 @@ __all__ = (
     "ApiKeyPublic",
     "CreateDatasetParams",
     "CreateIterationParams",
-    "CreateShardParams",
     "CreateShardsetParams",
     "CreateShardsetResponse",
     "DatasetColumnOptions",
@@ -65,6 +65,8 @@ __all__ = (
     "IterationPublic",
     "IterationShardsetLink",
     "NodeStatus",
+    "OrphanShardInfo",
+    "OrphanShardInfoColumns",
     "PreviewDatasetResponse",
     "PreviewDatasetResponseSamplesItem",
     "Progress",

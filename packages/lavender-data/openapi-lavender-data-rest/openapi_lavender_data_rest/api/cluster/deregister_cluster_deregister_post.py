@@ -59,7 +59,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient,
     body: DeregisterParams,
 ) -> Response[Union[Any, HTTPValidationError]]:
     """Deregister
@@ -88,7 +88,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient,
     body: DeregisterParams,
 ) -> Optional[Union[Any, HTTPValidationError]]:
     """Deregister
@@ -112,7 +112,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient,
     body: DeregisterParams,
 ) -> Response[Union[Any, HTTPValidationError]]:
     """Deregister
@@ -139,7 +139,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient,
     body: DeregisterParams,
 ) -> Optional[Union[Any, HTTPValidationError]]:
     """Deregister
