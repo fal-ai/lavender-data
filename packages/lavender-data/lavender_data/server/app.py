@@ -9,7 +9,7 @@ from lavender_data.logging import get_logger
 
 from .db import setup_db, create_db_and_tables
 from .cache import setup_cache, register_worker, deregister_worker
-from .distributed import setup_cluster
+from .distributed import setup_cluster, cleanup_cluster
 from .reader import setup_reader
 from .routes import (
     datasets_router,
@@ -53,6 +53,9 @@ async def lifespan(app: FastAPI):
         logger.warning("Authentication is disabled")
 
     yield
+
+    if settings.lavender_data_cluster_enabled:
+        cleanup_cluster()
 
     deregister_worker()
 

@@ -188,10 +188,6 @@ class Cluster:
         self.heartbeat_thread = threading.Thread(target=_heartbeat, daemon=True)
         self.heartbeat_thread.start()
 
-    @only_worker
-    def stop_heartbeat(self):
-        self.heartbeat_thread.join()
-
     @only_head
     def start_check_heartbeat(self):
         def _check_heartbeat():
@@ -219,10 +215,6 @@ class Cluster:
             target=_check_heartbeat, daemon=True
         )
         self.check_heartbeat_thread.start()
-
-    @only_head
-    def stop_check_heartbeat(self):
-        self.check_heartbeat_thread.join()
 
     @only_head
     def sync(self, target_node_url: Optional[str] = None):
@@ -281,6 +273,15 @@ def setup_cluster(
     global cluster
     cluster = Cluster(is_head, head_url, node_url)
     return cluster
+
+
+def cleanup_cluster():
+    global cluster
+    if cluster is None:
+        return
+
+    if not cluster.is_head:
+        cluster.deregister()
 
 
 def get_cluster() -> Optional[Cluster]:
