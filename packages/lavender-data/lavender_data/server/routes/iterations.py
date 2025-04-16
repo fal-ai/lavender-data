@@ -275,17 +275,17 @@ def get_next(
     no_cache: bool = False,
 ) -> bytes:
     state = get_iteration_state(iteration_id, cache, session)
-    indices, samples = get_next_samples(state, rank)
+    global_sample_indices, samples = get_next_samples(state, rank)
     params = ProcessNextSamplesParams(
         current=state.count_batch(),
-        indices=indices,
+        global_sample_indices=global_sample_indices,
         samples=samples,
         collater=state.get_collater(),
         preprocessors=state.get_preprocessors(),
         batch_size=state.get_batch_size(),
     )
 
-    cache_key = state.get_batch_cache_key(indices)
+    cache_key = state.get_batch_cache_key([i.index for i in global_sample_indices])
     cache_ttl = settings.lavender_data_batch_cache_ttl
     if cache.exists(cache_key) and not no_cache:
         cache.expire(cache_key, cache_ttl)
@@ -312,17 +312,17 @@ def submit_next(
     no_cache: bool = False,
 ) -> SubmitNextResponse:
     state = get_iteration_state(iteration_id, cache, session)
-    indices, samples = get_next_samples(state, rank)
+    global_sample_indices, samples = get_next_samples(state, rank)
     params = ProcessNextSamplesParams(
         current=state.count_batch(),
-        indices=indices,
+        global_sample_indices=global_sample_indices,
         samples=samples,
         collater=state.get_collater(),
         preprocessors=state.get_preprocessors(),
         batch_size=state.get_batch_size(),
     )
 
-    cache_key = state.get_batch_cache_key(indices)
+    cache_key = state.get_batch_cache_key([i.index for i in global_sample_indices])
     cache_ttl = settings.lavender_data_batch_cache_ttl
     if cache.exists(cache_key) and not no_cache:
         cache.expire(cache_key, cache_ttl)
@@ -379,7 +379,7 @@ def get_submitted_result(
 
 
 @router.post("/{iteration_id}/complete/{index}")
-def complete_index(iteration_id: str, index: str, cache: CacheClient):
+def complete_index(iteration_id: str, index: int, cache: CacheClient):
     state = IterationState(iteration_id, cache)
     if not state.exists():
         raise HTTPException(

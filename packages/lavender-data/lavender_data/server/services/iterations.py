@@ -27,7 +27,7 @@ from lavender_data.server.reader import (
     get_reader_instance,
     ShardInfo,
     MainShardInfo,
-    GetSampleParams,
+    GlobalSampleIndex,
 )
 from lavender_data.server.services.registries import (
     PreprocessorRegistry,
@@ -412,7 +412,7 @@ class IterationState:
             return None
         return json.loads(v)
 
-    def next_item(self, rank: int) -> GetSampleParams:
+    def next_item(self, rank: int) -> GlobalSampleIndex:
         with self.cache.pipeline() as pipe:
             pipe.get(self._key("uid_column_name"))
             pipe.get(self._key("uid_column_type"))
@@ -424,7 +424,7 @@ class IterationState:
             index = self.pop_index(rank)
 
         main_shard, feature_shards = self.get_shards_from_index(index)
-        return GetSampleParams(
+        return GlobalSampleIndex(
             index=index,
             uid_column_name=uid_column_name,
             uid_column_type=uid_column_type,
@@ -510,14 +510,14 @@ class IterationState:
 def get_next_samples(
     state: IterationState,
     rank: int,
-) -> tuple[list[int], list[dict]]:
+) -> tuple[list[GlobalSampleIndex], list[dict]]:
     reader = get_reader_instance()
     logger = get_logger(__name__)
 
     batch_size = state.get_batch_size()
     filters = state.get_filters()
 
-    indices = []
+    global_sample_indices = []
     samples = []
     while len(samples) < max(batch_size, 1):
         try:
@@ -547,30 +547,41 @@ def get_next_samples(
             state.filtered(next_item.index)
             continue
 
-        indices.append(next_item.index)
+        global_sample_indices.append(next_item)
         samples.append(sample)
 
-    return indices, samples
+    return global_sample_indices, samples
 
 
 class ProcessNextSamplesParams(BaseModel):
     current: int
-    indices: list[int]
-    samples: list[dict]
+    global_sample_indices: list[GlobalSampleIndex]
+    samples: Optional[list[dict]] = None
     collater: Optional[IterationCollater] = None
     preprocessors: Optional[list[IterationPreprocessor]] = None
     batch_size: int
 
 
 def process_next_samples(params: ProcessNextSamplesParams) -> bytes:
+    reader = get_reader_instance()
     logger = get_logger(__name__)
 
     current = params.current
-    indices = params.indices
+    global_sample_indices = params.global_sample_indices
     samples = params.samples
     collater = params.collater
     preprocessors = params.preprocessors
     batch_size = params.batch_size
+
+    if samples is None:
+        try:
+            samples = [reader.get_sample(i) for i in global_sample_indices]
+        except Exception as e:
+            # TODO fault tolerance
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to read samples: {e.__class__.__name__}({str(e)})",
+            )
 
     try:
         batch = (
@@ -606,7 +617,7 @@ def process_next_samples(params: ProcessNextSamplesParams) -> bytes:
                 _batch[k] = v[0]
         batch = _batch
 
-    batch["_lavender_data_indices"] = indices
+    batch["_lavender_data_indices"] = [i.index for i in global_sample_indices]
     batch["_lavender_data_current"] = current
 
     return serialize_sample(batch)

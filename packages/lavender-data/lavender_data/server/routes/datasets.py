@@ -21,7 +21,7 @@ from lavender_data.server.db.models import (
 from lavender_data.server.cache import CacheClient
 from lavender_data.server.reader import (
     ReaderInstance,
-    GetSampleParams,
+    GlobalSampleIndex,
     ShardInfo,
     MainShardInfo,
 )
@@ -70,7 +70,7 @@ def get_dataset(dataset_id: str, session: DbSession) -> GetDatasetResponse:
 
 def read_dataset(
     dataset: Dataset, index: int, reader: ReaderInstance
-) -> GetSampleParams:
+) -> GlobalSampleIndex:
     main_shardset = get_main_shardset(dataset.shardsets)
     shard_index, sample_index = span(
         index,
@@ -117,8 +117,8 @@ def read_dataset(
         raise HTTPException(status_code=400, detail="Dataset has no uid column")
 
     return reader.get_sample(
-        GetSampleParams(
-            index=0,
+        GlobalSampleIndex(
+            index=index,
             uid_column_name=dataset.uid_column_name,
             uid_column_type=uid_column_type,
             main_shard=main_shard,

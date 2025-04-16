@@ -21,7 +21,7 @@ class MainShardInfo(ShardInfo):
     sample_index: int
 
 
-class GetSampleParams(BaseModel):
+class GlobalSampleIndex(BaseModel):
     index: int
     uid_column_name: str
     uid_column_type: str
@@ -78,27 +78,27 @@ class ServerSideReader:
 
         return self.reader_cache[cache_key]
 
-    def get_sample(self, params: GetSampleParams):
+    def get_sample(self, index: GlobalSampleIndex):
         reader = self.get_reader(
-            params.main_shard, params.uid_column_name, params.uid_column_type
+            index.main_shard, index.uid_column_name, index.uid_column_type
         )
         try:
-            sample = reader.get_item_by_index(params.main_shard.sample_index)
+            sample = reader.get_item_by_index(index.main_shard.sample_index)
         except IndexError:
             raise IndexError(
-                f"Failed to read sample {params.main_shard.sample_index} from shard {params.main_shard.location} (shardset {params.main_shard.shardset_id}, {params.main_shard.samples} samples)"
+                f"Failed to read sample {index.main_shard.sample_index} from shard {index.main_shard.location} (shardset {index.main_shard.shardset_id}, {index.main_shard.samples} samples)"
             )
-        sample_uid = sample[params.uid_column_name]
+        sample_uid = sample[index.uid_column_name]
 
-        for feature_shard in params.feature_shards:
+        for feature_shard in index.feature_shards:
             reader = self.get_reader(
-                feature_shard, params.uid_column_name, params.uid_column_type
+                feature_shard, index.uid_column_name, index.uid_column_type
             )
             try:
                 columns = reader.get_item_by_uid(sample_uid)
             except KeyError:
                 raise KeyError(
-                    f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({params.main_shard.sample_index} of {params.main_shard.location}) '
+                    f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({index.main_shard.sample_index} of {index.main_shard.location}) '
                 )
             sample.update(columns)
 
