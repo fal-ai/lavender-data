@@ -1,5 +1,6 @@
 import os
-from typing import Optional
+import json
+from typing import Optional, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pydantic import BaseModel
 
@@ -59,6 +60,13 @@ class SyncShardsetStatus(BaseModel):
     status: str
     done_count: int
     shard_count: int
+    shards: list[OrphanShardInfo]
+
+    def model_dump(self) -> dict[str, Any]:
+        d = super().model_dump()
+        # convert to string which is supported by redis
+        d["shards"] = json.dumps([x.model_dump() for x in self.shards])
+        return d
 
 
 def inspect_shardset_location(
@@ -72,7 +80,12 @@ def inspect_shardset_location(
 
     if cache_key:
         cache = next(get_cache())
-        status = SyncShardsetStatus(status="list_files", done_count=0, shard_count=0)
+        status = SyncShardsetStatus(
+            status="list_files",
+            done_count=0,
+            shard_count=0,
+            shards=[],
+        )
         cache.hset(cache_key, mapping=status.model_dump())
     else:
         cache = None
@@ -112,13 +125,17 @@ def inspect_shardset_location(
                 shard_infos.append((current_shard_index, orphan_shard))
 
         shard_infos.sort(key=lambda x: x[0])
+
+        if cache:
+            status.status = "done"
+            status.shards = [x[1] for x in shard_infos]
+            cache.hset(cache_key, mapping=status.model_dump())
+            cache.expire(cache_key, 60)
+
     except ReaderColumnsRequired as e:
         logger.warning(f"Failed to inspect shardset {shardset_location}: {e}")
     except Exception as e:
         logger.exception(f"Error inspecting shardset {shardset_location}: {e}")
-
-    if cache_key and cache:
-        cache.delete(cache_key)
 
     return [x[1] for x in shard_infos]
 

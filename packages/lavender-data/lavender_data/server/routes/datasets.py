@@ -1,4 +1,5 @@
 import os
+import json
 from typing import Optional, Any
 
 from fastapi import HTTPException, APIRouter, BackgroundTasks
@@ -517,6 +518,7 @@ def sync_shardset(
                 status="pending",
                 done_count=0,
                 shard_count=0,
+                shards=[],
             ).model_dump(),
         )
 
@@ -540,11 +542,12 @@ def get_sync_status(
     cache: CacheClient,
 ) -> SyncShardsetStatus:
     cache_key = _sync_status_key(shardset_id)
-    status = cache.hgetall(cache_key)
-    if status is None or len(status) == 0:
+    raw_status = cache.hgetall(cache_key)
+    if raw_status is None or len(raw_status) == 0:
         raise HTTPException(status_code=404, detail="Sync status not found")
     return SyncShardsetStatus(
-        status=status[b"status"].decode("utf-8"),
-        done_count=int(status[b"done_count"]),
-        shard_count=int(status[b"shard_count"]),
+        status=raw_status[b"status"].decode("utf-8"),
+        done_count=int(raw_status[b"done_count"]),
+        shard_count=int(raw_status[b"shard_count"]),
+        shards=json.loads(raw_status[b"shards"].decode("utf-8")),
     )
