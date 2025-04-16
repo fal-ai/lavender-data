@@ -2,6 +2,8 @@ import os
 import hashlib
 import urllib.parse
 from pathlib import Path
+from typing import Optional
+
 from lavender_data.storage.abc import Storage
 
 
@@ -85,7 +87,7 @@ class S3Storage(Storage):
             Filename=local_path,
         )
 
-    def list(self, remote_path: str) -> list[str]:
+    def list(self, remote_path: str, limit: Optional[int] = None) -> list[str]:
         parsed = urllib.parse.urlparse(remote_path)
         bucket = parsed.netloc
         prefix = parsed.path.lstrip("/")
@@ -93,10 +95,10 @@ class S3Storage(Storage):
         keys = []
 
         offset = ""
-        limit = 1000
+        max_keys = 1000
         while True:
             r = self.client.list_objects_v2(
-                Bucket=bucket, MaxKeys=limit, StartAfter=offset, Prefix=prefix
+                Bucket=bucket, MaxKeys=max_keys, StartAfter=offset, Prefix=prefix
             )
             for obj in r["Contents"]:
                 filename = obj["Key"][len(prefix) :]
@@ -105,6 +107,9 @@ class S3Storage(Storage):
                 keys.append(filename)
             offset = r.get("NextContinuationToken")
             if offset is None:
+                break
+            if limit is not None and len(keys) >= limit:
+                keys = keys[:limit]
                 break
 
         return keys

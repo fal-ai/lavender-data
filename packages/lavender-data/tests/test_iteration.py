@@ -22,7 +22,7 @@ from lavender_data.client.api import (
 )
 from lavender_data.client.iteration import Iteration
 
-from .utils.test_shards import create_test_shards
+from .utils.shards import create_test_shards
 
 
 def run_server(port: int):

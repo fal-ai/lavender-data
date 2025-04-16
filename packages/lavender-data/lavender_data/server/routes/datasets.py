@@ -81,6 +81,7 @@ def read_dataset(
         ],
     )
 
+    main_shard = None
     uid_column_type = None
     feature_shards = []
     for shardset in dataset.shardsets:
@@ -116,6 +117,9 @@ def read_dataset(
 
     if uid_column_type is None:
         raise HTTPException(status_code=400, detail="Dataset has no uid column")
+
+    if main_shard is None:
+        raise HTTPException(status_code=400, detail="Dataset has no shards")
 
     return reader.get_sample(
         GlobalSampleIndex(
@@ -193,7 +197,9 @@ def create_dataset(
         raise
 
     session.refresh(dataset)
-    cluster.sync_changes([dataset])
+
+    if cluster:
+        cluster.sync_changes([dataset])
 
     return dataset
 
@@ -267,7 +273,7 @@ def create_shardset(
 
     if len(params.columns) == 0:
         try:
-            shard_basenames = sorted(list_files(params.location))
+            shard_basenames = sorted(list_files(params.location, limit=1))
         except Exception as e:
             logger.exception(f"Failed to list shardset location: {e}")
             raise HTTPException(
@@ -316,8 +322,9 @@ def create_shardset(
 
     session.refresh(shardset)
 
-    cluster.sync_changes([shardset])
-    # TODO cluster sync shards
+    if cluster:
+        cluster.sync_changes([shardset])
+    # # TODO cluster sync shards
 
     cache.hset(
         _sync_status_key(shardset.id),
@@ -465,7 +472,8 @@ def create_shard(
         )
     ).one()
 
-    cluster.sync_changes([shard])
+    if cluster:
+        cluster.sync_changes([shard])
 
     return shard
 
