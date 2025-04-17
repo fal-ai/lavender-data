@@ -1,7 +1,11 @@
+from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
 from pydantic_settings import BaseSettings
+from lavender_data.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class Settings(BaseSettings, extra="ignore"):
@@ -14,19 +18,14 @@ class Settings(BaseSettings, extra="ignore"):
 
     lavender_data_cluster_enabled: bool = False
     lavender_data_cluster_secret: str = ""
-    lavender_data_cluster_head: bool = True
     lavender_data_cluster_head_url: str = "http://127.0.0.1:8000"
     lavender_data_cluster_node_url: str = ""
 
-    class Config:
-        env_file = ".env"
 
-
-settings = Settings()
-
-
+@lru_cache
 def get_settings():
-    return settings
+    logger.info("Loading settings")
+    return Settings()
 
 
 AppSettings = Annotated[Settings, Depends(get_settings)]

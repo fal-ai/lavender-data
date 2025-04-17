@@ -38,16 +38,14 @@ from lavender_data.server.services.registries import (
     FilterRegistry,
     CollaterRegistry,
 )
-from lavender_data.server.settings import AppSettings, get_settings
+from lavender_data.server.settings import AppSettings
 from lavender_data.server.auth import CurrentApiKey
 from lavender_data.logging import get_logger
 
 router = APIRouter(
     prefix="/iterations",
     tags=["iterations"],
-    dependencies=(
-        [CurrentApiKey] if not get_settings().lavender_data_disable_auth else []
-    ),
+    dependencies=[CurrentApiKey],
 )
 logger = get_logger(__name__)
 

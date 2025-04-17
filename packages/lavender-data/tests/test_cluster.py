@@ -86,10 +86,10 @@ class TestCluster(unittest.TestCase):
     def test_registered(self):
         head = api.LavenderDataClient(self.head_url)
         node_statuses = head.get_node_statuses()
-        self.assertEqual(len(node_statuses), len(self.node_urls))
+        self.assertEqual(len(node_statuses), len(self.node_urls) + 1)
 
         node_urls = [node.node_url for node in node_statuses]
-        self.assertEqual(set(node_urls), set(self.node_urls))
+        self.assertEqual(set(node_urls), set(self.node_urls + [self.head_url]))
 
     def test_sync_changes_dataset(self):
         head = api.LavenderDataClient(self.head_url)

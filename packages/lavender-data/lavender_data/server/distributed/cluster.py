@@ -124,7 +124,6 @@ allowed_api_paths = [
 class Cluster:
     def __init__(
         self,
-        is_head: bool,
         head_url: str,
         node_url: str,
         secret: str,
@@ -132,7 +131,7 @@ class Cluster:
         heartbeat_interval: float = 10.0,
         heartbeat_threshold: int = 3,
     ):
-        self.is_head = is_head
+        self.is_head = head_url == node_url
         self.head_url = head_url.rstrip("/")
         self.node_url = node_url.rstrip("/")
         self.secret = secret
@@ -399,6 +398,9 @@ class Cluster:
             while True:
                 try:
                     for node_url in self._node_urls():
+                        if node_url == self.node_url:
+                            continue
+
                         heartbeat = self._last_heartbeat(node_url)
                         if heartbeat is None:
                             self.on_deregister(node_url)

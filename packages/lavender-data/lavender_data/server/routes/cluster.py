@@ -3,14 +3,11 @@ from pydantic import BaseModel
 
 from lavender_data.server.distributed import CurrentCluster, ClusterAuth
 from lavender_data.server.distributed.cluster import SyncParams, NodeStatus
-from lavender_data.server.settings import get_settings
 
 router = APIRouter(
     prefix="/cluster",
     tags=["cluster"],
-    dependencies=(
-        [ClusterAuth] if not get_settings().lavender_data_disable_auth else []
-    ),
+    dependencies=[ClusterAuth],
 )
 
 

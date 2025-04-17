@@ -1,7 +1,9 @@
 from typing import Annotated, Optional
 
 from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBasicCredentials, HTTPBasic
+
+from lavender_data.server.settings import AppSettings
+from lavender_data.server.auth import AuthorizationHeader
 
 from .cluster import Cluster
 
@@ -9,7 +11,6 @@ cluster = None
 
 
 def setup_cluster(
-    is_head: bool,
     head_url: str,
     node_url: str,
     secret: str,
@@ -18,7 +19,7 @@ def setup_cluster(
     global cluster
     if secret == "" and not disable_auth:
         raise ValueError("LAVENDER_DATA_CLUSTER_SECRET is not set")
-    cluster = Cluster(is_head, head_url, node_url, secret, disable_auth)
+    cluster = Cluster(head_url, node_url, secret, disable_auth)
     return cluster
 
 
@@ -38,18 +39,20 @@ def get_cluster() -> Optional[Cluster]:
 
 CurrentCluster = Annotated[Optional[Cluster], Depends(get_cluster)]
 
-http_basic = HTTPBasic()
-AuthorizationHeader = Annotated[HTTPBasicCredentials, Depends(http_basic)]
 
+def get_cluster_auth(
+    auth: AuthorizationHeader, cluster: CurrentCluster, settings: AppSettings
+):
+    if settings.lavender_data_disable_auth:
+        return None
 
-def validate_token(auth: AuthorizationHeader, cluster: CurrentCluster):
     salt = auth.username
     hashed = auth.password
 
     if not cluster.is_valid_auth(salt, hashed):
         raise HTTPException(status_code=401, detail="API key is locked")
 
-    return cluster
+    return None
 
 
-ClusterAuth: Cluster = Depends(validate_token)
+ClusterAuth: None = Depends(get_cluster_auth)

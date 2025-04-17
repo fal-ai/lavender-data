@@ -32,7 +32,6 @@ from lavender_data.server.services.shardsets import (
     sync_shardset_location,
     SyncShardsetStatus,
 )
-from lavender_data.server.settings import get_settings
 from lavender_data.server.auth import CurrentApiKey
 from lavender_data.storage import list_files
 from lavender_data.shard import inspect_shard
@@ -40,9 +39,7 @@ from lavender_data.shard import inspect_shard
 router = APIRouter(
     prefix="/datasets",
     tags=["datasets"],
-    dependencies=(
-        [CurrentApiKey] if not get_settings().lavender_data_disable_auth else []
-    ),
+    dependencies=[CurrentApiKey],
 )
 
 logger = get_logger(__name__)
