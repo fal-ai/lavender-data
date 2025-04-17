@@ -42,8 +42,6 @@ router = APIRouter(
     dependencies=[CurrentApiKey],
 )
 
-logger = get_logger(__name__)
-
 
 @router.get("/")
 def get_datasets(session: DbSession, name: Optional[str] = None) -> list[DatasetPublic]:
@@ -248,6 +246,8 @@ def create_shardset(
     background_tasks: BackgroundTasks,
     cluster: CurrentCluster,
 ) -> CreateShardsetResponse:
+    logger = get_logger(__name__)
+
     try:
         dataset = session.get_one(Dataset, dataset_id)
     except NoResultFound:

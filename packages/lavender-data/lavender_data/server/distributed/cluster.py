@@ -32,8 +32,6 @@ from lavender_data.server.db.models import (
     ApiKeyPublic,
 )
 
-logger = get_logger(__name__)
-
 
 def only_head(f):
     def wrapper(self, *args, **kwargs):
@@ -139,6 +137,7 @@ class Cluster:
         self.heartbeat_interval = heartbeat_interval
         self.heartbeat_threshold = heartbeat_threshold
         self.api_key_note = "_CLUSTER"
+        self.logger = get_logger(__name__)
 
         if self.is_head:
             self.on_register(head_url)
@@ -236,7 +235,7 @@ class Cluster:
             try:
                 return node_url, self._post(node_url, path, json, use_api_key)
             except Exception as e:
-                logger.error(f"Failed to post to {node_url}: {e}")
+                self.logger.error(f"Failed to post to {node_url}: {e}")
                 return node_url, None
 
         results = []
@@ -267,7 +266,7 @@ class Cluster:
             try:
                 return node_url, self._get(node_url, path, use_api_key)
             except Exception as e:
-                logger.error(f"Failed to get from {node_url}: {e}")
+                self.logger.error(f"Failed to get from {node_url}: {e}")
                 return node_url, None
 
         results = []
@@ -337,7 +336,7 @@ class Cluster:
 
     @only_worker
     def register(self):
-        logger.info(f"Waiting for head node to be ready: {self.head_url}")
+        self.logger.info(f"Waiting for head node to be ready: {self.head_url}")
         self._wait_until_node_ready(self.head_url)
         self._post(self.head_url, "/cluster/register", {"node_url": self.node_url})
 
@@ -348,7 +347,7 @@ class Cluster:
             self._wait_until_node_ready(node_url)
             self.on_heartbeat(node_url)
             self.sync_initial(node_url)
-            logger.info(f"Node {node_url} registered")
+            self.logger.info(f"Node {node_url} registered")
 
     @only_worker
     def deregister(self):
@@ -357,7 +356,7 @@ class Cluster:
     @only_head
     def on_deregister(self, node_url: str):
         self._cache().lrem(self._key("node_urls"), 0, node_url)
-        logger.info(f"Node {node_url} deregistered")
+        self.logger.info(f"Node {node_url} deregistered")
 
     @only_worker
     def heartbeat(self):
@@ -380,7 +379,9 @@ class Cluster:
                 try:
                     self.heartbeat()
                 except Exception as e:
-                    logger.error(f"Failed to send heartbeat to {self.head_url}: {e}")
+                    self.logger.error(
+                        f"Failed to send heartbeat to {self.head_url}: {e}"
+                    )
                 time.sleep(self.heartbeat_interval)
 
         self.heartbeat_thread = threading.Thread(target=_heartbeat, daemon=True)
@@ -412,7 +413,7 @@ class Cluster:
                         ):
                             self.on_deregister(node_url)
                 except Exception as e:
-                    logger.error(f"Error checking heartbeat: {e}")
+                    self.logger.error(f"Error checking heartbeat: {e}")
 
                 time.sleep(self.heartbeat_interval)
 

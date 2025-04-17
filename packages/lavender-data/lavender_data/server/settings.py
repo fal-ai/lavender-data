@@ -5,8 +5,6 @@ from fastapi import Depends
 from pydantic_settings import BaseSettings
 from lavender_data.logging import get_logger
 
-logger = get_logger(__name__)
-
 
 class Settings(BaseSettings, extra="ignore"):
     lavender_data_modules_dir: str = ""
@@ -24,7 +22,7 @@ class Settings(BaseSettings, extra="ignore"):
 
 @lru_cache
 def get_settings():
-    logger.info("Loading settings")
+    get_logger(__name__).info("Loading settings")
     return Settings()
 
 

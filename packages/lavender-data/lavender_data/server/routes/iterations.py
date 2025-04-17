@@ -40,14 +40,12 @@ from lavender_data.server.services.registries import (
 )
 from lavender_data.server.settings import AppSettings
 from lavender_data.server.auth import CurrentApiKey
-from lavender_data.logging import get_logger
 
 router = APIRouter(
     prefix="/iterations",
     tags=["iterations"],
     dependencies=[CurrentApiKey],
 )
-logger = get_logger(__name__)
 
 
 @router.get("/")

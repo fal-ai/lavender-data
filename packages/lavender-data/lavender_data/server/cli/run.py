@@ -1,8 +1,7 @@
-import logging
-
+from dotenv import load_dotenv
 import uvicorn
 
-from lavender_data.logging import sh, fh
+from lavender_data.logging import get_logger
 from lavender_data.server.ui import setup_ui
 
 
@@ -15,6 +14,8 @@ def run(
     ui_port: int = 3000,
     env_file: str = ".env",
 ):
+    load_dotenv(env_file)
+
     if not disable_ui:
         setup_ui(f"http://{host}:{port}", ui_port)
 
@@ -29,8 +30,8 @@ def run(
 
     server = uvicorn.Server(config)
 
-    logging.getLogger("uvicorn").handlers.clear()
-    logging.getLogger("uvicorn").addHandler(sh)
-    logging.getLogger("uvicorn").addHandler(fh)
+    get_logger("uvicorn", clear_handlers=True)
+    get_logger("uvicorn.access", clear_handlers=True)
+    get_logger("uvicorn.error", clear_handlers=True)
 
     server.run()

@@ -22,11 +22,10 @@ from .routes import (
 from .services.registries import import_from_directory
 from .settings import get_settings
 
-logger = get_logger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger = get_logger(__name__)
     settings = get_settings()
 
     setup_db(settings.lavender_data_db_url)

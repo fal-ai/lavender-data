@@ -14,8 +14,6 @@ from lavender_data.server.cache import get_cache
 from lavender_data.server.db import Shardset, Shard, get_session
 from lavender_data.server.distributed import get_cluster
 
-logger = get_logger(__name__)
-
 
 def get_main_shardset(shardsets: list[Shardset]) -> Shardset:
     """Pick the main shardset for getting samples from.
@@ -76,6 +74,8 @@ def inspect_shardset_location(
     num_workers: int = 10,
     cache_key: Optional[str] = None,
 ) -> list[OrphanShardInfo]:
+    logger = get_logger(__name__)
+
     def _inspect_shard(shard_location: str, shard_index: int):
         return inspect_shard(shard_location), shard_index
 
@@ -151,6 +151,8 @@ def sync_shardset_location(
     overwrite: bool = False,
     cache_key: Optional[str] = None,
 ):
+    logger = get_logger(__name__)
+
     try:
         cluster = get_cluster()
         need_cluster_sync = cluster is not None and cluster.is_head
