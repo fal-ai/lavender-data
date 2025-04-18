@@ -3,7 +3,6 @@ import time
 import random
 import shutil
 import tqdm
-import subprocess
 import os
 
 from lavender_data.server import (
@@ -19,6 +18,7 @@ from lavender_data.client.api import (
 from lavender_data.client.iteration import Iteration
 
 from tests.utils.shards import create_test_shards
+from tests.utils.start_server import start_server, stop_server, wait_server_ready
 
 
 class TestFilter(Filter, name="test_filter"):
@@ -36,29 +36,15 @@ class TestIteration(unittest.TestCase):
         self.port = random.randint(10000, 40000)
         self.db = f"database-{self.port}.db"
 
-        poetry = shutil.which("poetry")
-        if poetry is None:
-            raise Exception("poetry not found")
-
-        self.server = subprocess.Popen(
-            [
-                poetry,
-                "run",
-                "lavender-data",
-                "server",
-                "run",
-                "--port",
-                str(self.port),
-                "--disable-ui",
-            ],
-            env={
+        self.server = start_server(
+            self.port,
+            {
                 "LAVENDER_DATA_DISABLE_AUTH": "true",
                 "LAVENDER_DATA_DB_URL": f"sqlite:///{self.db}",
                 "LAVENDER_DATA_MODULES_DIR": "./tests/",
             },
         )
-
-        time.sleep(2)
+        wait_server_ready(self.server)
 
         self.api_url = f"http://localhost:{self.port}"
         init(api_url=self.api_url)
@@ -101,8 +87,7 @@ class TestIteration(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(f".cache/{self.dataset_id}")
-        self.server.terminate()
-        self.server.wait()
+        stop_server(self.server)
         os.remove(self.db)
 
     def test_iteration(self):

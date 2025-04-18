@@ -5,6 +5,17 @@ import subprocess
 import time
 
 
+def flush_logs(server_process: subprocess.Popen):
+    if server_process.poll() is not None:
+        return
+
+    read_fds, _, _ = select.select(
+        [server_process.stdout, server_process.stderr], [], [], 1
+    )
+    for fd in read_fds:
+        fd.readline().decode().strip()
+
+
 def start_server(port: int, env_file: str, timeout: int = 10):
     server_process = subprocess.Popen(
         [
@@ -59,13 +70,9 @@ if __name__ == "__main__":
 
     try:
         while True:
-            time.sleep(1)
-            if (
-                not head.poll() is None
-                or not node_1.poll() is None
-                or not node_2.poll() is None
-            ):
-                break
+            flush_logs(head)
+            flush_logs(node_1)
+            flush_logs(node_2)
     except KeyboardInterrupt:
         print("Aborting...")
         pass

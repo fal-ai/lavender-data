@@ -2,13 +2,12 @@ import os
 import unittest
 import random
 import time
-import shutil
-import subprocess
 import tqdm
 
 from lavender_data.client import api, Iteration
 
 from tests.utils.shards import create_test_shards
+from tests.utils.start_server import start_server, stop_server, wait_server_ready
 
 
 class TestCluster(unittest.TestCase):
@@ -16,27 +15,14 @@ class TestCluster(unittest.TestCase):
         head_port = random.randint(10000, 40000)
         node_ports = [random.randint(10000, 40000) for _ in range(3)]
 
-        poetry = shutil.which("poetry")
-        if poetry is None:
-            raise Exception("poetry not found")
-
         self.head_url = f"http://localhost:{head_port}"
         self.node_urls = [f"http://localhost:{port}" for port in node_ports]
         self.head_db = f"database-{head_port}.db"
         self.node_dbs = [f"database-{port}.db" for port in node_ports]
 
-        self.head_server = subprocess.Popen(
-            [
-                poetry,
-                "run",
-                "lavender-data",
-                "server",
-                "run",
-                "--port",
-                str(head_port),
-                "--disable-ui",
-            ],
-            env={
+        self.head_server = start_server(
+            head_port,
+            {
                 "LAVENDER_DATA_DISABLE_AUTH": "true",
                 "LAVENDER_DATA_DB_URL": f"sqlite:///{self.head_db}",
                 "LAVENDER_DATA_CLUSTER_ENABLED": "true",
@@ -47,18 +33,9 @@ class TestCluster(unittest.TestCase):
         )
 
         self.node_servers = [
-            subprocess.Popen(
-                [
-                    poetry,
-                    "run",
-                    "lavender-data",
-                    "server",
-                    "run",
-                    "--port",
-                    str(node_port),
-                    "--disable-ui",
-                ],
-                env={
+            start_server(
+                node_port,
+                {
                     "LAVENDER_DATA_DISABLE_AUTH": "true",
                     "LAVENDER_DATA_DB_URL": f"sqlite:///{node_db}",
                     "LAVENDER_DATA_CLUSTER_ENABLED": "true",
@@ -72,14 +49,14 @@ class TestCluster(unittest.TestCase):
             )
         ]
 
-        time.sleep(2)
+        wait_server_ready(self.head_server)
+        for node_server in self.node_servers:
+            wait_server_ready(node_server)
 
     def tearDown(self):
         for node_server in self.node_servers:
-            node_server.terminate()
-            node_server.wait()
-        self.head_server.terminate()
-        self.head_server.wait()
+            stop_server(node_server)
+        stop_server(self.head_server)
         for node_db in self.node_dbs:
             os.remove(node_db)
         os.remove(self.head_db)
