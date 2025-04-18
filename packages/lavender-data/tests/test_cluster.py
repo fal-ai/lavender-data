@@ -77,33 +77,34 @@ class TestCluster(unittest.TestCase):
     def tearDown(self):
         for node_server in self.node_servers:
             node_server.terminate()
+            node_server.wait()
         self.head_server.terminate()
-        time.sleep(1)
+        self.head_server.wait()
         for node_db in self.node_dbs:
             os.remove(node_db)
         os.remove(self.head_db)
 
-    # def test_registered(self):
-    #     head = api.LavenderDataClient(self.head_url)
-    #     node_statuses = head.get_node_statuses()
-    #     self.assertEqual(len(node_statuses), len(self.node_urls) + 1)
+    def test_registered(self):
+        head = api.LavenderDataClient(self.head_url)
+        node_statuses = head.get_node_statuses()
+        self.assertEqual(len(node_statuses), len(self.node_urls) + 1)
 
-    #     node_urls = [node.node_url for node in node_statuses]
-    #     self.assertEqual(set(node_urls), set(self.node_urls + [self.head_url]))
+        node_urls = [node.node_url for node in node_statuses]
+        self.assertEqual(set(node_urls), set(self.node_urls + [self.head_url]))
 
-    # def test_sync_changes_dataset(self):
-    #     head = api.LavenderDataClient(self.head_url)
-    #     dataset = head.create_dataset("test-dataset")
+    def test_sync_changes_dataset(self):
+        head = api.LavenderDataClient(self.head_url)
+        dataset = head.create_dataset("test-dataset")
 
-    #     location = create_test_shards(dataset.id, 10, 10)
-    #     shardset = head.create_shardset(dataset.id, location)
+        location = create_test_shards(dataset.id, 10, 10)
+        shardset = head.create_shardset(dataset.id, location)
 
-    #     for node_url in self.node_urls:
-    #         node = api.LavenderDataClient(node_url)
-    #         retreived_dataset = node.get_dataset(dataset.id)
-    #         self.assertEqual(retreived_dataset.id, dataset.id)
-    #         self.assertEqual(len(retreived_dataset.shardsets), 1)
-    #         self.assertEqual(retreived_dataset.shardsets[0].id, shardset.id)
+        for node_url in self.node_urls:
+            node = api.LavenderDataClient(node_url)
+            retreived_dataset = node.get_dataset(dataset.id)
+            self.assertEqual(retreived_dataset.id, dataset.id)
+            self.assertEqual(len(retreived_dataset.shardsets), 1)
+            self.assertEqual(retreived_dataset.shardsets[0].id, shardset.id)
 
     def test_iteration(self):
         head = api.LavenderDataClient(self.head_url)
