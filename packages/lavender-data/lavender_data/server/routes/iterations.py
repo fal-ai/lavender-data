@@ -172,6 +172,12 @@ def create_iteration(
     for shardset in shardsets:
         total_samples = min(total_samples, shardset.total_samples)
 
+    cluster_sync = (
+        params.cluster_sync
+        if params.cluster_sync is not None
+        else settings.lavender_data_cluster_enabled
+    )
+
     iteration = Iteration(
         dataset_id=dataset.id,
         total=total_samples,
@@ -186,67 +192,66 @@ def create_iteration(
         replication_pg=params.replication_pg,
     )
     iteration_hash = get_iteration_hash(iteration, params.dataset_id)
-
     iteration_with_same_config = None
-    iteration_with_same_config_id = get_iteration_id_from_hash(iteration, cache)
 
-    cluster_sync = (
-        params.cluster_sync
-        if params.cluster_sync is not None
-        else settings.lavender_data_cluster_enabled
-    )
-
-    if cluster and cluster_sync and not cluster.is_head:
-        iteration_with_same_config_id = get_iteration_id_from_hash_from_head(
-            iteration_hash, cluster
+    with cache.lock(f"iteration_create_{iteration_hash}"):
+        iteration_with_same_config_id = get_iteration_id_from_hash(
+            iteration_hash, cache
         )
 
-    if iteration_with_same_config_id is not None:
-        try:
-            iteration_with_same_config = session.get_one(
-                Iteration, iteration_with_same_config_id
+        if cluster and cluster_sync and not cluster.is_head:
+            iteration_with_same_config_id = get_iteration_id_from_hash_from_head(
+                iteration_hash, cluster
             )
 
-            state = IterationState(iteration_with_same_config.id, cache)
-            if state.exists():
-                if params.rank in state.get_ranks():
-                    # this rank already requested to create an iteration with this config
-                    # it means "create_iteration" called twice, which happens when
-                    # the training script is restarted. thus iteration should be initialized again
-                    iteration_with_same_config = None
+        if iteration_with_same_config_id is not None:
+            try:
+                iteration_with_same_config = session.get_one(
+                    Iteration, iteration_with_same_config_id
+                )
 
-                if (params.world_size is not None) and (
-                    set(state.get_ranks()) == set(range(params.world_size))
-                ):
-                    # all nodes have already joined
-                    # this means training script is restarted. thus iteration should be initialized again
-                    iteration_with_same_config = None
+                state = IterationState(iteration_with_same_config.id, cache)
+                if state.exists():
+                    if params.rank in state.get_ranks():
+                        # this rank already requested to create an iteration with this config
+                        # it means "create_iteration" called twice, which happens when
+                        # the training script is restarted. thus iteration should be initialized again
+                        iteration_with_same_config = None
 
-        except NoResultFound:
-            pass
+                    if (params.world_size is not None) and (
+                        set(state.get_ranks()) == set(range(params.world_size))
+                    ):
+                        # all nodes have already joined
+                        # this means training script is restarted. thus iteration should be initialized again
+                        iteration_with_same_config = None
 
-    if iteration_with_same_config is not None:
-        iteration = iteration_with_same_config
-    else:
-        session.add(iteration)
-        session.commit()
-        session.refresh(iteration)
+            except NoResultFound:
+                pass
 
-    if cluster:
-        iteration_shardset_links = [
-            IterationShardsetLink(iteration_id=iteration.id, shardset_id=shardset.id)
-            for shardset in iteration.shardsets
-        ]
-        cluster.sync_changes([iteration, *iteration_shardset_links])
-        if cluster_sync:
-            set_cluster_sync(iteration.id, cache, cluster)
+        if iteration_with_same_config is not None:
+            iteration = iteration_with_same_config
+        else:
+            session.add(iteration)
+            session.commit()
+            session.refresh(iteration)
 
-    set_iteration_hash(
-        iteration.id,
-        iteration_hash=iteration_hash,
-        ttl=(params.wait_participant_threshold or 10),
-        cache=cache,
-    )
+        if cluster:
+            iteration_shardset_links = [
+                IterationShardsetLink(
+                    iteration_id=iteration.id, shardset_id=shardset.id
+                )
+                for shardset in iteration.shardsets
+            ]
+            cluster.sync_changes([iteration, *iteration_shardset_links])
+            if cluster_sync:
+                set_cluster_sync(iteration.id, cache, cluster)
+
+        set_iteration_hash(
+            iteration.id,
+            iteration_hash=iteration_hash,
+            ttl=(params.wait_participant_threshold or 10),
+            cache=cache,
+        )
     state = IterationState(iteration.id, cache)
     state.init(iteration)
 
