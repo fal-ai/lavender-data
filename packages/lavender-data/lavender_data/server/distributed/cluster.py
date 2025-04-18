@@ -237,6 +237,14 @@ class Cluster:
                 results.append(future.result())
         return results
 
+    @only_worker
+    def head_post(self, path: str, json: dict):
+        return self._post(self.head_url, path, json)
+
+    @only_worker
+    def head_get(self, path: str):
+        return self._get(self.head_url, path)
+
     def _key(self, key: str) -> str:
         return f"lavender_data:cluster:{key}"
 

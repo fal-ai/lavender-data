@@ -1,5 +1,5 @@
 import random
-from typing import Optional, Annotated
+from typing import Optional
 
 from fastapi import HTTPException, APIRouter, Response, BackgroundTasks, Depends
 
@@ -21,15 +21,20 @@ from lavender_data.server.db.models import (
     IterationFilter,
     IterationPreprocessor,
     IterationCollater,
+    IterationShardsetLink,
 )
 from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.services.iterations import (
     IterationState,
     CurrentIterationState,
     Progress,
-    get_iteration_with_same_config,
     process_next_samples,
     process_next_samples_and_cache,
+    set_cluster_sync,
+    get_iteration_hash,
+    set_iteration_hash,
+    get_iteration_id_from_hash,
+    get_iteration_id_from_hash_from_head,
 )
 from lavender_data.server.services.registries import (
     PreprocessorRegistry,
@@ -76,6 +81,8 @@ class CreateIterationParams(BaseModel):
     rank: Optional[int] = None
     world_size: Optional[int] = None
     wait_participant_threshold: Optional[float] = None
+
+    cluster_sync: Optional[bool] = None
 
 
 @router.post("/")
@@ -166,7 +173,6 @@ def create_iteration(
 
     iteration = Iteration(
         dataset_id=dataset.id,
-        dataset=dataset,
         total=total_samples,
         filters=params.filters,
         preprocessors=params.preprocessors,
@@ -178,9 +184,16 @@ def create_iteration(
         shardsets=shardsets,
         replication_pg=params.replication_pg,
     )
+    iteration_hash = get_iteration_hash(iteration, params.dataset_id)
 
     iteration_with_same_config = None
-    iteration_with_same_config_id = get_iteration_with_same_config(iteration, cache)
+    iteration_with_same_config_id = get_iteration_id_from_hash(iteration, cache)
+
+    if cluster and params.cluster_sync and not cluster.is_head:
+        iteration_with_same_config_id = get_iteration_id_from_hash_from_head(
+            iteration_hash, cluster
+        )
+
     if iteration_with_same_config_id is not None:
         try:
             iteration_with_same_config = session.get_one(
@@ -188,21 +201,19 @@ def create_iteration(
             )
 
             state = IterationState(iteration_with_same_config.id, cache)
-            if not state.exists():
-                iteration_with_same_config = None
+            if state.exists():
+                if params.rank in state.get_ranks():
+                    # this rank already requested to create an iteration with this config
+                    # it means "create_iteration" called twice, which happens when
+                    # the training script is restarted. thus iteration should be initialized again
+                    iteration_with_same_config = None
 
-            if params.rank in state.get_ranks():
-                # this rank already requested to create an iteration with this config
-                # it means "create_iteration" called twice, which happens when
-                # the training script is restarted. thus iteration should be initialized again
-                iteration_with_same_config = None
-
-            if (params.world_size is not None) and (
-                set(state.get_ranks()) == set(range(params.world_size))
-            ):
-                # all nodes have already joined
-                # this means training script is restarted. thus iteration should be initialized again
-                iteration_with_same_config = None
+                if (params.world_size is not None) and (
+                    set(state.get_ranks()) == set(range(params.world_size))
+                ):
+                    # all nodes have already joined
+                    # this means training script is restarted. thus iteration should be initialized again
+                    iteration_with_same_config = None
 
         except NoResultFound:
             pass
@@ -215,19 +226,37 @@ def create_iteration(
         session.refresh(iteration)
 
     if cluster:
-        cluster.sync_changes([iteration])
+        iteration_shardset_links = [
+            IterationShardsetLink(iteration_id=iteration.id, shardset_id=shardset.id)
+            for shardset in iteration.shardsets
+        ]
+        cluster.sync_changes([iteration, *iteration_shardset_links])
+        if params.cluster_sync:
+            set_cluster_sync(iteration.id, cache, cluster)
 
-    state = IterationState(iteration.id, cache)
-    state.init(
-        iteration,
-        (
-            (params.wait_participant_threshold or 10)
-            if params.world_size is None
-            else None
-        ),
+    set_iteration_hash(
+        iteration.id,
+        iteration_hash=iteration_hash,
+        ttl=(params.wait_participant_threshold or 10),
+        cache=cache,
     )
+    state = IterationState(iteration.id, cache)
+    state.init(iteration)
 
     return iteration
+
+
+@router.get("/iteration-id-from-hash")
+def cluster_get_iteration_id_from_hash(
+    iteration_hash: str, cache: CacheClient, cluster: CurrentCluster
+) -> str:
+    if cluster is None:
+        raise HTTPException(status_code=400, detail="Cluster not found")
+    if not cluster.is_head:
+        raise HTTPException(
+            status_code=400, detail="Worker node cannot get iteration id from hash"
+        )
+    return get_iteration_id_from_hash(iteration_hash, cache)
 
 
 class ShardsetWithShards(ShardsetPublic):
@@ -338,13 +367,32 @@ def pushback(iteration_id: str, state: CurrentIterationState):
     return state.pushback_inprogress()
 
 
+@router.post("/{iteration_id}/state/set-cluster-sync")
+def cluster_set_cluster_sync(
+    iteration_id: str, cache: CacheClient, cluster: CurrentCluster
+):
+    if cluster is None:
+        raise HTTPException(status_code=400, detail="Cluster not found")
+    if cluster.is_head:
+        raise HTTPException(status_code=400, detail="Head node cannot set cluster sync")
+    return set_cluster_sync(iteration_id, cache, cluster)
+
+
 @router.post("/{iteration_id}/state/{operation}")
-def iteration_state_operation(
+def cluster_operation(
     iteration_id: str,
     operation: str,
     state: CurrentIterationState,
+    cluster: CurrentCluster,
     params: dict,
 ):
+    if cluster is None:
+        raise HTTPException(status_code=400, detail="Cluster not found")
+    if not cluster.is_head:
+        raise HTTPException(
+            status_code=400, detail="Worker node cannot perform state operations"
+        )
+
     if operation == "exists":
         return state.exists()
     elif operation == "pushback_inprogress":

@@ -315,10 +315,12 @@ def create_shardset(
             raise HTTPException(status_code=409, detail="unique constraint failed")
         raise
 
+    for column in columns:
+        session.refresh(column)
     session.refresh(shardset)
 
     if cluster:
-        cluster.sync_changes([shardset])
+        cluster.sync_changes([shardset, *columns])
 
     if len(shard_basenames) > 0:
         cache.hset(

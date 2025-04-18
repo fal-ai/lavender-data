@@ -94,6 +94,7 @@ class Iteration:
         rank: int = 0,
         world_size: Optional[int] = None,
         wait_participant_threshold: Optional[float] = None,
+        cluster_sync: bool = False,
         no_cache: bool = False,
         api_url: Optional[str] = None,
         api_key: Optional[str] = None,
@@ -133,6 +134,7 @@ class Iteration:
             rank=rank,
             world_size=world_size,
             wait_participant_threshold=wait_participant_threshold,
+            cluster_sync=cluster_sync,
         )
         return cls(
             dataset_id=iteration.dataset_id,

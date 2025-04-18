@@ -210,6 +210,7 @@ class LavenderDataClient:
         rank: int = 0,
         world_size: Optional[int] = None,
         wait_participant_threshold: Optional[float] = None,
+        cluster_sync: bool = False,
     ):
         with self._get_client() as client:
             response = create_iteration_iterations_post.sync_detailed(
@@ -228,6 +229,7 @@ class LavenderDataClient:
                     rank=rank,
                     world_size=world_size,
                     wait_participant_threshold=wait_participant_threshold,
+                    cluster_sync=cluster_sync,
                 ),
             )
         return self._check_response(response)
@@ -433,6 +435,7 @@ def create_iteration(
     rank: int = 0,
     world_size: Optional[int] = None,
     wait_participant_threshold: Optional[float] = None,
+    cluster_sync: bool = False,
 ):
     return _client_instance.create_iteration(
         dataset_id=dataset_id,
@@ -448,6 +451,7 @@ def create_iteration(
         rank=rank,
         world_size=world_size,
         wait_participant_threshold=wait_participant_threshold,
+        cluster_sync=cluster_sync,
     )
 
 

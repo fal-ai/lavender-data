@@ -1,6 +1,9 @@
 """Contains all the data models used in inputs/outputs"""
 
 from .api_key_public import ApiKeyPublic
+from .cluster_operation_iterations_iteration_id_state_operation_post_params import (
+    ClusterOperationIterationsIterationIdStateOperationPostParams,
+)
 from .create_dataset_params import CreateDatasetParams
 from .create_iteration_params import CreateIterationParams
 from .create_shardset_params import CreateShardsetParams
@@ -42,6 +45,7 @@ from .version_response import VersionResponse
 
 __all__ = (
     "ApiKeyPublic",
+    "ClusterOperationIterationsIterationIdStateOperationPostParams",
     "CreateDatasetParams",
     "CreateIterationParams",
     "CreateShardsetParams",

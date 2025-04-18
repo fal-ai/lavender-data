@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import contextlib
 import time
 import numpy as np
@@ -50,8 +51,9 @@ def np_seed(seed: int):
         np.random.set_state(state)
 
 
-class IterationStateException(Exception):
-    pass
+class IterationStateException(HTTPException):
+    def __init__(self, detail: str):
+        super().__init__(status_code=400, detail=detail)
 
 
 class InProgressIndex(BaseModel):
@@ -75,10 +77,10 @@ def _hash(o: object) -> str:
     ).hexdigest()
 
 
-def get_iteration_hash(iteration: Iteration) -> str:
+def get_iteration_hash(iteration: Iteration, dataset_id: Optional[str] = None) -> str:
     return _hash(
         {
-            "dataset_id": iteration.dataset.id,
+            "dataset_id": dataset_id or iteration.dataset.id,
             "shardsets": [s.id for s in iteration.shardsets],
             "batch_size": iteration.batch_size,
             "collater": iteration.collater,
@@ -92,14 +94,19 @@ def get_iteration_hash(iteration: Iteration) -> str:
     )
 
 
-def iteration_hash_key(iteration_hash: str) -> str:
-    return f"iteration_hash:{iteration_hash}"
+def set_iteration_hash(
+    iteration_id: str,
+    iteration_hash: str,
+    ttl: int,
+    cache: CacheClient,
+) -> None:
+    cache.set(f"iteration_hash:{iteration_hash}", iteration_id, ex=ttl)
 
 
-def get_iteration_with_same_config(
-    iteration: Iteration, cache: CacheClient
+def get_iteration_id_from_hash(
+    iteration_hash: str, cache: CacheClient
 ) -> Optional[str]:
-    value = cache.get(iteration_hash_key(get_iteration_hash(iteration)))
+    value = cache.get(f"iteration_hash:{iteration_hash}")
     if value is None:
         return None
     return value.decode("utf-8")
@@ -190,7 +197,36 @@ def process_next_samples_and_cache(
         cache.set(cache_key, f"error:{e}", ex=cache_ttl)
 
 
-class IterationState:
+class IterationStateOps(ABC):
+    @abstractmethod
+    def exists(self) -> bool: ...
+
+    @abstractmethod
+    def pushback_inprogress(self) -> None: ...
+
+    @abstractmethod
+    def complete(self, index: int) -> None: ...
+
+    @abstractmethod
+    def filtered(self, index: int) -> None: ...
+
+    @abstractmethod
+    def failed(self, index: int) -> None: ...
+
+    @abstractmethod
+    def next_item(self, rank: int) -> GlobalSampleIndex: ...
+
+    @abstractmethod
+    def get_ranks(self) -> list[int]: ...
+
+    @abstractmethod
+    def get_progress(self) -> Progress: ...
+
+    @abstractmethod
+    def get_next_samples(self, rank: int) -> tuple[str, ProcessNextSamplesParams]: ...
+
+
+class IterationState(IterationStateOps):
     def __init__(self, iteration_id: str, cache: CacheClient):
         self.iteration_id = iteration_id
         self.cache = cache
@@ -201,7 +237,6 @@ class IterationState:
     def _set_iteration_info(
         self,
         iteration: Iteration,
-        wait_participant_threshold: Optional[float] = None,
     ) -> None:
         uid_column = next(
             (
@@ -249,13 +284,7 @@ class IterationState:
             if iteration.collater is not None:
                 pipe.set(self._key("collater"), json.dumps(iteration.collater))
 
-            iteration_hash = get_iteration_hash(iteration)
             pipe.set(self._key("iteration_hash"), get_iteration_hash(iteration))
-            pipe.set(
-                iteration_hash_key(iteration_hash),
-                iteration.id,
-                ex=wait_participant_threshold,
-            )
             pipe.execute()
 
     def _cache_key(self, indices: list[int]) -> str:
@@ -490,11 +519,7 @@ class IterationState:
     def exists(self) -> bool:
         return self.cache.exists(self._key("total"))
 
-    def init(
-        self,
-        iteration: Iteration,
-        wait_participant_threshold: Optional[float] = None,
-    ) -> None:
+    def init(self, iteration: Iteration) -> None:
         with self.cache.lock(self._key("init")):
             if self.exists():
                 return
@@ -519,7 +544,7 @@ class IterationState:
 
             main_shardset = get_main_shardset(shardsets)
 
-            self._set_iteration_info(iteration, wait_participant_threshold)
+            self._set_iteration_info(iteration)
             self._set_shardsets_info(shardsets)
             self._set_main_shardset_info(
                 main_shardset, iteration.shuffle, iteration.shuffle_seed
@@ -531,6 +556,7 @@ class IterationState:
         self.cache.delete(self._key("inprogress"))
 
     def complete(self, index: int) -> None:
+        # TODO clean up cache on done
         removed = self.cache.hdel(self._key("inprogress"), index)
         if removed != 1:
             return
@@ -609,10 +635,7 @@ class IterationState:
         global_sample_indices = []
         samples = []
         while len(samples) < max(batch_size, 1):
-            try:
-                next_item = self.next_item(rank)
-            except IterationStateException as e:
-                raise HTTPException(status_code=400, detail=str(e))
+            next_item = self.next_item(rank)
 
             try:
                 sample = reader.get_sample(next_item)
@@ -651,13 +674,106 @@ class IterationState:
         )
 
 
+class IterationStateClusterOps(IterationStateOps):
+    def __init__(self, iteration_id: str, cluster: CurrentCluster):
+        self.iteration_id = iteration_id
+        self.cluster = cluster
+
+    def _head(self, path: str, json: dict) -> dict:
+        try:
+            return self.cluster.head_post(
+                f"/iterations/{self.iteration_id}/state/{path}", json
+            )
+        except Exception as e:
+            raise IterationStateException(str(e))
+
+    def exists(self) -> bool:
+        return self._head("exists", {})
+
+    def pushback_inprogress(self) -> None:
+        return self._head("pushback_inprogress", {})
+
+    def complete(self, index: int) -> None:
+        return self._head("complete", {"index": index})
+
+    def filtered(self, index: int) -> None:
+        return self._head("filtered", {"index": index})
+
+    def failed(self, index: int) -> None:
+        return self._head("failed", {"index": index})
+
+    def next_item(self, rank: int) -> GlobalSampleIndex:
+        return GlobalSampleIndex(**self._head("next_item", {"rank": rank}))
+
+    def get_ranks(self) -> list[int]:
+        return self._head("get_ranks", {})
+
+    def get_progress(self) -> Progress:
+        return Progress(**self._head("get_progress", {}))
+
+    def get_next_samples(self, rank: int) -> tuple[str, ProcessNextSamplesParams]:
+        cache_key, params = self._head("get_next_samples", {"rank": rank})
+        return cache_key, ProcessNextSamplesParams(**params)
+
+
+def set_cluster_sync(
+    iteration_id: str,
+    cache: CacheClient,
+    cluster: CurrentCluster,
+):
+    cache.set(f"cluster_sync:{iteration_id}", "true")
+    if cluster is not None and cluster.is_head:
+        try:
+            cluster.broadcast_post(
+                f"/iterations/{iteration_id}/state/set-cluster-sync", {}
+            )
+        except Exception as e:
+            raise IterationStateException(str(e))
+
+
+def is_cluster_sync(
+    iteration_id: str,
+    cache: CacheClient,
+) -> bool:
+    return cache.get(f"cluster_sync:{iteration_id}") == b"true"
+
+
+def get_iteration_id_from_hash_from_head(
+    iteration_hash: str, cluster: CurrentCluster, timeout: int = 10
+) -> Optional[str]:
+    start = time.time()
+    while True:
+        try:
+            iteration_id = cluster.head_get(
+                f"/iterations/iteration-id-from-hash?iteration_hash={iteration_hash}",
+            )
+            if iteration_id is None:
+                raise IterationStateException("Iteration not found")
+            return iteration_id
+        except Exception as e:
+            if time.time() - start > timeout:
+                raise IterationStateException(str(e))
+            time.sleep(0.1)
+
+
 def get_iteration_state(
     iteration_id: str, cache: CacheClient, cluster: CurrentCluster
 ) -> IterationState:
-    state = IterationState(iteration_id, cache)
+    state = None
+
+    if is_cluster_sync(iteration_id, cache):
+        if cluster is None:
+            raise HTTPException(status_code=400, detail="Cluster not found")
+        if not cluster.is_head:
+            state = IterationStateClusterOps(iteration_id, cluster)
+
+    if state is None:
+        state = IterationState(iteration_id, cache)
+
     if not state.exists():
         raise HTTPException(status_code=404, detail="Iteration not initialized")
+
     return state
 
 
-CurrentIterationState = Annotated[IterationState, Depends(get_iteration_state)]
+CurrentIterationState = Annotated[IterationStateOps, Depends(get_iteration_state)]

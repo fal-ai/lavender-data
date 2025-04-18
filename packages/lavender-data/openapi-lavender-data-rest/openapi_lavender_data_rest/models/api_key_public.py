@@ -16,28 +16,26 @@ class ApiKeyPublic:
     """
     Attributes:
         note (Union[None, str]):
-        secret (str):
         created_at (datetime.datetime):
         expires_at (Union[None, datetime.datetime]):
         last_accessed_at (Union[None, datetime.datetime]):
         id (Union[Unset, str]):
+        secret (Union[Unset, str]):
         locked (Union[Unset, bool]):  Default: False.
     """
 
     note: Union[None, str]
-    secret: str
     created_at: datetime.datetime
     expires_at: Union[None, datetime.datetime]
     last_accessed_at: Union[None, datetime.datetime]
     id: Union[Unset, str] = UNSET
+    secret: Union[Unset, str] = UNSET
     locked: Union[Unset, bool] = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         note: Union[None, str]
         note = self.note
-
-        secret = self.secret
 
         created_at = self.created_at.isoformat()
 
@@ -55,6 +53,8 @@ class ApiKeyPublic:
 
         id = self.id
 
+        secret = self.secret
+
         locked = self.locked
 
         field_dict: dict[str, Any] = {}
@@ -62,7 +62,6 @@ class ApiKeyPublic:
         field_dict.update(
             {
                 "note": note,
-                "secret": secret,
                 "created_at": created_at,
                 "expires_at": expires_at,
                 "last_accessed_at": last_accessed_at,
@@ -70,6 +69,8 @@ class ApiKeyPublic:
         )
         if id is not UNSET:
             field_dict["id"] = id
+        if secret is not UNSET:
+            field_dict["secret"] = secret
         if locked is not UNSET:
             field_dict["locked"] = locked
 
@@ -85,8 +86,6 @@ class ApiKeyPublic:
             return cast(Union[None, str], data)
 
         note = _parse_note(d.pop("note"))
-
-        secret = d.pop("secret")
 
         created_at = isoparse(d.pop("created_at"))
 
@@ -122,15 +121,17 @@ class ApiKeyPublic:
 
         id = d.pop("id", UNSET)
 
+        secret = d.pop("secret", UNSET)
+
         locked = d.pop("locked", UNSET)
 
         api_key_public = cls(
             note=note,
-            secret=secret,
             created_at=created_at,
             expires_at=expires_at,
             last_accessed_at=last_accessed_at,
             id=id,
+            secret=secret,
             locked=locked,
         )
 
