@@ -287,6 +287,11 @@ def get_next(
         preprocessors=state.get_preprocessors(),
         batch_size=state.get_batch_size(),
     )
+    """
+    TODO if cluster_mode is true
+    fetch ProcessNextSamplesParams from head node
+    all operations related to iteration_state should be done in head node
+    """
 
     cache_key = state.get_batch_cache_key([i.index for i in global_sample_indices])
     cache_ttl = settings.lavender_data_batch_cache_ttl

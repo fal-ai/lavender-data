@@ -264,7 +264,17 @@ class IterationState:
             if len(shardsets) == 0:
                 # never happens unless all shardsets have 0 samples
                 raise IterationStateException(
-                    "Please add at least one shardset and one shard to the dataset",
+                    "Please add at least one shardset to the dataset. "
+                    if len(iteration.shardsets) == 0
+                    else (
+                        "Please add at least one shard to the shardset. "
+                        ", ".join(
+                            [
+                                f"{s.id} ({s.location}) - {len(s.shards)} shards"
+                                for s in iteration.shardsets
+                            ]
+                        )
+                    )
                 )
 
             main_shardset = get_main_shardset(shardsets)
