@@ -54,6 +54,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    # TODO dump and load iteration states
+
     if settings.lavender_data_cluster_enabled:
         cleanup_cluster()
 
@@ -63,7 +65,7 @@ async def lifespan(app: FastAPI):
 class EndpointFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         # Disable logging for polling requests
-        return not re.match(r".*GET /iterations/.*/next/.* 202.*", record.getMessage())
+        return not re.match(r".*GET.*/iterations/.*/next/.* 202.*", record.getMessage())
 
 
 logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
