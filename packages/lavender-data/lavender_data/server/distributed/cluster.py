@@ -140,7 +140,6 @@ class Cluster:
         self.logger = get_logger(__name__)
 
         if self.is_head:
-            self.on_register(head_url)
             self.start_check_heartbeat()
         else:
             self.register()
@@ -307,11 +306,14 @@ class Cluster:
         session.close()
         return dicts
 
-    def _node_urls(self) -> list[str]:
-        return [
+    def _node_urls(self, include_self: bool = False) -> list[str]:
+        urls = [
             url.decode("utf-8")
             for url in self._cache().lrange(self._key("node_urls"), 0, -1)
         ]
+        if include_self:
+            urls.append(self.node_url)
+        return urls
 
     def _wait_until_node_ready(
         self, node_url: str, timeout: float = 10.0, interval: float = 0.1
@@ -331,7 +333,7 @@ class Cluster:
     def get_node_statuses(self) -> list[NodeStatus]:
         return [
             NodeStatus(node_url=node_url, last_heartbeat=self._last_heartbeat(node_url))
-            for node_url in self._node_urls()
+            for node_url in self._node_urls(include_self=True)
         ]
 
     @only_worker

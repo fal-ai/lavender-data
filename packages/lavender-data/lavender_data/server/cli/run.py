@@ -30,7 +30,6 @@ def run(
 
     server = uvicorn.Server(config)
 
-    get_logger("uvicorn", clear_handlers=True)
     get_logger("uvicorn.access", clear_handlers=True)
     get_logger("uvicorn.error", clear_handlers=True)
 
