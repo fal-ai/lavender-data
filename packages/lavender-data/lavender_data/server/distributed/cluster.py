@@ -14,7 +14,7 @@ from sqlmodel import SQLModel, select, delete, insert, update
 
 from lavender_data.logging import get_logger
 from lavender_data.server.cache import CacheInterface, get_cache
-from lavender_data.server.auth import generate_api_key_secret
+from lavender_data.server.auth.api_key import generate_api_key_secret
 from lavender_data.server.db import DbSession, get_session
 from lavender_data.server.db.models import (
     Dataset,

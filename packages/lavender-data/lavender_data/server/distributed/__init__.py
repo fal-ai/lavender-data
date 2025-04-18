@@ -3,7 +3,7 @@ from typing import Annotated, Optional
 from fastapi import Depends, HTTPException
 
 from lavender_data.server.settings import AppSettings
-from lavender_data.server.auth import AuthorizationHeader
+from lavender_data.server.auth.header import AuthorizationHeader
 
 from .cluster import Cluster
 

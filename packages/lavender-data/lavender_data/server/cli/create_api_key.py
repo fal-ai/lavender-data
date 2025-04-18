@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from lavender_data.server.auth import generate_api_key_secret
+from lavender_data.server.auth.api_key import generate_api_key_secret
 from lavender_data.server.db import get_session, setup_db
 from lavender_data.server.db.models import ApiKey
 from lavender_data.server.settings import get_settings
