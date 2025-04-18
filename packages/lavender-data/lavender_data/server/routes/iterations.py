@@ -27,9 +27,7 @@ from lavender_data.server.services.iterations import (
     IterationState,
     IterationStateException,
     Progress,
-    get_next_samples,
     get_iteration_with_same_config,
-    ProcessNextSamplesParams,
     process_next_samples,
     process_next_samples_and_cache,
 )
@@ -44,7 +42,7 @@ from lavender_data.server.auth import AppAuth
 router = APIRouter(
     prefix="/iterations",
     tags=["iterations"],
-    dependencies=[Depends(AppAuth(api_key_auth=True))],
+    dependencies=[Depends(AppAuth(api_key_auth=True, cluster_auth=True))],
 )
 
 
@@ -274,26 +272,19 @@ def get_next(
     session: DbSession,
     cache: CacheClient,
     settings: AppSettings,
+    cluster: CurrentCluster,
     rank: int = 0,
     no_cache: bool = False,
 ) -> bytes:
     state = get_iteration_state(iteration_id, cache, session)
-    global_sample_indices, samples = get_next_samples(state, rank)
-    params = ProcessNextSamplesParams(
-        current=state.count_batch(),
-        global_sample_indices=global_sample_indices,
-        samples=samples,
-        collater=state.get_collater(),
-        preprocessors=state.get_preprocessors(),
-        batch_size=state.get_batch_size(),
-    )
+    cache_key, params = state.get_next_samples(rank)
+
     """
     TODO if cluster_mode is true
     fetch ProcessNextSamplesParams from head node
     all operations related to iteration_state should be done in head node
     """
 
-    cache_key = state.get_batch_cache_key([i.index for i in global_sample_indices])
     cache_ttl = settings.lavender_data_batch_cache_ttl
     if cache.exists(cache_key) and not no_cache:
         cache.expire(cache_key, cache_ttl)
@@ -316,21 +307,13 @@ def submit_next(
     cache: CacheClient,
     settings: AppSettings,
     background_tasks: BackgroundTasks,
+    cluster: CurrentCluster,
     rank: int = 0,
     no_cache: bool = False,
 ) -> SubmitNextResponse:
     state = get_iteration_state(iteration_id, cache, session)
-    global_sample_indices, samples = get_next_samples(state, rank)
-    params = ProcessNextSamplesParams(
-        current=state.count_batch(),
-        global_sample_indices=global_sample_indices,
-        samples=samples,
-        collater=state.get_collater(),
-        preprocessors=state.get_preprocessors(),
-        batch_size=state.get_batch_size(),
-    )
+    cache_key, params = state.get_next_samples(rank)
 
-    cache_key = state.get_batch_cache_key([i.index for i in global_sample_indices])
     cache_ttl = settings.lavender_data_batch_cache_ttl
     if cache.exists(cache_key) and not no_cache:
         cache.expire(cache_key, cache_ttl)
@@ -345,31 +328,6 @@ def submit_next(
         )
 
     return SubmitNextResponse(cache_key=cache_key)
-
-
-# @router.post("/{iteration_id}/next/{cache_key}")
-def submit_next_samples(
-    iteration_id: str,
-    cache_key: str,
-    params: ProcessNextSamplesParams,
-    cache: CacheClient,
-    settings: AppSettings,
-    background_tasks: BackgroundTasks,
-    no_cache: bool = False,
-) -> bytes:
-    cache_ttl = settings.lavender_data_batch_cache_ttl
-    if cache.exists(cache_key) and not no_cache:
-        cache.expire(cache_key, cache_ttl)
-    else:
-        cache.set(cache_key, "pending", ex=cache_ttl)
-        background_tasks.add_task(
-            process_next_samples_and_cache,
-            params=params,
-            cache_key=cache_key,
-            cache_ttl=cache_ttl,
-            cache=cache,
-        )
-    return Response(content=cache_key, media_type="application/octet-stream")
 
 
 @router.get("/{iteration_id}/next/{cache_key}")
