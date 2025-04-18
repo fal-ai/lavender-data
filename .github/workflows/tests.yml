@@ -23,6 +23,13 @@ jobs:
         with:
           version: '1.8.5'
 
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: packages/lavender-data/.venv
+          key: lavender-data-venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
       - name: Install dependencies
         run: |
           cd packages/lavender-data
@@ -31,13 +38,6 @@ jobs:
           poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
           # s3 storage tests
           poetry run pip install boto3 tqdm
-
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: packages/lavender-data/.venv
-          key: lavender-data-venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
 
       - name: Run tests
         run: |

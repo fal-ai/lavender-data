@@ -3,15 +3,13 @@ import time
 import random
 import shutil
 import tqdm
-from multiprocessing import Process
+import subprocess
+import os
 
-import uvicorn
 from lavender_data.server import (
-    app,
     Preprocessor,
     Filter,
 )
-from lavender_data.server.cli import create_api_key
 from lavender_data.client.api import (
     init,
     create_dataset,
@@ -21,10 +19,6 @@ from lavender_data.client.api import (
 from lavender_data.client.iteration import Iteration
 
 from tests.utils.shards import create_test_shards
-
-
-def run_server(port: int):
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="error")
 
 
 class TestFilter(Filter, name="test_filter"):
@@ -40,19 +34,34 @@ class TestPreprocessor(Preprocessor, name="test_preprocessor"):
 class TestIteration(unittest.TestCase):
     def setUp(self):
         self.port = random.randint(10000, 40000)
-        self.server = Process(
-            target=run_server,
-            args=(self.port,),
-            daemon=True,
+        self.db = f"database-{self.port}.db"
+
+        poetry = shutil.which("poetry")
+        if poetry is None:
+            raise Exception("poetry not found")
+
+        self.server = subprocess.Popen(
+            [
+                poetry,
+                "run",
+                "lavender-data",
+                "server",
+                "run",
+                "--port",
+                str(self.port),
+                "--disable-ui",
+            ],
+            env={
+                "LAVENDER_DATA_DISABLE_AUTH": "true",
+                "LAVENDER_DATA_DB_URL": f"sqlite:///{self.db}",
+                "LAVENDER_DATA_MODULES_DIR": "./tests/",
+            },
         )
-        self.server.start()
 
         time.sleep(2)
 
-        api_key = create_api_key()
         self.api_url = f"http://localhost:{self.port}"
-        self.api_key = f"{api_key.id}:{api_key.secret}"
-        init(api_url=self.api_url, api_key=self.api_key)
+        init(api_url=self.api_url)
 
         shard_count = 10
         samples_per_shard = 10
@@ -93,6 +102,8 @@ class TestIteration(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(f".cache/{self.dataset_id}")
         self.server.terminate()
+        self.server.wait()
+        os.remove(self.db)
 
     def test_iteration(self):
         read_samples = 0
@@ -235,7 +246,6 @@ class TestIteration(unittest.TestCase):
             self.dataset_id,
             shardsets=[self.shardset_id],
             api_url=self.api_url,
-            api_key=self.api_key,
         ).to_torch_dataloader(
             prefetch_factor=4,
         )
