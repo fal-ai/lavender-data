@@ -186,10 +186,8 @@ def sync_shardset_location(
                         )
                         continue
 
-                    shard_info = [OrphanShardInfo(**s) for s in result["shards"]]
-                    if shard_info.status != "done":
+                    if result["status"] != "done":
                         not_yet_done = True
-                        continue
 
         if overwrite:
             shard_index = 0
