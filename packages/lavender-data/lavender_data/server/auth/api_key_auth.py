@@ -17,6 +17,7 @@ def api_key_auth(auth: AuthorizationHeader, session: DbSession, settings: AppSet
     api_key_id = auth.username
     api_key_secret = auth.password
 
+    session.begin()
     api_key = session.exec(
         select(ApiKey).where(
             ApiKey.id == api_key_id,
@@ -24,20 +25,26 @@ def api_key_auth(auth: AuthorizationHeader, session: DbSession, settings: AppSet
         )
     ).one_or_none()
 
-    if api_key is None:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    try:
+        if api_key is None:
+            raise HTTPException(status_code=401, detail="Invalid API key")
 
-    if api_key.expires_at is not None and api_key.expires_at < datetime.now():
-        raise HTTPException(status_code=401, detail="API key expired")
+        if api_key.expires_at is not None and api_key.expires_at < datetime.now():
+            raise HTTPException(status_code=401, detail="API key expired")
 
-    if api_key.locked:
-        raise HTTPException(status_code=401, detail="API key is locked")
+        if api_key.locked:
+            raise HTTPException(status_code=401, detail="API key is locked")
+    except Exception as e:
+        session.close()
+        raise e
 
     session.exec(
         update(ApiKey)
         .where(ApiKey.id == api_key_id)
         .values(last_accessed_at=datetime.now())
     )
+    session.commit()
+    session.close()
 
     return api_key
 

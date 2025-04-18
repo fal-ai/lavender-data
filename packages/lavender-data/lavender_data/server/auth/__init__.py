@@ -34,6 +34,9 @@ class AppAuth:
             except Exception as e:
                 err = e
 
+        if err is not None:
+            raise err
+
         if self.cluster_auth:
             try:
                 return cluster_auth(auth, cluster, settings)
