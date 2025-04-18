@@ -3,9 +3,9 @@ import time
 import numpy as np
 import ujson as json
 import hashlib
-from typing import Optional
+from typing import Optional, Annotated
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
 from pydantic import BaseModel
 
 try:
@@ -16,6 +16,7 @@ except ImportError:
 from lavender_data.logging import get_logger
 from lavender_data.serialize import serialize_sample
 from lavender_data.server.cache import CacheClient
+from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.db.models import (
     Shardset,
     Iteration,
@@ -34,6 +35,7 @@ from lavender_data.server.services.registries import (
     FilterRegistry,
     CollaterRegistry,
 )
+
 
 from .shardsets import get_main_shardset, span
 
@@ -453,6 +455,38 @@ class IterationState:
 
         return main_shard, shards
 
+    def _get_inprogress(self) -> list[InProgressIndex]:
+        return [
+            InProgressIndex(
+                index=int(k.decode("utf-8")),
+                rank=int(v.decode("utf-8").split(":")[0]),
+                started_at=float(v.decode("utf-8").split(":")[1]),
+            )
+            for k, v in self.cache.hgetall(self._key("inprogress")).items()
+        ]
+
+    def _get_current(self) -> int:
+        pushed = self.cache.incr(self._key("pushed"), 0)
+        inqueue = 0
+
+        replication_pg = self.cache.get(self._key("replication_pg"))
+        if replication_pg is not None:
+            replication_pg = json.loads(replication_pg)
+
+        if replication_pg is not None:
+            with self.cache.pipeline() as pipe:
+                for pg in replication_pg:
+                    pipe.llen(self._key(f"indices:{pg[0]}"))
+                inqueue = sum(pipe.execute())
+        else:
+            ranks = self.get_ranks()
+            with self.cache.pipeline() as pipe:
+                for rank in ranks:
+                    pipe.llen(self._key(f"indices:{rank}"))
+                inqueue = sum(pipe.execute())
+
+        return pushed - inqueue
+
     def exists(self) -> bool:
         return self.cache.exists(self._key("total"))
 
@@ -492,7 +526,7 @@ class IterationState:
             )
 
     def pushback_inprogress(self) -> None:
-        for inprogress in self.get_inprogress():
+        for inprogress in self._get_inprogress():
             self.cache.lpush(self._key(f"indices:{inprogress.rank}"), inprogress.index)
         self.cache.delete(self._key("inprogress"))
 
@@ -534,48 +568,16 @@ class IterationState:
             feature_shards=feature_shards,
         )
 
-    def get_inprogress(self) -> list[InProgressIndex]:
-        return [
-            InProgressIndex(
-                index=int(k.decode("utf-8")),
-                rank=int(v.decode("utf-8").split(":")[0]),
-                started_at=float(v.decode("utf-8").split(":")[1]),
-            )
-            for k, v in self.cache.hgetall(self._key("inprogress")).items()
-        ]
-
     def get_ranks(self) -> list[int]:
         return [
             int(k.decode("utf-8").split("indices:", 1)[1])
             for k in self.cache.keys(self._key("indices:*"))
         ]
 
-    def get_current(self) -> int:
-        pushed = self.cache.incr(self._key("pushed"), 0)
-        inqueue = 0
-
-        replication_pg = self.cache.get(self._key("replication_pg"))
-        if replication_pg is not None:
-            replication_pg = json.loads(replication_pg)
-
-        if replication_pg is not None:
-            with self.cache.pipeline() as pipe:
-                for pg in replication_pg:
-                    pipe.llen(self._key(f"indices:{pg[0]}"))
-                inqueue = sum(pipe.execute())
-        else:
-            ranks = self.get_ranks()
-            with self.cache.pipeline() as pipe:
-                for rank in ranks:
-                    pipe.llen(self._key(f"indices:{rank}"))
-                inqueue = sum(pipe.execute())
-
-        return pushed - inqueue
-
     def get_progress(self) -> Progress:
         total = int(self.cache.get(self._key("total")))
-        current = self.get_current()
-        inprogress = self.get_inprogress()
+        current = self._get_current()
+        inprogress = self._get_inprogress()
         with self.cache.pipeline() as pipe:
             pipe.incr(self._key("completed"), 0)
             pipe.incr(self._key("filtered"), 0)
@@ -647,3 +649,15 @@ class IterationState:
             preprocessors=self._preprocessors(),
             batch_size=self._batch_size(),
         )
+
+
+def get_iteration_state(
+    iteration_id: str, cache: CacheClient, cluster: CurrentCluster
+) -> IterationState:
+    state = IterationState(iteration_id, cache)
+    if not state.exists():
+        raise HTTPException(status_code=404, detail="Iteration not initialized")
+    return state
+
+
+CurrentIterationState = Annotated[IterationState, Depends(get_iteration_state)]

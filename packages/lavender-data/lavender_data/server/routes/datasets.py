@@ -38,7 +38,7 @@ from lavender_data.shard import inspect_shard
 router = APIRouter(
     prefix="/datasets",
     tags=["datasets"],
-    dependencies=[Depends(AppAuth(api_key_auth=True))],
+    dependencies=[Depends(AppAuth(api_key_auth=True, cluster_auth=True))],
 )
 
 

@@ -1,5 +1,5 @@
 import random
-from typing import Optional
+from typing import Optional, Annotated
 
 from fastapi import HTTPException, APIRouter, Response, BackgroundTasks, Depends
 
@@ -25,7 +25,7 @@ from lavender_data.server.db.models import (
 from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.services.iterations import (
     IterationState,
-    IterationStateException,
+    CurrentIterationState,
     Progress,
     get_iteration_with_same_config,
     process_next_samples,
@@ -249,34 +249,15 @@ def get_iteration(iteration_id: str, session: DbSession) -> GetIterationResponse
     return iteration
 
 
-def get_iteration_state(
-    iteration_id: str, cache: CacheClient, session: DbSession
-) -> IterationState:
-    state = IterationState(iteration_id, cache)
-    if not state.exists():
-        try:
-            iteration = session.get_one(Iteration, iteration_id)
-        except NoResultFound:
-            raise HTTPException(status_code=404, detail="Iteration not found")
-
-        try:
-            state.init(iteration)
-        except IterationStateException as e:
-            raise HTTPException(status_code=400, detail=str(e))
-    return state
-
-
 @router.get("/{iteration_id}/next")
 def get_next(
     iteration_id: str,
-    session: DbSession,
     cache: CacheClient,
     settings: AppSettings,
-    cluster: CurrentCluster,
+    state: CurrentIterationState,
     rank: int = 0,
     no_cache: bool = False,
 ) -> bytes:
-    state = get_iteration_state(iteration_id, cache, session)
     cache_key, params = state.get_next_samples(rank)
 
     """
@@ -303,15 +284,13 @@ class SubmitNextResponse(BaseModel):
 @router.post("/{iteration_id}/next")
 def submit_next(
     iteration_id: str,
-    session: DbSession,
     cache: CacheClient,
     settings: AppSettings,
     background_tasks: BackgroundTasks,
-    cluster: CurrentCluster,
+    state: CurrentIterationState,
     rank: int = 0,
     no_cache: bool = False,
 ) -> SubmitNextResponse:
-    state = get_iteration_state(iteration_id, cache, session)
     cache_key, params = state.get_next_samples(rank)
 
     cache_ttl = settings.lavender_data_batch_cache_ttl
@@ -345,28 +324,44 @@ def get_submitted_result(
 
 
 @router.post("/{iteration_id}/complete/{index}")
-def complete_index(iteration_id: str, index: int, cache: CacheClient):
-    state = IterationState(iteration_id, cache)
-    if not state.exists():
-        raise HTTPException(
-            status_code=404, detail="Iteration not found or not started"
-        )
-    state.complete(index)
-    return
+def complete_index(iteration_id: str, index: int, state: CurrentIterationState):
+    return state.complete(index)
 
 
 @router.get("/{iteration_id}/progress")
-def get_progress(iteration_id: str, session: DbSession, cache: CacheClient) -> Progress:
-    state = IterationState(iteration_id, cache)
-    if not state.exists():
-        raise HTTPException(status_code=404, detail="Iteration not found")
+def get_progress(iteration_id: str, state: CurrentIterationState) -> Progress:
     return state.get_progress()
 
 
 @router.post("/{iteration_id}/pushback")
-def pushback(iteration_id: str, cache: CacheClient):
-    state = IterationState(iteration_id, cache)
-    if not state.exists():
-        raise HTTPException(status_code=404, detail="Iteration not found")
-    state.pushback_inprogress()
-    return
+def pushback(iteration_id: str, state: CurrentIterationState):
+    return state.pushback_inprogress()
+
+
+@router.post("/{iteration_id}/state/{operation}")
+def iteration_state_operation(
+    iteration_id: str,
+    operation: str,
+    state: CurrentIterationState,
+    params: dict,
+):
+    if operation == "exists":
+        return state.exists()
+    elif operation == "pushback_inprogress":
+        return state.pushback_inprogress()
+    elif operation == "complete":
+        return state.complete(params["index"])
+    elif operation == "filtered":
+        return state.filtered(params["index"])
+    elif operation == "failed":
+        return state.failed(params["index"])
+    elif operation == "next_item":
+        return state.next_item(params["rank"])
+    elif operation == "get_ranks":
+        return state.get_ranks()
+    elif operation == "get_progress":
+        return state.get_progress()
+    elif operation == "get_next_samples":
+        return state.get_next_samples(params["rank"])
+    else:
+        raise HTTPException(status_code=400, detail="Invalid operation")
