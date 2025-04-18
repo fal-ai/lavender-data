@@ -233,7 +233,7 @@ def sync_shardset_location(
 
             total_samples += orphan_shard.samples
             logger.info(
-                f"Shard {current_shard_index+1}/{shard_index} ({orphan_shard.location}) synced to {shardset_id}"
+                f"Shard {current_shard_index+1}/{shard_index+len(shard_infos)} ({orphan_shard.location}) synced to {shardset_id}"
             )
 
         session.exec(
