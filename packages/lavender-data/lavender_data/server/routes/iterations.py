@@ -91,6 +91,7 @@ def create_iteration(
     session: DbSession,
     cache: CacheClient,
     cluster: CurrentCluster,
+    settings: AppSettings,
 ) -> IterationPublic:
     shuffle = params.shuffle or False
     batch_size = params.batch_size or 0
@@ -189,7 +190,13 @@ def create_iteration(
     iteration_with_same_config = None
     iteration_with_same_config_id = get_iteration_id_from_hash(iteration, cache)
 
-    if cluster and params.cluster_sync and not cluster.is_head:
+    cluster_sync = (
+        params.cluster_sync
+        if params.cluster_sync is not None
+        else settings.lavender_data_cluster_enabled
+    )
+
+    if cluster and cluster_sync and not cluster.is_head:
         iteration_with_same_config_id = get_iteration_id_from_hash_from_head(
             iteration_hash, cluster
         )
@@ -231,7 +238,7 @@ def create_iteration(
             for shardset in iteration.shardsets
         ]
         cluster.sync_changes([iteration, *iteration_shardset_links])
-        if params.cluster_sync:
+        if cluster_sync:
             set_cluster_sync(iteration.id, cache, cluster)
 
     set_iteration_hash(
