@@ -13,7 +13,7 @@ def _flush_logs(server_process: subprocess.Popen):
             [server_process.stdout, server_process.stderr], [], [], 1
         )
         for fd in read_fds:
-            fd.readline().decode().strip()
+            fd.read()
 
     server_process.stdout.close()
     server_process.stderr.close()
