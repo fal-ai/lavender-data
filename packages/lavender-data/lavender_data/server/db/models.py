@@ -1,6 +1,7 @@
 import time
 import random
 import string
+import secrets
 from typing import Optional, Any
 from typing_extensions import TypedDict
 from datetime import datetime
@@ -138,6 +139,7 @@ Iteration
 
 
 class IterationShardsetLink(SQLModel, table=True):
+    id: str = Field(primary_key=True, default_factory=generate_uid("is"))
     iteration_id: str = Field(primary_key=True, foreign_key="iteration.id")
     shardset_id: str = Field(primary_key=True, foreign_key="shardset.id")
 
@@ -195,11 +197,23 @@ Auth
 """
 
 
-class ApiKey(SQLModel, table=True):
+def generate_api_key_secret():
+    return secrets.token_urlsafe(32)
+
+
+class ApiKeyBase(SQLModel):
     id: str = Field(primary_key=True, default_factory=generate_uid("la"))
     note: Optional[str] = Field(nullable=True)
-    secret: str = Field()
+    secret: str = Field(default_factory=generate_api_key_secret)
     locked: bool = Field(default=False)
     created_at: datetime = CreatedAtField()
     expires_at: Optional[datetime] = DateTimeField(nullable=True)
     last_accessed_at: Optional[datetime] = DateTimeField(nullable=True)
+
+
+class ApiKey(ApiKeyBase, table=True):
+    pass
+
+
+class ApiKeyPublic(ApiKeyBase):
+    pass

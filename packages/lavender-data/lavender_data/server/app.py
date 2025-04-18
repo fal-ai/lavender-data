@@ -9,22 +9,23 @@ from lavender_data.logging import get_logger
 
 from .db import setup_db, create_db_and_tables
 from .cache import setup_cache, register_worker, deregister_worker
+from .distributed import setup_cluster, cleanup_cluster
 from .reader import setup_reader
 from .routes import (
     datasets_router,
     iterations_router,
     registries_router,
+    cluster_router,
     root_router,
 )
 
 from .services.registries import import_from_directory
 from .settings import get_settings
 
-logger = get_logger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger = get_logger(__name__)
     settings = get_settings()
 
     setup_db(settings.lavender_data_db_url)
@@ -35,15 +36,26 @@ async def lifespan(app: FastAPI):
     if settings.lavender_data_modules_dir:
         import_from_directory(settings.lavender_data_modules_dir)
 
-    setup_reader(int(settings.lavender_data_reader_disk_cache_size))
+    setup_reader(settings.lavender_data_reader_disk_cache_size)
 
     rank = register_worker()
     app.state.rank = rank
+
+    if settings.lavender_data_cluster_enabled:
+        setup_cluster(
+            head_url=settings.lavender_data_cluster_head_url,
+            node_url=settings.lavender_data_cluster_node_url,
+            secret=settings.lavender_data_cluster_secret,
+            disable_auth=settings.lavender_data_disable_auth,
+        )
 
     if settings.lavender_data_disable_auth:
         logger.warning("Authentication is disabled")
 
     yield
+
+    if settings.lavender_data_cluster_enabled:
+        cleanup_cluster()
 
     deregister_worker()
 
@@ -73,3 +85,4 @@ app.include_router(root_router)
 app.include_router(datasets_router)
 app.include_router(iterations_router)
 app.include_router(registries_router)
+app.include_router(cluster_router)

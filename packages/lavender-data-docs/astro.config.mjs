@@ -15,7 +15,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: "Lavender Data",
-      favicon: "/public/favicon.ico",
+      favicon: "/favicon.ico",
       head: [
         {
           tag: "meta",
@@ -69,6 +69,10 @@ export default defineConfig({
             {
               label: "Cache",
               slug: "guides/cache",
+            },
+            {
+              label: "Cluster",
+              slug: "guides/cluster",
             },
           ],
         },

@@ -1,7 +1,7 @@
 import random
 from typing import Optional
 
-from fastapi import HTTPException, APIRouter, Response, BackgroundTasks
+from fastapi import HTTPException, APIRouter, Response, BackgroundTasks, Depends
 
 from sqlmodel import select, col
 from sqlalchemy.exc import NoResultFound
@@ -21,32 +21,34 @@ from lavender_data.server.db.models import (
     IterationFilter,
     IterationPreprocessor,
     IterationCollater,
+    IterationShardsetLink,
 )
+from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.services.iterations import (
     IterationState,
-    IterationStateException,
+    CurrentIterationState,
     Progress,
-    get_next_samples,
-    get_iteration_with_same_config,
     process_next_samples,
+    process_next_samples_and_cache,
+    set_cluster_sync,
+    get_iteration_hash,
+    set_iteration_hash,
+    get_iteration_id_from_hash,
+    get_iteration_id_from_hash_from_head,
 )
 from lavender_data.server.services.registries import (
     PreprocessorRegistry,
     FilterRegistry,
     CollaterRegistry,
 )
-from lavender_data.server.settings import AppSettings, get_settings
-from lavender_data.server.auth import CurrentApiKey
-from lavender_data.logging import get_logger
+from lavender_data.server.settings import AppSettings
+from lavender_data.server.auth import AppAuth
 
 router = APIRouter(
     prefix="/iterations",
     tags=["iterations"],
-    dependencies=(
-        [CurrentApiKey] if not get_settings().lavender_data_disable_auth else []
-    ),
+    dependencies=[Depends(AppAuth(api_key_auth=True, cluster_auth=True))],
 )
-logger = get_logger(__name__)
 
 
 @router.get("/")
@@ -80,10 +82,16 @@ class CreateIterationParams(BaseModel):
     world_size: Optional[int] = None
     wait_participant_threshold: Optional[float] = None
 
+    cluster_sync: Optional[bool] = None
+
 
 @router.post("/")
 def create_iteration(
-    params: CreateIterationParams, session: DbSession, cache: CacheClient
+    params: CreateIterationParams,
+    session: DbSession,
+    cache: CacheClient,
+    cluster: CurrentCluster,
+    settings: AppSettings,
 ) -> IterationPublic:
     shuffle = params.shuffle or False
     batch_size = params.batch_size or 0
@@ -164,9 +172,14 @@ def create_iteration(
     for shardset in shardsets:
         total_samples = min(total_samples, shardset.total_samples)
 
+    cluster_sync = (
+        params.cluster_sync
+        if params.cluster_sync is not None
+        else settings.lavender_data_cluster_enabled
+    )
+
     iteration = Iteration(
         dataset_id=dataset.id,
-        dataset=dataset,
         total=total_samples,
         filters=params.filters,
         preprocessors=params.preprocessors,
@@ -178,53 +191,84 @@ def create_iteration(
         shardsets=shardsets,
         replication_pg=params.replication_pg,
     )
-
+    iteration_hash = get_iteration_hash(iteration, params.dataset_id)
     iteration_with_same_config = None
-    iteration_with_same_config_id = get_iteration_with_same_config(iteration, cache)
-    if iteration_with_same_config_id is not None:
-        try:
-            iteration_with_same_config = session.get_one(
-                Iteration, iteration_with_same_config_id
+
+    with cache.lock(f"iteration_create_{iteration_hash}"):
+        iteration_with_same_config_id = get_iteration_id_from_hash(
+            iteration_hash, cache
+        )
+
+        if cluster and cluster_sync and not cluster.is_head:
+            iteration_with_same_config_id = get_iteration_id_from_hash_from_head(
+                iteration_hash, cluster
             )
 
-            state = IterationState(iteration_with_same_config.id, cache)
-            if not state.exists():
-                iteration_with_same_config = None
+        if iteration_with_same_config_id is not None:
+            try:
+                iteration_with_same_config = session.get_one(
+                    Iteration, iteration_with_same_config_id
+                )
 
-            if params.rank in state.get_ranks():
-                # this rank already requested to create an iteration with this config
-                # it means "create_iteration" called twice, which happens when
-                # the training script is restarted. thus iteration should be initialized again
-                iteration_with_same_config = None
+                state = IterationState(iteration_with_same_config.id, cache)
+                if state.exists():
+                    if params.rank in state.get_ranks():
+                        # this rank already requested to create an iteration with this config
+                        # it means "create_iteration" called twice, which happens when
+                        # the training script is restarted. thus iteration should be initialized again
+                        iteration_with_same_config = None
 
-            if (params.world_size is not None) and (
-                set(state.get_ranks()) == set(range(params.world_size))
-            ):
-                # all nodes have already joined
-                # this means training script is restarted. thus iteration should be initialized again
-                iteration_with_same_config = None
+                    if (params.world_size is not None) and (
+                        set(state.get_ranks()) == set(range(params.world_size))
+                    ):
+                        # all nodes have already joined
+                        # this means training script is restarted. thus iteration should be initialized again
+                        iteration_with_same_config = None
 
-        except NoResultFound:
-            pass
+            except NoResultFound:
+                pass
 
-    if iteration_with_same_config is not None:
-        iteration = iteration_with_same_config
-    else:
-        session.add(iteration)
-        session.commit()
-        session.refresh(iteration)
+        if iteration_with_same_config is not None:
+            iteration = iteration_with_same_config
+        else:
+            session.add(iteration)
+            session.commit()
+            session.refresh(iteration)
 
+        if cluster:
+            iteration_shardset_links = [
+                IterationShardsetLink(
+                    iteration_id=iteration.id, shardset_id=shardset.id
+                )
+                for shardset in iteration.shardsets
+            ]
+            cluster.sync_changes([iteration, *iteration_shardset_links])
+            if cluster_sync:
+                set_cluster_sync(iteration.id, cache, cluster)
+
+        set_iteration_hash(
+            iteration.id,
+            iteration_hash=iteration_hash,
+            ttl=(params.wait_participant_threshold or 10),
+            cache=cache,
+        )
     state = IterationState(iteration.id, cache)
-    state.init(
-        iteration,
-        (
-            (params.wait_participant_threshold or 10)
-            if params.world_size is None
-            else None
-        ),
-    )
+    state.init(iteration)
 
     return iteration
+
+
+@router.get("/iteration-id-from-hash")
+def cluster_get_iteration_id_from_hash(
+    iteration_hash: str, cache: CacheClient, cluster: CurrentCluster
+) -> str:
+    if cluster is None:
+        raise HTTPException(status_code=400, detail="Cluster not found")
+    if not cluster.is_head:
+        raise HTTPException(
+            status_code=400, detail="Worker node cannot get iteration id from hash"
+        )
+    return get_iteration_id_from_hash(iteration_hash, cache)
 
 
 class ShardsetWithShards(ShardsetPublic):
@@ -246,107 +290,138 @@ def get_iteration(iteration_id: str, session: DbSession) -> GetIterationResponse
     return iteration
 
 
-def process_next_samples_task(
-    iteration_id: str,
-    indices: list[int],
-    samples: list[dict],
-    cache_key: str,
-    cache_ttl: int,
-    cache: CacheClient,
-):
-    try:
-        state = IterationState(iteration_id, cache)
-        content = process_next_samples(state, indices, samples)
-        cache.set(cache_key, content, ex=cache_ttl)
-    except Exception as e:
-        logger.exception(f"Error processing next samples for iteration {iteration_id}")
-        cache.set(cache_key, f"error:{e}", ex=cache_ttl)
-
-
 @router.get("/{iteration_id}/next")
 def get_next(
     iteration_id: str,
-    session: DbSession,
+    cache: CacheClient,
+    settings: AppSettings,
+    state: CurrentIterationState,
+    rank: int = 0,
+    no_cache: bool = False,
+) -> bytes:
+    cache_key, params = state.get_next_samples(rank)
+
+    """
+    TODO if cluster_mode is true
+    fetch ProcessNextSamplesParams from head node
+    all operations related to iteration_state should be done in head node
+    """
+
+    cache_ttl = settings.lavender_data_batch_cache_ttl
+    if cache.exists(cache_key) and not no_cache:
+        cache.expire(cache_key, cache_ttl)
+        content = cache.get(cache_key)
+    else:
+        content = process_next_samples(params)
+        cache.set(cache_key, content, ex=cache_ttl)
+
+    return Response(content=content, media_type="application/octet-stream")
+
+
+class SubmitNextResponse(BaseModel):
+    cache_key: str
+
+
+@router.post("/{iteration_id}/next")
+def submit_next(
+    iteration_id: str,
     cache: CacheClient,
     settings: AppSettings,
     background_tasks: BackgroundTasks,
+    state: CurrentIterationState,
     rank: int = 0,
-    async_mode: bool = False,
     no_cache: bool = False,
-) -> bytes:
-    state = IterationState(iteration_id, cache)
-    if not state.exists():
-        try:
-            iteration = session.get_one(Iteration, iteration_id)
-        except NoResultFound:
-            raise HTTPException(status_code=404, detail="Iteration not found")
+) -> SubmitNextResponse:
+    cache_key, params = state.get_next_samples(rank)
 
-        try:
-            state.init(iteration)
-        except IterationStateException as e:
-            raise HTTPException(status_code=400, detail=str(e))
-
-    indices, samples = get_next_samples(state, rank)
-
-    if async_mode:
-        cache_key = state.get_batch_cache_key(indices)
-        cache_ttl = settings.lavender_data_batch_cache_ttl
-        if cache.exists(cache_key) and not no_cache:
-            cache.expire(cache_key, cache_ttl)
-        else:
-            cache.set(cache_key, "pending", ex=cache_ttl)
-            background_tasks.add_task(
-                process_next_samples_task,
-                iteration_id=iteration_id,
-                indices=indices,
-                samples=samples,
-                cache_key=cache_key,
-                cache_ttl=cache_ttl,
-                cache=cache,
-            )
-        return Response(content=cache_key, media_type="application/octet-stream")
+    cache_ttl = settings.lavender_data_batch_cache_ttl
+    if cache.exists(cache_key) and not no_cache:
+        cache.expire(cache_key, cache_ttl)
     else:
-        content = process_next_samples(state, indices, samples)
-        return Response(content=content, media_type="application/octet-stream")
+        cache.set(cache_key, "pending", ex=cache_ttl)
+        background_tasks.add_task(
+            process_next_samples_and_cache,
+            params=params,
+            cache_key=cache_key,
+            cache_ttl=cache_ttl,
+            cache=cache,
+        )
+
+    return SubmitNextResponse(cache_key=cache_key)
 
 
 @router.get("/{iteration_id}/next/{cache_key}")
-def get_next_async_result(
+def get_submitted_result(
     iteration_id: str, cache_key: str, cache: CacheClient
 ) -> bytes:
     content = cache.get(cache_key)
     if content is None:
-        raise HTTPException(status_code=404, detail="Content not found")
+        raise HTTPException(status_code=404, detail="Cache key not found")
     if content == b"pending":
-        raise HTTPException(status_code=202, detail="Content is still being processed")
+        raise HTTPException(status_code=202, detail="Data is still being processed")
     if content.startswith(b"error:"):
         raise HTTPException(status_code=400, detail=content[6:].decode("utf-8"))
     return Response(content=content, media_type="application/octet-stream")
 
 
 @router.post("/{iteration_id}/complete/{index}")
-def complete_index(iteration_id: str, index: str, cache: CacheClient):
-    state = IterationState(iteration_id, cache)
-    if not state.exists():
-        raise HTTPException(
-            status_code=404, detail="Iteration not found or not started"
-        )
-    state.complete(index)
-    return
+def complete_index(iteration_id: str, index: int, state: CurrentIterationState):
+    return state.complete(index)
 
 
 @router.get("/{iteration_id}/progress")
-def get_progress(iteration_id: str, session: DbSession, cache: CacheClient) -> Progress:
-    state = IterationState(iteration_id, cache)
-    if not state.exists():
-        raise HTTPException(status_code=404, detail="Iteration not found")
+def get_progress(iteration_id: str, state: CurrentIterationState) -> Progress:
     return state.get_progress()
 
 
 @router.post("/{iteration_id}/pushback")
-def pushback(iteration_id: str, cache: CacheClient):
-    state = IterationState(iteration_id, cache)
-    if not state.exists():
-        raise HTTPException(status_code=404, detail="Iteration not found")
-    state.pushback_inprogress()
-    return
+def pushback(iteration_id: str, state: CurrentIterationState):
+    return state.pushback_inprogress()
+
+
+@router.post("/{iteration_id}/state/set-cluster-sync")
+def cluster_set_cluster_sync(
+    iteration_id: str, cache: CacheClient, cluster: CurrentCluster
+):
+    if cluster is None:
+        raise HTTPException(status_code=400, detail="Cluster not found")
+    if cluster.is_head:
+        raise HTTPException(status_code=400, detail="Head node cannot set cluster sync")
+    return set_cluster_sync(iteration_id, cache, cluster)
+
+
+@router.post("/{iteration_id}/state/{operation}")
+def cluster_operation(
+    iteration_id: str,
+    operation: str,
+    state: CurrentIterationState,
+    cluster: CurrentCluster,
+    params: dict,
+):
+    if cluster is None:
+        raise HTTPException(status_code=400, detail="Cluster not found")
+    if not cluster.is_head:
+        raise HTTPException(
+            status_code=400, detail="Worker node cannot perform state operations"
+        )
+
+    if operation == "exists":
+        return state.exists()
+    elif operation == "pushback_inprogress":
+        return state.pushback_inprogress()
+    elif operation == "complete":
+        return state.complete(params["index"])
+    elif operation == "filtered":
+        return state.filtered(params["index"])
+    elif operation == "failed":
+        return state.failed(params["index"])
+    elif operation == "next_item":
+        return state.next_item(params["rank"])
+    elif operation == "get_ranks":
+        return state.get_ranks()
+    elif operation == "get_progress":
+        return state.get_progress()
+    elif operation == "get_next_samples":
+        return state.get_next_samples(params["rank"])
+    else:
+        raise HTTPException(status_code=400, detail="Invalid operation")

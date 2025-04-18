@@ -15,8 +15,6 @@ from .exceptions import (
 
 __all__ = ["Reader"]
 
-logger = get_logger(__name__)
-
 
 class Reader(ABC):
     format: str = ""
@@ -33,6 +31,8 @@ class Reader(ABC):
         uid_column_name: Optional[str] = None,
         uid_column_type: Optional[str] = None,
     ) -> Union[Self, "UntypedReader", "TypedReader"]:
+        logger = get_logger(__name__)
+
         for subcls in cls._reader_classes():
             if format == subcls.format:
                 try:

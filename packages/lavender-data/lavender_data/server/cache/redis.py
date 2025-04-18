@@ -50,8 +50,8 @@ class RedisCache(CacheInterface):
     ) -> int:
         return self.redis.hset(name, key=key, value=value, mapping=mapping)
 
-    def hget(self, name: str, key: str) -> Optional[str]:
-        return self.redis.hget(name, key).decode("utf-8")
+    def hget(self, name: str, key: str) -> Optional[bytes]:
+        return self.redis.hget(name, key)
 
     def hgetall(self, name: str) -> dict:
         return self.redis.hgetall(name)
@@ -65,31 +65,28 @@ class RedisCache(CacheInterface):
     def rpush(self, name: str, *values: str) -> int:
         return self.redis.rpush(name, *values)
 
-    def lpop(self, name: str, count: Optional[int] = None) -> Optional[str]:
+    def lpop(self, name: str, count: Optional[int] = None) -> Optional[bytes]:
         return self.redis.lpop(name, count)
 
-    def rpop(self, name: str) -> Optional[str]:
+    def rpop(self, name: str) -> Optional[bytes]:
         return self.redis.rpop(name)
 
-    def lrange(self, name: str, start: int, end: int) -> list[str]:
+    def lrange(self, name: str, start: int, end: int) -> list[bytes]:
         return self.redis.lrange(name, start, end)
 
-    def lindex(self, name: str, index: int) -> Optional[str]:
+    def lindex(self, name: str, index: int) -> Optional[bytes]:
         return self.redis.lindex(name, index)
 
     def llen(self, name: str) -> int:
         return self.redis.llen(name)
 
+    def lrem(self, name: str, count: int, value: str) -> int:
+        return self.redis.lrem(name, count, value)
+
     @contextlib.contextmanager
     def lock(self, key: str, timeout: Optional[int] = None) -> Iterator[None]:
         with self.redis.lock(key, timeout=timeout):
             yield
-
-    def ping(self) -> bool:
-        return self.redis.ping()
-
-    def close(self) -> None:
-        self.redis.close()
 
     @contextlib.contextmanager
     def pipeline(self) -> Iterator[PipelineInterface]:

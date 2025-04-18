@@ -1,5 +1,7 @@
 import os
 import shutil
+from typing import Optional
+
 from lavender_data.storage.abc import Storage
 
 __all__ = ["LocalFileStorage"]
@@ -32,6 +34,6 @@ class LocalFileStorage(Storage):
         except FileExistsError:
             pass
 
-    def list(self, remote_path: str) -> list[str]:
+    def list(self, remote_path: str, limit: Optional[int] = None) -> list[str]:
         _remote_path = remote_path.removeprefix("file://")
-        return [f for f in os.listdir(_remote_path)]
+        return [f for f in os.listdir(_remote_path)][:limit]

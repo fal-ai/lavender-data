@@ -24,16 +24,16 @@ Now, start the Lavender Data server. The server handles data loading, preprocess
 The api is available at `http://localhost:8000` and the web ui is available at `http://localhost:3000` by default.
 
 ```bash
-lavender-data server run --host 0.0.0.0 --port 8000 --ui-port 3000 --reload
+lavender-data server run
 ```
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `--host` | The host address to bind the server to | `0.0.0.0` |
 | `--port` | The port number to listen on for API requests | `8000` |
-| `--reload` | Enable auto-reload on code changes | `False` |
 | `--ui-port` | The port number to listen on for Web UI requests | `3000` |
 | `--disable-ui` | Disable the Web UI | `False` |
+| `--env-file` | The path to the environment file | `None` |
 
 
 ### Create an API Key

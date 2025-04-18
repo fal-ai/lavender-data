@@ -153,7 +153,7 @@ class TestIterationState(unittest.TestCase):
         for expected_index in tqdm.tqdm(
             range(self.total_samples), desc="test_pop_index_no_shuffle"
         ):
-            retrieved_index = iteration_state.pop_index(rank)
+            retrieved_index = iteration_state._pop_index(rank)
             self.assertEqual(retrieved_index, expected_index)
 
     def test_pop_index_shuffle(self):
@@ -197,7 +197,7 @@ class TestIterationState(unittest.TestCase):
             indices.extend(current_indices)
 
         for expected_index in tqdm.tqdm(indices, desc="test_pop_index_shuffle"):
-            retrieved_index = iteration_state.pop_index(rank)
+            retrieved_index = iteration_state._pop_index(rank)
             self.assertEqual(retrieved_index, expected_index)
 
         # TODO check if evenly distributed
@@ -219,7 +219,7 @@ class TestIterationState(unittest.TestCase):
         ):
             rank = ranks[i % len(ranks)]
             try:
-                retrieved_index = iteration_state.pop_index(rank)
+                retrieved_index = iteration_state._pop_index(rank)
             except IterationStateException:
                 ranks_done[rank] = True
                 if all(ranks_done.values()):
@@ -255,7 +255,7 @@ class TestIterationState(unittest.TestCase):
         ):
             rank = ranks[i % len(ranks)]
             try:
-                retrieved_index = iteration_state.pop_index(rank)
+                retrieved_index = iteration_state._pop_index(rank)
             except IterationStateException:
                 ranks_done[rank] = True
                 if all(ranks_done.values()):
@@ -318,7 +318,7 @@ class TestIterationState(unittest.TestCase):
         ):
             rank = ranks[i % len(ranks)]
             try:
-                retrieved_index = iteration_state.pop_index(rank)
+                retrieved_index = iteration_state._pop_index(rank)
             except IterationStateException:
                 ranks_done[rank] = True
                 if all(ranks_done.values()):

@@ -14,14 +14,11 @@ def _get_kwargs(
     iteration_id: str,
     *,
     rank: Union[Unset, int] = 0,
-    async_mode: Union[Unset, bool] = False,
     no_cache: Union[Unset, bool] = False,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
 
     params["rank"] = rank
-
-    params["async_mode"] = async_mode
 
     params["no_cache"] = no_cache
 
@@ -69,7 +66,6 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     rank: Union[Unset, int] = 0,
-    async_mode: Union[Unset, bool] = False,
     no_cache: Union[Unset, bool] = False,
 ) -> Response[Union[File, HTTPValidationError]]:
     """Get Next
@@ -77,7 +73,6 @@ def sync_detailed(
     Args:
         iteration_id (str):
         rank (Union[Unset, int]):  Default: 0.
-        async_mode (Union[Unset, bool]):  Default: False.
         no_cache (Union[Unset, bool]):  Default: False.
 
     Raises:
@@ -91,7 +86,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         iteration_id=iteration_id,
         rank=rank,
-        async_mode=async_mode,
         no_cache=no_cache,
     )
 
@@ -107,7 +101,6 @@ def sync(
     *,
     client: AuthenticatedClient,
     rank: Union[Unset, int] = 0,
-    async_mode: Union[Unset, bool] = False,
     no_cache: Union[Unset, bool] = False,
 ) -> Optional[Union[File, HTTPValidationError]]:
     """Get Next
@@ -115,7 +108,6 @@ def sync(
     Args:
         iteration_id (str):
         rank (Union[Unset, int]):  Default: 0.
-        async_mode (Union[Unset, bool]):  Default: False.
         no_cache (Union[Unset, bool]):  Default: False.
 
     Raises:
@@ -130,7 +122,6 @@ def sync(
         iteration_id=iteration_id,
         client=client,
         rank=rank,
-        async_mode=async_mode,
         no_cache=no_cache,
     ).parsed
 
@@ -140,7 +131,6 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     rank: Union[Unset, int] = 0,
-    async_mode: Union[Unset, bool] = False,
     no_cache: Union[Unset, bool] = False,
 ) -> Response[Union[File, HTTPValidationError]]:
     """Get Next
@@ -148,7 +138,6 @@ async def asyncio_detailed(
     Args:
         iteration_id (str):
         rank (Union[Unset, int]):  Default: 0.
-        async_mode (Union[Unset, bool]):  Default: False.
         no_cache (Union[Unset, bool]):  Default: False.
 
     Raises:
@@ -162,7 +151,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         iteration_id=iteration_id,
         rank=rank,
-        async_mode=async_mode,
         no_cache=no_cache,
     )
 
@@ -176,7 +164,6 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     rank: Union[Unset, int] = 0,
-    async_mode: Union[Unset, bool] = False,
     no_cache: Union[Unset, bool] = False,
 ) -> Optional[Union[File, HTTPValidationError]]:
     """Get Next
@@ -184,7 +171,6 @@ async def asyncio(
     Args:
         iteration_id (str):
         rank (Union[Unset, int]):  Default: 0.
-        async_mode (Union[Unset, bool]):  Default: False.
         no_cache (Union[Unset, bool]):  Default: False.
 
     Raises:
@@ -200,7 +186,6 @@ async def asyncio(
             iteration_id=iteration_id,
             client=client,
             rank=rank,
-            async_mode=async_mode,
             no_cache=no_cache,
         )
     ).parsed

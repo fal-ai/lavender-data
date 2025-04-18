@@ -1,19 +1,14 @@
 import unittest
 import time
 import random
-import csv
-import os
 import shutil
 import tqdm
-from multiprocessing import Process
+import os
 
-import uvicorn
 from lavender_data.server import (
-    app,
     Preprocessor,
     Filter,
 )
-from lavender_data.server.cli import create_api_key
 from lavender_data.client.api import (
     init,
     create_dataset,
@@ -22,9 +17,8 @@ from lavender_data.client.api import (
 )
 from lavender_data.client.iteration import Iteration
 
-
-def run_server(port: int):
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="error")
+from tests.utils.shards import create_test_shards
+from tests.utils.start_server import start_server, stop_server, wait_server_ready
 
 
 class TestFilter(Filter, name="test_filter"):
@@ -39,21 +33,21 @@ class TestPreprocessor(Preprocessor, name="test_preprocessor"):
 
 class TestIteration(unittest.TestCase):
     def setUp(self):
-        port = random.randint(10000, 40000)
-        self.server = Process(
-            target=run_server,
-            args=(port,),
-            daemon=True,
-        )
-        self.server.start()
+        self.port = random.randint(10000, 40000)
+        self.db = f"database-{self.port}.db"
 
-        time.sleep(2)
-
-        api_key = create_api_key()
-        init(
-            api_url=f"http://localhost:{port}",
-            api_key=f"{api_key.id}:{api_key.secret}",
+        self.server = start_server(
+            self.port,
+            {
+                "LAVENDER_DATA_DISABLE_AUTH": "true",
+                "LAVENDER_DATA_DB_URL": f"sqlite:///{self.db}",
+                "LAVENDER_DATA_MODULES_DIR": "./tests/",
+            },
         )
+        wait_server_ready(self.server)
+
+        self.api_url = f"http://localhost:{self.port}"
+        init(api_url=self.api_url)
 
         shard_count = 10
         samples_per_shard = 10
@@ -64,25 +58,12 @@ class TestIteration(unittest.TestCase):
         self.dataset_id = response.id
 
         # Create test data
-        test_dir = f".cache/{self.dataset_id}"
-        os.makedirs(test_dir, exist_ok=True)
-        for i in range(shard_count):
-            with open(f"{test_dir}/shard.{i:05d}.csv", "w") as f:
-                writer = csv.writer(f)
-                writer.writerow(["id", "image_url", "caption"])
-                for j in range(samples_per_shard):
-                    writer.writerow(
-                        [
-                            (i * samples_per_shard) + j,
-                            f"https://example.com/image-{(i * samples_per_shard) + j:05d}.jpg",
-                            f"Caption for image {(i * samples_per_shard) + j:05d}",
-                        ]
-                    )
+        location = create_test_shards(self.dataset_id, shard_count, samples_per_shard)
 
         # Create shardset containing image_url and caption
         response = create_shardset(
             dataset_id=self.dataset_id,
-            location=f"file://{test_dir}",
+            location=location,
             columns=[
                 DatasetColumnOptions(
                     name="id",
@@ -101,11 +82,13 @@ class TestIteration(unittest.TestCase):
                 ),
             ],
         )
+        time.sleep(1)
         self.shardset_id = response.id
 
     def tearDown(self):
         shutil.rmtree(f".cache/{self.dataset_id}")
-        self.server.terminate()
+        stop_server(self.server)
+        os.remove(self.db)
 
     def test_iteration(self):
         read_samples = 0
@@ -222,5 +205,40 @@ class TestIteration(unittest.TestCase):
             total=self.total_samples,
         ):
             self.assertEqual(sample["double_id"], i * 2)
+            read_samples += 1
+        self.assertEqual(read_samples, self.total_samples)
+
+    def test_iteration_to_torch_dataloader(self):
+        read_samples = 0
+
+        dataloader = Iteration.from_dataset(
+            self.dataset_id,
+            shardsets=[self.shardset_id],
+        ).to_torch_dataloader()
+
+        for i, sample in enumerate(tqdm.tqdm(dataloader)):
+            self.assertEqual(
+                sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
+            )
+            self.assertEqual(sample["caption"], f"Caption for image {i:05d}")
+            read_samples += 1
+        self.assertEqual(read_samples, self.total_samples)
+
+    def test_iteration_to_torch_dataloader_with_prefetch_factor(self):
+        read_samples = 0
+
+        dataloader = Iteration.from_dataset(
+            self.dataset_id,
+            shardsets=[self.shardset_id],
+            api_url=self.api_url,
+        ).to_torch_dataloader(
+            prefetch_factor=4,
+        )
+
+        for i, sample in enumerate(tqdm.tqdm(dataloader)):
+            self.assertEqual(
+                sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
+            )
+            self.assertEqual(sample["caption"], f"Caption for image {i:05d}")
             read_samples += 1
         self.assertEqual(read_samples, self.total_samples)

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import urllib.parse
+from typing import Optional
 from typing_extensions import Self
 
 
@@ -27,4 +28,4 @@ class Storage(ABC):
     def upload(self, local_path: str, remote_path: str) -> None: ...
 
     @abstractmethod
-    def list(self, remote_path: str) -> list[str]: ...
+    def list(self, remote_path: str, limit: Optional[int] = None) -> list[str]: ...

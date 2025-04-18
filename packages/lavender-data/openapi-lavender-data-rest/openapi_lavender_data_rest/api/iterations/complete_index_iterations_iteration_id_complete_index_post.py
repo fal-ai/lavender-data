@@ -11,7 +11,7 @@ from ...types import Response
 
 def _get_kwargs(
     iteration_id: str,
-    index: str,
+    index: int,
 ) -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -50,7 +50,7 @@ def _build_response(
 
 def sync_detailed(
     iteration_id: str,
-    index: str,
+    index: int,
     *,
     client: AuthenticatedClient,
 ) -> Response[Union[Any, HTTPValidationError]]:
@@ -58,7 +58,7 @@ def sync_detailed(
 
     Args:
         iteration_id (str):
-        index (str):
+        index (int):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -82,7 +82,7 @@ def sync_detailed(
 
 def sync(
     iteration_id: str,
-    index: str,
+    index: int,
     *,
     client: AuthenticatedClient,
 ) -> Optional[Union[Any, HTTPValidationError]]:
@@ -90,7 +90,7 @@ def sync(
 
     Args:
         iteration_id (str):
-        index (str):
+        index (int):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -109,7 +109,7 @@ def sync(
 
 async def asyncio_detailed(
     iteration_id: str,
-    index: str,
+    index: int,
     *,
     client: AuthenticatedClient,
 ) -> Response[Union[Any, HTTPValidationError]]:
@@ -117,7 +117,7 @@ async def asyncio_detailed(
 
     Args:
         iteration_id (str):
-        index (str):
+        index (int):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -139,7 +139,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     iteration_id: str,
-    index: str,
+    index: int,
     *,
     client: AuthenticatedClient,
 ) -> Optional[Union[Any, HTTPValidationError]]:
@@ -147,7 +147,7 @@ async def asyncio(
 
     Args:
         iteration_id (str):
-        index (str):
+        index (int):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

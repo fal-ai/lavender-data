@@ -5,39 +5,39 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.create_shard_params import CreateShardParams
 from ...models.http_validation_error import HTTPValidationError
-from ...models.shard_public import ShardPublic
-from ...types import Response
+from ...models.submit_next_response import SubmitNextResponse
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
-    dataset_id: str,
-    shardset_id: str,
+    iteration_id: str,
     *,
-    body: CreateShardParams,
+    rank: Union[Unset, int] = 0,
+    no_cache: Union[Unset, bool] = False,
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
+    params: dict[str, Any] = {}
+
+    params["rank"] = rank
+
+    params["no_cache"] = no_cache
+
+    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": f"/datasets/{dataset_id}/shardsets/{shardset_id}/shards",
+        "url": f"/iterations/{iteration_id}/next",
+        "params": params,
     }
 
-    _body = body.to_dict()
-
-    _kwargs["json"] = _body
-    headers["Content-Type"] = "application/json"
-
-    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[HTTPValidationError, ShardPublic]]:
+) -> Optional[Union[HTTPValidationError, SubmitNextResponse]]:
     if response.status_code == 200:
-        response_200 = ShardPublic.from_dict(response.json())
+        response_200 = SubmitNextResponse.from_dict(response.json())
 
         return response_200
     if response.status_code == 422:
@@ -52,7 +52,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[HTTPValidationError, ShardPublic]]:
+) -> Response[Union[HTTPValidationError, SubmitNextResponse]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -62,31 +62,31 @@ def _build_response(
 
 
 def sync_detailed(
-    dataset_id: str,
-    shardset_id: str,
+    iteration_id: str,
     *,
     client: AuthenticatedClient,
-    body: CreateShardParams,
-) -> Response[Union[HTTPValidationError, ShardPublic]]:
-    """Create Shard
+    rank: Union[Unset, int] = 0,
+    no_cache: Union[Unset, bool] = False,
+) -> Response[Union[HTTPValidationError, SubmitNextResponse]]:
+    """Submit Next
 
     Args:
-        dataset_id (str):
-        shardset_id (str):
-        body (CreateShardParams):
+        iteration_id (str):
+        rank (Union[Unset, int]):  Default: 0.
+        no_cache (Union[Unset, bool]):  Default: False.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[HTTPValidationError, ShardPublic]]
+        Response[Union[HTTPValidationError, SubmitNextResponse]]
     """
 
     kwargs = _get_kwargs(
-        dataset_id=dataset_id,
-        shardset_id=shardset_id,
-        body=body,
+        iteration_id=iteration_id,
+        rank=rank,
+        no_cache=no_cache,
     )
 
     response = client.get_httpx_client().request(
@@ -97,61 +97,61 @@ def sync_detailed(
 
 
 def sync(
-    dataset_id: str,
-    shardset_id: str,
+    iteration_id: str,
     *,
     client: AuthenticatedClient,
-    body: CreateShardParams,
-) -> Optional[Union[HTTPValidationError, ShardPublic]]:
-    """Create Shard
+    rank: Union[Unset, int] = 0,
+    no_cache: Union[Unset, bool] = False,
+) -> Optional[Union[HTTPValidationError, SubmitNextResponse]]:
+    """Submit Next
 
     Args:
-        dataset_id (str):
-        shardset_id (str):
-        body (CreateShardParams):
+        iteration_id (str):
+        rank (Union[Unset, int]):  Default: 0.
+        no_cache (Union[Unset, bool]):  Default: False.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[HTTPValidationError, ShardPublic]
+        Union[HTTPValidationError, SubmitNextResponse]
     """
 
     return sync_detailed(
-        dataset_id=dataset_id,
-        shardset_id=shardset_id,
+        iteration_id=iteration_id,
         client=client,
-        body=body,
+        rank=rank,
+        no_cache=no_cache,
     ).parsed
 
 
 async def asyncio_detailed(
-    dataset_id: str,
-    shardset_id: str,
+    iteration_id: str,
     *,
     client: AuthenticatedClient,
-    body: CreateShardParams,
-) -> Response[Union[HTTPValidationError, ShardPublic]]:
-    """Create Shard
+    rank: Union[Unset, int] = 0,
+    no_cache: Union[Unset, bool] = False,
+) -> Response[Union[HTTPValidationError, SubmitNextResponse]]:
+    """Submit Next
 
     Args:
-        dataset_id (str):
-        shardset_id (str):
-        body (CreateShardParams):
+        iteration_id (str):
+        rank (Union[Unset, int]):  Default: 0.
+        no_cache (Union[Unset, bool]):  Default: False.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[HTTPValidationError, ShardPublic]]
+        Response[Union[HTTPValidationError, SubmitNextResponse]]
     """
 
     kwargs = _get_kwargs(
-        dataset_id=dataset_id,
-        shardset_id=shardset_id,
-        body=body,
+        iteration_id=iteration_id,
+        rank=rank,
+        no_cache=no_cache,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -160,32 +160,32 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    dataset_id: str,
-    shardset_id: str,
+    iteration_id: str,
     *,
     client: AuthenticatedClient,
-    body: CreateShardParams,
-) -> Optional[Union[HTTPValidationError, ShardPublic]]:
-    """Create Shard
+    rank: Union[Unset, int] = 0,
+    no_cache: Union[Unset, bool] = False,
+) -> Optional[Union[HTTPValidationError, SubmitNextResponse]]:
+    """Submit Next
 
     Args:
-        dataset_id (str):
-        shardset_id (str):
-        body (CreateShardParams):
+        iteration_id (str):
+        rank (Union[Unset, int]):  Default: 0.
+        no_cache (Union[Unset, bool]):  Default: False.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[HTTPValidationError, ShardPublic]
+        Union[HTTPValidationError, SubmitNextResponse]
     """
 
     return (
         await asyncio_detailed(
-            dataset_id=dataset_id,
-            shardset_id=shardset_id,
+            iteration_id=iteration_id,
             client=client,
-            body=body,
+            rank=rank,
+            no_cache=no_cache,
         )
     ).parsed

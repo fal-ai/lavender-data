@@ -1,8 +1,9 @@
 import os
+import json
 from typing import Optional, Any
 
-from fastapi import HTTPException, APIRouter, BackgroundTasks
-from sqlmodel import select, update, insert
+from fastapi import HTTPException, APIRouter, BackgroundTasks, Depends
+from sqlmodel import select
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 
@@ -11,7 +12,6 @@ from lavender_data.server.db import DbSession
 from lavender_data.server.db.models import (
     Dataset,
     Shardset,
-    Shard,
     DatasetColumn,
     DatasetPublic,
     ShardsetPublic,
@@ -19,9 +19,10 @@ from lavender_data.server.db.models import (
     DatasetColumnPublic,
 )
 from lavender_data.server.cache import CacheClient
+from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.reader import (
     ReaderInstance,
-    GetSampleParams,
+    GlobalSampleIndex,
     ShardInfo,
     MainShardInfo,
 )
@@ -30,20 +31,15 @@ from lavender_data.server.services.shardsets import (
     sync_shardset_location,
     SyncShardsetStatus,
 )
-from lavender_data.server.settings import get_settings
-from lavender_data.server.auth import CurrentApiKey
+from lavender_data.server.auth import AppAuth
 from lavender_data.storage import list_files
 from lavender_data.shard import inspect_shard
 
 router = APIRouter(
     prefix="/datasets",
     tags=["datasets"],
-    dependencies=(
-        [CurrentApiKey] if not get_settings().lavender_data_disable_auth else []
-    ),
+    dependencies=[Depends(AppAuth(api_key_auth=True, cluster_auth=True))],
 )
-
-logger = get_logger(__name__)
 
 
 @router.get("/")
@@ -70,7 +66,7 @@ def get_dataset(dataset_id: str, session: DbSession) -> GetDatasetResponse:
 
 def read_dataset(
     dataset: Dataset, index: int, reader: ReaderInstance
-) -> GetSampleParams:
+) -> GlobalSampleIndex:
     main_shardset = get_main_shardset(dataset.shardsets)
     shard_index, sample_index = span(
         index,
@@ -80,6 +76,7 @@ def read_dataset(
         ],
     )
 
+    main_shard = None
     uid_column_type = None
     feature_shards = []
     for shardset in dataset.shardsets:
@@ -116,9 +113,12 @@ def read_dataset(
     if uid_column_type is None:
         raise HTTPException(status_code=400, detail="Dataset has no uid column")
 
+    if main_shard is None:
+        raise HTTPException(status_code=400, detail="Dataset has no shards")
+
     return reader.get_sample(
-        GetSampleParams(
-            index=0,
+        GlobalSampleIndex(
+            index=index,
             uid_column_name=dataset.uid_column_name,
             uid_column_type=uid_column_type,
             main_shard=main_shard,
@@ -177,7 +177,11 @@ class CreateDatasetParams(BaseModel):
 
 
 @router.post("/")
-def create_dataset(params: CreateDatasetParams, session: DbSession) -> DatasetPublic:
+def create_dataset(
+    params: CreateDatasetParams,
+    session: DbSession,
+    cluster: CurrentCluster,
+) -> DatasetPublic:
     dataset = Dataset(name=params.name, uid_column_name=params.uid_column_name)
     session.add(dataset)
     try:
@@ -186,6 +190,12 @@ def create_dataset(params: CreateDatasetParams, session: DbSession) -> DatasetPu
         if "unique constraint" in str(e) and "name" in str(e):
             raise HTTPException(status_code=409, detail="Dataset name must be unique")
         raise
+
+    session.refresh(dataset)
+
+    if cluster:
+        cluster.sync_changes([dataset])
+
     return dataset
 
 
@@ -233,7 +243,10 @@ def create_shardset(
     session: DbSession,
     cache: CacheClient,
     background_tasks: BackgroundTasks,
+    cluster: CurrentCluster,
 ) -> CreateShardsetResponse:
+    logger = get_logger(__name__)
+
     try:
         dataset = session.get_one(Dataset, dataset_id)
     except NoResultFound:
@@ -255,22 +268,20 @@ def create_shardset(
     except NoResultFound:
         uid_column = None
 
-    if len(params.columns) == 0:
-        try:
-            shard_basenames = sorted(list_files(params.location))
-        except Exception as e:
-            logger.exception(f"Failed to list shardset location: {e}")
-            raise HTTPException(
-                status_code=400, detail=f"Failed to list shardset location"
-            )
+    try:
+        shard_basenames = sorted(list_files(params.location, limit=1))
+    except Exception as e:
+        shard_basenames = []
+        logger.warning(f"Failed to list shardset location: {e}")
 
+    if len(params.columns) == 0:
         if len(shard_basenames) == 0:
             raise HTTPException(
                 status_code=400,
                 detail="No shards found in location. Please either specify columns or provide a valid location with at least one shard.",
             )
 
-        shard_basename = shard_basenames.pop(0)
+        shard_basename = shard_basenames[0]
         try:
             shard_info = inspect_shard(os.path.join(params.location, shard_basename))
         except Exception as e:
@@ -304,26 +315,34 @@ def create_shardset(
             raise HTTPException(status_code=409, detail="unique constraint failed")
         raise
 
+    for column in columns:
+        session.refresh(column)
     session.refresh(shardset)
 
-    cache.hset(
-        _sync_status_key(shardset.id),
-        mapping=SyncShardsetStatus(
-            status="pending",
-            done_count=0,
-            shard_count=0,
-        ).model_dump(),
-    )
-    background_tasks.add_task(
-        sync_shardset_location,
-        shardset_id=shardset.id,
-        shardset_location=shardset.location,
-        shardset_shard_samples=[s.samples for s in shardset.shards],
-        shardset_shard_locations=[s.location for s in shardset.shards],
-        num_workers=10,
-        overwrite=False,
-        cache_key=_sync_status_key(shardset.id),
-    )
+    if cluster:
+        cluster.sync_changes([shardset, *columns])
+
+    if len(shard_basenames) > 0:
+        cache.hset(
+            _sync_status_key(shardset.id),
+            mapping=SyncShardsetStatus(
+                status="pending",
+                done_count=0,
+                shard_count=0,
+                shards=[],
+            ).model_dump(),
+        )
+        background_tasks.add_task(
+            sync_shardset_location,
+            shardset_id=shardset.id,
+            shardset_location=shardset.location,
+            shardset_shard_samples=[s.samples for s in shardset.shards],
+            shardset_shard_locations=[s.location for s in shardset.shards],
+            dataset_id=dataset.id,
+            num_workers=10,
+            overwrite=False,
+            cache_key=_sync_status_key(shardset.id),
+        )
 
     return shardset
 
@@ -377,81 +396,6 @@ def get_shardset(
     return shardset
 
 
-@router.post("/{dataset_id}/shardsets/{shardset_id}/shards")
-def create_shard(
-    dataset_id: str,
-    shardset_id: str,
-    params: CreateShardParams,
-    session: DbSession,
-) -> ShardPublic:
-    try:
-        shardset = session.exec(
-            select(Shardset).where(
-                Shardset.id == shardset_id,
-                Shardset.dataset_id == dataset_id,
-            )
-        ).one()
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Shardset not found")
-
-    session.exec(
-        update(Shardset)
-        .where(Shardset.id == shardset.id)
-        .values(
-            total_samples=Shardset.total_samples + params.samples,
-            shard_count=Shardset.shard_count + 1,
-        )
-    )
-
-    updated = False
-    if params.overwrite:
-        result = session.exec(
-            update(Shard)
-            .where(
-                Shard.shardset_id == shardset.id,
-                Shard.index == params.index,
-            )
-            .values(
-                location=params.location,
-                filesize=params.filesize,
-                samples=params.samples,
-                format=params.format,
-            )
-        )
-        if result.rowcount > 0:
-            updated = True
-
-    if not updated:
-        try:
-            session.exec(
-                insert(Shard).values(
-                    shardset_id=shardset.id,
-                    location=params.location,
-                    filesize=params.filesize,
-                    samples=params.samples,
-                    format=params.format,
-                    index=params.index,
-                )
-            )
-        except IntegrityError as e:
-            if "unique_shardset_index" in str(e):
-                if not params.overwrite:
-                    raise HTTPException(
-                        status_code=409,
-                        detail=f"shard index {params.index} for shardset {shardset_id} already exists. Set overwrite=True to overwrite the shard.",
-                    )
-            raise
-
-    session.commit()
-
-    return session.exec(
-        select(Shard).where(
-            Shard.shardset_id == shardset.id,
-            Shard.index == params.index,
-        )
-    ).one()
-
-
 class SyncShardsetParams(BaseModel):
     overwrite: bool = False
 
@@ -491,6 +435,7 @@ def sync_shardset(
                 status="pending",
                 done_count=0,
                 shard_count=0,
+                shards=[],
             ).model_dump(),
         )
 
@@ -500,6 +445,7 @@ def sync_shardset(
         shardset_location=shardset.location,
         shardset_shard_samples=[s.samples for s in shardset.shards],
         shardset_shard_locations=[s.location for s in shardset.shards],
+        dataset_id=dataset_id,
         num_workers=10,
         overwrite=params.overwrite,
         cache_key=_sync_status_key(shardset.id),
@@ -514,11 +460,12 @@ def get_sync_status(
     cache: CacheClient,
 ) -> SyncShardsetStatus:
     cache_key = _sync_status_key(shardset_id)
-    status = cache.hgetall(cache_key)
-    if status is None or len(status) == 0:
+    raw_status = cache.hgetall(cache_key)
+    if raw_status is None or len(raw_status) == 0:
         raise HTTPException(status_code=404, detail="Sync status not found")
     return SyncShardsetStatus(
-        status=status[b"status"].decode("utf-8"),
-        done_count=int(status[b"done_count"]),
-        shard_count=int(status[b"shard_count"]),
+        status=raw_status[b"status"].decode("utf-8"),
+        done_count=int(raw_status[b"done_count"]),
+        shard_count=int(raw_status[b"shard_count"]),
+        shards=json.loads(raw_status[b"shards"].decode("utf-8")),
     )
