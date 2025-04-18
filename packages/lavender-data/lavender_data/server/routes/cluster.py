@@ -1,13 +1,14 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel
 
-from lavender_data.server.distributed import CurrentCluster, ClusterAuth
+from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.distributed.cluster import SyncParams, NodeStatus
+from lavender_data.server.auth import AppAuth
 
 router = APIRouter(
     prefix="/cluster",
     tags=["cluster"],
-    dependencies=[ClusterAuth],
+    dependencies=[Depends(AppAuth(cluster_auth=True))],
 )
 
 

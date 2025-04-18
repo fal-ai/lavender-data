@@ -1,48 +1,44 @@
-from typing import Optional
-from datetime import datetime
-
-from fastapi import Depends, HTTPException
-from sqlmodel import select, update
-
 from lavender_data.server.db import DbSession
-from lavender_data.server.db.models import ApiKey
 from lavender_data.server.settings import AppSettings
+from lavender_data.server.distributed import CurrentCluster
 
+from .api_key_auth import api_key_auth
+from .cluster_auth import cluster_auth
 from .header import AuthorizationHeader
 
 
-def get_current_api_key(
-    auth: AuthorizationHeader, session: DbSession, settings: AppSettings
-):
-    if settings.lavender_data_disable_auth:
-        return None
+class AppAuth:
+    """Merge auth methods with `or` operator.
 
-    api_key_id = auth.username
-    api_key_secret = auth.password
+    api_key_auth: bool
+        If True, the api key auth will be applied.
+    cluster_auth: bool
+        If True, the cluster auth will be applied.
+    """
 
-    api_key = session.exec(
-        select(ApiKey).where(
-            ApiKey.id == api_key_id,
-            ApiKey.secret == api_key_secret,
-        )
-    ).one_or_none()
+    def __init__(self, api_key_auth: bool = False, cluster_auth: bool = False):
+        self.api_key_auth = api_key_auth
+        self.cluster_auth = cluster_auth
 
-    if api_key is None:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    def __call__(
+        self,
+        auth: AuthorizationHeader,
+        session: DbSession,
+        cluster: CurrentCluster,
+        settings: AppSettings,
+    ):
+        err = None
+        if self.api_key_auth:
+            try:
+                return api_key_auth(auth, session, settings)
+            except Exception as e:
+                err = e
 
-    if api_key.expires_at is not None and api_key.expires_at < datetime.now():
-        raise HTTPException(status_code=401, detail="API key expired")
+        if self.cluster_auth:
+            try:
+                return cluster_auth(auth, cluster, settings)
+            except Exception as e:
+                err = e
 
-    if api_key.locked:
-        raise HTTPException(status_code=401, detail="API key is locked")
-
-    session.exec(
-        update(ApiKey)
-        .where(ApiKey.id == api_key_id)
-        .values(last_accessed_at=datetime.now())
-    )
-
-    return api_key
-
-
-CurrentApiKey: Optional[ApiKey] = Depends(get_current_api_key)
+        if err is not None:
+            raise err

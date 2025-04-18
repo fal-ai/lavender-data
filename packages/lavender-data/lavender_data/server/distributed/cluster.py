@@ -1,6 +1,5 @@
 import time
 import threading
-import re
 import base64
 import hashlib
 import secrets
@@ -14,7 +13,6 @@ from sqlmodel import SQLModel, select, delete, insert, update
 
 from lavender_data.logging import get_logger
 from lavender_data.server.cache import CacheInterface, get_cache
-from lavender_data.server.auth.api_key import generate_api_key_secret
 from lavender_data.server.db import DbSession, get_session
 from lavender_data.server.db.models import (
     Dataset,
@@ -159,48 +157,10 @@ class Cluster:
         password = self._get_auth_password(username)
         return to_http_basic_auth(username, password)
 
-    @only_head
-    def _api_key_header(self) -> dict:
-        # to call api of other nodes.
-        # only allowed to the head node, to prevent the race condition.
-        if self.disable_auth:
-            return {}
-
-        session = self._db()
-
-        api_key = session.exec(
-            select(ApiKey).where(
-                ApiKey.locked == False, ApiKey.note == self.api_key_note
-            )
-        ).one_or_none()
-        if api_key is None:
-            session.exec(
-                insert(ApiKey).values(
-                    secret=generate_api_key_secret(),
-                    locked=False,
-                    note=self.api_key_note,
-                )
-            )
-            session.commit()
-            api_key = session.exec(
-                select(ApiKey).where(
-                    ApiKey.locked == False, ApiKey.note == self.api_key_note
-                )
-            ).one()
-            self.sync_changes([api_key])
-
-        session.close()
-
-        return to_http_basic_auth(api_key.id, api_key.secret)
-
-    def _post(
-        self, node_url: str, path: str, json: dict = {}, use_api_key: bool = False
-    ):
+    def _post(self, node_url: str, path: str, json: dict = {}):
         _path = path.lstrip("/")
         response = httpx.post(
-            f"{node_url}/{_path}",
-            json=json,
-            headers=self._auth_header() if not use_api_key else self._api_key_header(),
+            f"{node_url}/{_path}", json=json, headers=self._auth_header()
         )
         if response.status_code == 401:
             raise RuntimeError(
@@ -209,11 +169,11 @@ class Cluster:
         response.raise_for_status()
         return response.json()
 
-    def _get(self, node_url: str, path: str, use_api_key: bool = False) -> dict:
+    def _get(self, node_url: str, path: str) -> dict:
         _path = path.lstrip("/")
         response = httpx.get(
             f"{node_url}/{_path}",
-            headers=self._auth_header() if not use_api_key else self._api_key_header(),
+            headers=self._auth_header(),
         )
         if response.status_code == 401:
             raise RuntimeError(
@@ -223,16 +183,14 @@ class Cluster:
         return response.json()
 
     @only_head
-    def _broadcast_post(
-        self, path: str, json: dict, use_api_key: bool = False
-    ) -> list[tuple[str, Optional[dict]]]:
+    def broadcast_post(self, path: str, json: dict) -> list[tuple[str, Optional[dict]]]:
         node_urls = self._node_urls()
         if len(node_urls) == 0:
             return []
 
-        def _post(node_url: str, path: str, json: dict, use_api_key: bool):
+        def _post(node_url: str, path: str, json: dict):
             try:
-                return node_url, self._post(node_url, path, json, use_api_key)
+                return node_url, self._post(node_url, path, json)
             except Exception as e:
                 self.logger.error(f"Failed to post to {node_url}: {e}")
                 return node_url, None
@@ -245,7 +203,6 @@ class Cluster:
                     node_url=node_url,
                     path=path,
                     json=json,
-                    use_api_key=use_api_key,
                 )
                 for node_url in node_urls
             ]
@@ -254,16 +211,14 @@ class Cluster:
         return results
 
     @only_head
-    def _broadcast_get(
-        self, path: str, use_api_key: bool = False
-    ) -> list[tuple[str, Optional[dict]]]:
+    def broadcast_get(self, path: str) -> list[tuple[str, Optional[dict]]]:
         node_urls = self._node_urls()
         if len(node_urls) == 0:
             return []
 
-        def _get(node_url: str, path: str, use_api_key: bool):
+        def _get(node_url: str, path: str):
             try:
-                return node_url, self._get(node_url, path, use_api_key)
+                return node_url, self._get(node_url, path)
             except Exception as e:
                 self.logger.error(f"Failed to get from {node_url}: {e}")
                 return node_url, None
@@ -275,7 +230,6 @@ class Cluster:
                     _get,
                     node_url=node_url,
                     path=path,
-                    use_api_key=use_api_key,
                 )
                 for node_url in node_urls
             ]
@@ -436,7 +390,7 @@ class Cluster:
             "api_keys": self._dump_table(ApiKey),
         }
         if target_node_url is None:
-            self._broadcast_post("/cluster/sync", json)
+            self.broadcast_post("/cluster/sync", json)
         else:
             self._post(target_node_url, "/cluster/sync", json)
 
@@ -484,7 +438,7 @@ class Cluster:
         _delete = "true" if delete else "false"
         if target_node_url is None:
             if self.is_head:
-                self._broadcast_post(f"/cluster/sync-changes?delete={_delete}", json)
+                self.broadcast_post(f"/cluster/sync-changes?delete={_delete}", json)
             else:
                 self._post(
                     self.head_url, f"/cluster/sync-changes?delete={_delete}", json
@@ -536,27 +490,3 @@ class Cluster:
                 [row for _, rows in _get_table_and_rows(params) for row in rows],
                 delete,
             )
-
-    @only_head
-    def api_nodes_post(self, path: str, json: dict):
-        if not any(
-            [
-                True if re.match(allowed_path, path) else False
-                for allowed_path in allowed_api_paths
-            ]
-        ):
-            raise ValueError(f"Invalid path: {path}")
-
-        return self._broadcast_post(path, json, use_api_key=True)
-
-    @only_head
-    def api_nodes_get(self, path: str):
-        if not any(
-            [
-                True if re.match(allowed_path, path) else False
-                for allowed_path in allowed_api_paths
-            ]
-        ):
-            raise ValueError(f"Invalid path: {path}")
-
-        return self._broadcast_get(path, use_api_key=True)

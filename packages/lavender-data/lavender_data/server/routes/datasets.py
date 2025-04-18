@@ -2,8 +2,8 @@ import os
 import json
 from typing import Optional, Any
 
-from fastapi import HTTPException, APIRouter, BackgroundTasks
-from sqlmodel import select, update, insert
+from fastapi import HTTPException, APIRouter, BackgroundTasks, Depends
+from sqlmodel import select
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 
@@ -12,7 +12,6 @@ from lavender_data.server.db import DbSession
 from lavender_data.server.db.models import (
     Dataset,
     Shardset,
-    Shard,
     DatasetColumn,
     DatasetPublic,
     ShardsetPublic,
@@ -32,14 +31,14 @@ from lavender_data.server.services.shardsets import (
     sync_shardset_location,
     SyncShardsetStatus,
 )
-from lavender_data.server.auth import CurrentApiKey
+from lavender_data.server.auth import AppAuth
 from lavender_data.storage import list_files
 from lavender_data.shard import inspect_shard
 
 router = APIRouter(
     prefix="/datasets",
     tags=["datasets"],
-    dependencies=[CurrentApiKey],
+    dependencies=[Depends(AppAuth(api_key_auth=True))],
 )
 
 

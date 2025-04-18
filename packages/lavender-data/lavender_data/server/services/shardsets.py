@@ -4,7 +4,7 @@ from typing import Optional, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pydantic import BaseModel
 
-from sqlmodel import select, update, insert
+from sqlmodel import update, insert
 
 from lavender_data.logging import get_logger
 from lavender_data.storage import list_files
@@ -158,7 +158,7 @@ def sync_shardset_location(
         need_cluster_sync = cluster is not None and cluster.is_head
 
         if need_cluster_sync:
-            cluster.api_nodes_post(
+            cluster.broadcast_post(
                 f"/datasets/{dataset_id}/shardsets/{shardset_id}/sync",
                 {
                     "shardset_location": shardset_location,
@@ -177,7 +177,7 @@ def sync_shardset_location(
             not_yet_done = True
             while not_yet_done:
                 not_yet_done = False
-                for node_url, result in cluster.api_nodes_get(
+                for node_url, result in cluster.broadcast_get(
                     f"/datasets/{dataset_id}/shardsets/{shardset_id}/sync"
                 ):
                     if result is None:

@@ -1,6 +1,7 @@
 import time
 import random
 import string
+import secrets
 from typing import Optional, Any
 from typing_extensions import TypedDict
 from datetime import datetime
@@ -196,10 +197,14 @@ Auth
 """
 
 
+def generate_api_key_secret():
+    return secrets.token_urlsafe(32)
+
+
 class ApiKeyBase(SQLModel):
     id: str = Field(primary_key=True, default_factory=generate_uid("la"))
     note: Optional[str] = Field(nullable=True)
-    secret: str = Field()
+    secret: str = Field(default_factory=generate_api_key_secret)
     locked: bool = Field(default=False)
     created_at: datetime = CreatedAtField()
     expires_at: Optional[datetime] = DateTimeField(nullable=True)

@@ -1,7 +1,7 @@
 import random
 from typing import Optional
 
-from fastapi import HTTPException, APIRouter, Response, BackgroundTasks
+from fastapi import HTTPException, APIRouter, Response, BackgroundTasks, Depends
 
 from sqlmodel import select, col
 from sqlalchemy.exc import NoResultFound
@@ -39,12 +39,12 @@ from lavender_data.server.services.registries import (
     CollaterRegistry,
 )
 from lavender_data.server.settings import AppSettings
-from lavender_data.server.auth import CurrentApiKey
+from lavender_data.server.auth import AppAuth
 
 router = APIRouter(
     prefix="/iterations",
     tags=["iterations"],
-    dependencies=[CurrentApiKey],
+    dependencies=[Depends(AppAuth(api_key_auth=True))],
 )
 
 

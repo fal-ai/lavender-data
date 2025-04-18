@@ -1,9 +1,6 @@
 from typing import Annotated, Optional
 
-from fastapi import Depends, HTTPException
-
-from lavender_data.server.settings import AppSettings
-from lavender_data.server.auth.header import AuthorizationHeader
+from fastapi import Depends
 
 from .cluster import Cluster
 
@@ -38,21 +35,3 @@ def get_cluster() -> Optional[Cluster]:
 
 
 CurrentCluster = Annotated[Optional[Cluster], Depends(get_cluster)]
-
-
-def get_cluster_auth(
-    auth: AuthorizationHeader, cluster: CurrentCluster, settings: AppSettings
-):
-    if settings.lavender_data_disable_auth:
-        return None
-
-    salt = auth.username
-    hashed = auth.password
-
-    if not cluster.is_valid_auth(salt, hashed):
-        raise HTTPException(status_code=401, detail="API key is locked")
-
-    return None
-
-
-ClusterAuth: None = Depends(get_cluster_auth)
