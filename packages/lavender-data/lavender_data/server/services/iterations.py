@@ -358,18 +358,30 @@ class IterationState(IterationStateOps):
         self, shardset: Shardset, shuffle: bool, shuffle_seed: int
     ) -> None:
         shards = sorted(shardset.shards, key=lambda s: s.index)
-        if shuffle:
-            with np_seed(shuffle_seed):
-                np.random.shuffle(shards)
 
         last_end = 0
-        shard_samples = []
+        shard_sample_ranges = []
         for shard in shards:
-            shard_samples.extend([last_end, last_end + shard.samples - 1])
+            shard_sample_ranges.append(
+                {
+                    "shard": shard.index,
+                    "start": last_end,
+                    "end": last_end + shard.samples - 1,
+                }
+            )
             last_end += shard.samples
+
+        if shuffle:
+            with np_seed(shuffle_seed):
+                np.random.shuffle(shard_sample_ranges)
 
         with self.cache.pipeline() as pipe:
             pipe.set(self._key("main_shardset"), shardset.id)
+            shard_samples = []
+            for shard_sample_range in shard_sample_ranges:
+                shard_samples.extend(
+                    [shard_sample_range["start"], shard_sample_range["end"]]
+                )
             pipe.rpush(self._key("shard_samples"), *shard_samples)
             pipe.execute()
 

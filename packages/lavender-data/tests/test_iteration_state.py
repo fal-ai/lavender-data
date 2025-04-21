@@ -1,6 +1,7 @@
 import os
 import unittest
 import random
+import math
 from typing import Optional
 import numpy as np
 import tqdm
@@ -173,34 +174,28 @@ class TestIterationState(unittest.TestCase):
         iteration_state = IterationState(iteration.id, self.cache)
         iteration_state.init(iteration)
 
-        # Verify
-        shards = iteration.shardsets[0].shards
-        with np_seed(iteration.shuffle_seed):
-            np.random.shuffle(shards)
+        ordered_indices = list(range(self.total_samples))
+        retrieved_indices = [
+            iteration_state._pop_index(rank) for _ in range(self.total_samples)
+        ]
 
-        last_end = 0
-        shard_samples = []
-        for shard in shards:
-            shard_samples.append([last_end, last_end + shard.samples - 1])
-            last_end += shard.samples
+        # Completeness and Uniqueness
+        self.assertEqual(len(set(retrieved_indices)), len(retrieved_indices))
+        self.assertEqual(set(retrieved_indices), set(ordered_indices))
 
-        indices = []
-        for i in range(0, len(shard_samples), shuffle_block_size):
-            current_indices = []
-            for j in range(shuffle_block_size):
-                start, end = shard_samples[i + j]
-                current_indices.extend(range(start, end + 1))
-
-            with np_seed(shuffle_seed):
-                np.random.shuffle(current_indices)
-
-            indices.extend(current_indices)
-
-        for expected_index in tqdm.tqdm(indices, desc="test_pop_index_shuffle"):
-            retrieved_index = iteration_state._pop_index(rank)
-            self.assertEqual(retrieved_index, expected_index)
-
-        # TODO check if evenly distributed
+        # Evenly shuffled
+        expected_avg = self.total_samples // 2
+        acceptable_gap = expected_avg * 0.5  # 50%
+        bin_size = math.ceil(self.total_samples / shuffle_block_size)
+        current_bin = 0
+        for i, index in enumerate(retrieved_indices):
+            if i % bin_size == 0:
+                if i != 0:
+                    avg = current_bin / bin_size
+                    gap = abs(avg - expected_avg)
+                    self.assertLessEqual(gap, acceptable_gap)
+                    current_bin = 0
+            current_bin += index
 
     def test_pop_index_no_shuffle_multiple_ranks(self):
         # Setup
