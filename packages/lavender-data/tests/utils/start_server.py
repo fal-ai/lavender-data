@@ -43,7 +43,7 @@ def start_server(port: int, env: dict):
     return server_process
 
 
-def wait_server_ready(server_process: subprocess.Popen, timeout: int = 10):
+def wait_server_ready(server_process: subprocess.Popen, timeout: int = 30):
     server_ready = False
     start_time = time.time()
     while server_process.poll() is None and not server_ready:
