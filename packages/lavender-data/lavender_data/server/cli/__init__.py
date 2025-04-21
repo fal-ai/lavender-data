@@ -20,6 +20,7 @@ class ServerCLI:
         self.run_parser.add_argument("--workers", type=int, default=1)
         self.run_parser.add_argument("--disable-ui", action="store_true")
         self.run_parser.add_argument("--ui-port", type=int, default=3000)
+        self.run_parser.add_argument("--env-file", type=str, default=".env")
 
         # create-api-key
         self.create_api_key_parser = subparsers.add_parser("create-api-key")
@@ -49,6 +50,7 @@ class ServerCLI:
                 workers=args.workers,
                 disable_ui=args.disable_ui,
                 ui_port=args.ui_port,
+                env_file=args.env_file,
             )
 
         else:

@@ -16,17 +16,21 @@ from openapi_lavender_data_rest.api.datasets import (
     get_shardset_datasets_dataset_id_shardsets_shardset_id_get,
     create_dataset_datasets_post,
     create_shardset_datasets_dataset_id_shardsets_post,
-    create_shard_datasets_dataset_id_shardsets_shardset_id_shards_post,
+    sync_shardset_datasets_dataset_id_shardsets_shardset_id_sync_post,
 )
 from openapi_lavender_data_rest.api.iterations import (
     create_iteration_iterations_post,
     get_next_iterations_iteration_id_next_get,
-    get_next_async_result_iterations_iteration_id_next_cache_key_get,
+    submit_next_iterations_iteration_id_next_post,
+    get_submitted_result_iterations_iteration_id_next_cache_key_get,
     get_iteration_iterations_iteration_id_get,
     get_iterations_iterations_get,
     complete_index_iterations_iteration_id_complete_index_post,
     pushback_iterations_iteration_id_pushback_post,
     get_progress_iterations_iteration_id_progress_get,
+)
+from openapi_lavender_data_rest.api.cluster import (
+    get_nodes_cluster_nodes_get,
 )
 
 # models
@@ -35,11 +39,11 @@ from openapi_lavender_data_rest.models.create_dataset_params import CreateDatase
 from openapi_lavender_data_rest.models.create_shardset_params import (
     CreateShardsetParams,
 )
+from openapi_lavender_data_rest.models.sync_shardset_params import SyncShardsetParams
 from openapi_lavender_data_rest.models.dataset_column_options import (
     DatasetColumnOptions,
 )
 from openapi_lavender_data_rest.models.get_dataset_response import GetDatasetResponse
-from openapi_lavender_data_rest.models.create_shard_params import CreateShardParams
 from openapi_lavender_data_rest.models.create_iteration_params import (
     CreateIterationParams,
 )
@@ -71,7 +75,7 @@ class LavenderDataClient:
         api_url: str = "http://localhost:8000",
         api_key: Optional[str] = None,
     ):
-        self.url = api_url
+        self.api_url = api_url
         self.api_key = api_key or os.getenv("LAVENDER_DATA_API_KEY")
 
         try:
@@ -84,10 +88,10 @@ class LavenderDataClient:
     @contextmanager
     def _get_client(self):
         if self.api_key is None:
-            _client = Client(base_url=self.url)
+            _client = Client(base_url=self.api_url)
         else:
             _client = AuthenticatedClient(
-                base_url=self.url,
+                base_url=self.api_url,
                 token=base64.b64encode(self.api_key.encode()).decode(),
                 prefix="Basic",
             )
@@ -169,7 +173,7 @@ class LavenderDataClient:
         return self._check_response(response)
 
     def create_shardset(
-        self, dataset_id: str, location: str, columns: list[DatasetColumnOptions]
+        self, dataset_id: str, location: str, columns: list[DatasetColumnOptions] = []
     ):
         with self._get_client() as client:
             response = create_shardset_datasets_dataset_id_shardsets_post.sync_detailed(
@@ -179,28 +183,13 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
-    def create_shard(
-        self,
-        dataset_id: str,
-        shardset_id: str,
-        location: str,
-        filesize: int,
-        samples: int,
-        format: str,
-        index: int,
-        overwrite: bool = False,
-    ):
+    def sync_shardset(self, dataset_id: str, shardset_id: str, overwrite: bool = False):
         with self._get_client() as client:
-            response = create_shard_datasets_dataset_id_shardsets_shardset_id_shards_post.sync_detailed(
+            response = sync_shardset_datasets_dataset_id_shardsets_shardset_id_sync_post.sync_detailed(
                 client=client,
                 dataset_id=dataset_id,
                 shardset_id=shardset_id,
-                body=CreateShardParams(
-                    location=location,
-                    filesize=filesize,
-                    samples=samples,
-                    format_=format,
-                    index=index,
+                body=SyncShardsetParams(
                     overwrite=overwrite,
                 ),
             )
@@ -221,6 +210,7 @@ class LavenderDataClient:
         rank: int = 0,
         world_size: Optional[int] = None,
         wait_participant_threshold: Optional[float] = None,
+        cluster_sync: bool = False,
     ):
         with self._get_client() as client:
             response = create_iteration_iterations_post.sync_detailed(
@@ -239,6 +229,7 @@ class LavenderDataClient:
                     rank=rank,
                     world_size=world_size,
                     wait_participant_threshold=wait_participant_threshold,
+                    cluster_sync=cluster_sync,
                 ),
             )
         return self._check_response(response)
@@ -277,7 +268,6 @@ class LavenderDataClient:
         self,
         iteration_id: str,
         rank: int = 0,
-        async_mode: bool = False,
         no_cache: bool = False,
     ):
         with self._get_client() as client:
@@ -285,18 +275,29 @@ class LavenderDataClient:
                 client=client,
                 iteration_id=iteration_id,
                 rank=rank,
-                async_mode=async_mode,
                 no_cache=no_cache,
             )
         content = self._check_response(response).payload.read()
-        if async_mode:
-            return content.decode("utf-8")
-        else:
-            return deserialize_sample(content)
+        return deserialize_sample(content)
 
-    def get_next_item_async_result(self, iteration_id: str, cache_key: str):
+    def submit_next_item(
+        self,
+        iteration_id: str,
+        rank: int = 0,
+        no_cache: bool = False,
+    ):
         with self._get_client() as client:
-            response = get_next_async_result_iterations_iteration_id_next_cache_key_get.sync_detailed(
+            response = submit_next_iterations_iteration_id_next_post.sync_detailed(
+                client=client,
+                iteration_id=iteration_id,
+                rank=rank,
+                no_cache=no_cache,
+            )
+        return self._check_response(response)
+
+    def get_submitted_result(self, iteration_id: str, cache_key: str):
+        with self._get_client() as client:
+            response = get_submitted_result_iterations_iteration_id_next_cache_key_get.sync_detailed(
                 client=client,
                 iteration_id=iteration_id,
                 cache_key=cache_key,
@@ -331,6 +332,13 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
+    def get_node_statuses(self):
+        with self._get_client() as client:
+            response = get_nodes_cluster_nodes_get.sync_detailed(
+                client=client,
+            )
+        return self._check_response(response)
+
 
 _client_instance = None
 
@@ -339,9 +347,13 @@ _client_instance = None
 def ensure_client():
     global _client_instance
     if _client_instance is None:
-        raise ValueError(
-            "Lavender Data client is not initialized. Please call lavender_data.client.api.init() first."
-        )
+        try:
+            init(
+                api_url=os.getenv("LAVENDER_DATA_API_URL", "http://localhost:8000"),
+                api_key=os.getenv("LAVENDER_DATA_API_KEY", None),
+            )
+        except Exception as e:
+            raise e
     yield _client_instance
 
 
@@ -352,6 +364,15 @@ def init(api_url: str = "http://localhost:8000", api_key: Optional[str] = None):
     """
     global _client_instance
     _client_instance = LavenderDataClient(api_url=api_url, api_key=api_key)
+    return _client_instance
+
+
+def get_initialized_client():
+    global _client_instance
+    if _client_instance is None:
+        raise ValueError(
+            "Lavender Data client is not initialized. Please call lavender_data.client.api.init() first."
+        )
     return _client_instance
 
 
@@ -385,7 +406,7 @@ def get_shardset(dataset_id: str, shardset_id: str):
 
 @ensure_client()
 def create_shardset(
-    dataset_id: str, location: str, columns: list[DatasetColumnOptions]
+    dataset_id: str, location: str, columns: list[DatasetColumnOptions] = []
 ):
     return _client_instance.create_shardset(
         dataset_id=dataset_id, location=location, columns=columns
@@ -393,25 +414,9 @@ def create_shardset(
 
 
 @ensure_client()
-def create_shard(
-    dataset_id: str,
-    shardset_id: str,
-    location: str,
-    filesize: int,
-    samples: int,
-    format: str,
-    index: int,
-    overwrite: bool = False,
-):
-    return _client_instance.create_shard(
-        dataset_id=dataset_id,
-        shardset_id=shardset_id,
-        location=location,
-        filesize=filesize,
-        samples=samples,
-        format=format,
-        index=index,
-        overwrite=overwrite,
+def sync_shardset(dataset_id: str, shardset_id: str, overwrite: bool = False):
+    return _client_instance.sync_shardset(
+        dataset_id=dataset_id, shardset_id=shardset_id, overwrite=overwrite
     )
 
 
@@ -430,6 +435,7 @@ def create_iteration(
     rank: int = 0,
     world_size: Optional[int] = None,
     wait_participant_threshold: Optional[float] = None,
+    cluster_sync: bool = False,
 ):
     return _client_instance.create_iteration(
         dataset_id=dataset_id,
@@ -445,6 +451,7 @@ def create_iteration(
         rank=rank,
         world_size=world_size,
         wait_participant_threshold=wait_participant_threshold,
+        cluster_sync=cluster_sync,
     )
 
 
@@ -466,20 +473,29 @@ def get_iteration(iteration_id: str):
 def get_next_item(
     iteration_id: str,
     rank: int = 0,
-    async_mode: bool = False,
     no_cache: bool = False,
 ):
     return _client_instance.get_next_item(
         iteration_id=iteration_id,
         rank=rank,
-        async_mode=async_mode,
         no_cache=no_cache,
     )
 
 
 @ensure_client()
-def get_next_item_async_result(iteration_id: str, cache_key: str):
-    return _client_instance.get_next_item_async_result(
+def submit_next_item(
+    iteration_id: str,
+    rank: int = 0,
+    no_cache: bool = False,
+):
+    return _client_instance.submit_next_item(
+        iteration_id=iteration_id, rank=rank, no_cache=no_cache
+    )
+
+
+@ensure_client()
+def get_submitted_result(iteration_id: str, cache_key: str):
+    return _client_instance.get_submitted_result(
         iteration_id=iteration_id, cache_key=cache_key
     )
 
@@ -497,3 +513,8 @@ def pushback(iteration_id: str):
 @ensure_client()
 def get_progress(iteration_id: str):
     return _client_instance.get_progress(iteration_id=iteration_id)
+
+
+@ensure_client()
+def get_node_statuses():
+    return _client_instance.get_node_statuses()

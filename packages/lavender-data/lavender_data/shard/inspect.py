@@ -1,12 +1,12 @@
 import os
 import tempfile
 
-from typing import NamedTuple
+from pydantic import BaseModel
 
 from .readers import Reader
 
 
-class OrphanShardInfo(NamedTuple):
+class OrphanShardInfo(BaseModel):
     samples: int
     location: str
     format: str

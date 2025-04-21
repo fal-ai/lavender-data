@@ -32,6 +32,7 @@ class CreateIterationParams:
         rank (Union[None, Unset, int]):
         world_size (Union[None, Unset, int]):
         wait_participant_threshold (Union[None, Unset, float]):
+        cluster_sync (Union[None, Unset, bool]):
     """
 
     dataset_id: str
@@ -47,6 +48,7 @@ class CreateIterationParams:
     rank: Union[None, Unset, int] = UNSET
     world_size: Union[None, Unset, int] = UNSET
     wait_participant_threshold: Union[None, Unset, float] = UNSET
+    cluster_sync: Union[None, Unset, bool] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -150,6 +152,12 @@ class CreateIterationParams:
         else:
             wait_participant_threshold = self.wait_participant_threshold
 
+        cluster_sync: Union[None, Unset, bool]
+        if isinstance(self.cluster_sync, Unset):
+            cluster_sync = UNSET
+        else:
+            cluster_sync = self.cluster_sync
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -181,6 +189,8 @@ class CreateIterationParams:
             field_dict["world_size"] = world_size
         if wait_participant_threshold is not UNSET:
             field_dict["wait_participant_threshold"] = wait_participant_threshold
+        if cluster_sync is not UNSET:
+            field_dict["cluster_sync"] = cluster_sync
 
         return field_dict
 
@@ -356,6 +366,15 @@ class CreateIterationParams:
 
         wait_participant_threshold = _parse_wait_participant_threshold(d.pop("wait_participant_threshold", UNSET))
 
+        def _parse_cluster_sync(data: object) -> Union[None, Unset, bool]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(Union[None, Unset, bool], data)
+
+        cluster_sync = _parse_cluster_sync(d.pop("cluster_sync", UNSET))
+
         create_iteration_params = cls(
             dataset_id=dataset_id,
             shardsets=shardsets,
@@ -370,6 +389,7 @@ class CreateIterationParams:
             rank=rank,
             world_size=world_size,
             wait_participant_threshold=wait_participant_threshold,
+            cluster_sync=cluster_sync,
         )
 
         create_iteration_params.additional_properties = d

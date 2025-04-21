@@ -1,7 +1,7 @@
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
-
+from typing import Optional
 from lavender_data.logging import get_logger
 from lavender_data.storage.abc import Storage
 from lavender_data.storage.s3 import S3Storage
@@ -130,6 +130,7 @@ def upload_file(
             logger.warning(f"Failed to delete file {local_path} after upload: {e}")
 
 
-def list_files(remote_path: str) -> list[str]:
+def list_files(remote_path: str, limit: Optional[int] = None) -> list[str]:
+    # TODO timeout
     storage = Storage.get(remote_path)
-    return storage.list(remote_path)
+    return storage.list(remote_path, limit)

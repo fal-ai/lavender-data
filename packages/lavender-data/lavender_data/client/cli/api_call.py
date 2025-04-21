@@ -39,28 +39,12 @@ def create_shardset(api_url: str, api_key: str, dataset_id: str, location: str):
         return api.create_shardset(dataset_id=dataset_id, location=location, columns=[])
 
 
-def create_shard(
-    api_url: str,
-    api_key: str,
-    dataset_id: str,
-    shardset_id: str,
-    location: str,
-    filesize: int,
-    samples: int,
-    format: str,
-    index: int,
-    overwrite: bool,
+def sync_shardset(
+    api_url: str, api_key: str, dataset_id: str, shardset_id: str, overwrite: bool
 ):
     with init(api_url=api_url, api_key=api_key):
-        return api.create_shard(
-            dataset_id=dataset_id,
-            shardset_id=shardset_id,
-            location=location,
-            filesize=filesize,
-            samples=samples,
-            format=format,
-            index=index,
-            overwrite=overwrite,
+        return api.sync_shardset(
+            dataset_id=dataset_id, shardset_id=shardset_id, overwrite=overwrite
         )
 
 
@@ -79,25 +63,34 @@ def get_next_item(
     api_key: str,
     iteration_id: str,
     rank: int,
-    async_mode: bool,
     no_cache: bool,
 ):
     with init(api_url=api_url, api_key=api_key):
         return api.get_next_item(
             iteration_id=iteration_id,
             rank=rank,
-            async_mode=async_mode,
             no_cache=no_cache,
         )
 
 
-def get_next_item_async_result(
-    api_url: str, api_key: str, iteration_id: str, cache_key: str
+def submit_next_item(
+    api_url: str,
+    api_key: str,
+    iteration_id: str,
+    rank: int,
+    no_cache: bool,
 ):
     with init(api_url=api_url, api_key=api_key):
-        return api.get_next_item_async_result(
-            iteration_id=iteration_id, cache_key=cache_key
+        return api.submit_next_item(
+            iteration_id=iteration_id,
+            rank=rank,
+            no_cache=no_cache,
         )
+
+
+def get_submitted_result(api_url: str, api_key: str, iteration_id: str, cache_key: str):
+    with init(api_url=api_url, api_key=api_key):
+        return api.get_submitted_result(iteration_id=iteration_id, cache_key=cache_key)
 
 
 def get_progress(api_url: str, api_key: str, iteration_id: str):

@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import Depends
 from pydantic import BaseModel
@@ -21,7 +21,7 @@ class MainShardInfo(ShardInfo):
     sample_index: int
 
 
-class GetSampleParams(BaseModel):
+class GlobalSampleIndex(BaseModel):
     index: int
     uid_column_name: str
     uid_column_type: str
@@ -36,38 +36,52 @@ class ServerSideReader:
     def __init__(self, disk_cache_size: int):
         self.disk_cache_size = disk_cache_size
 
+        if not os.path.exists(self.dirname):
+            os.makedirs(self.dirname, exist_ok=True)
+        elif not os.path.isdir(self.dirname):
+            raise ValueError(f"Failed to create cache directory {self.dirname}")
+
     def _get_reader(self, shard: ShardInfo, uid_column_name: str, uid_column_type: str):
-        shardset_dirname = os.path.join(
-            self.dirname,
-            shard.shardset_id,
-        )
+        filepath = None
+        dirname = None
 
-        if not os.path.exists(shardset_dirname):
-            os.makedirs(shardset_dirname, exist_ok=True)
-        elif not os.path.isdir(shardset_dirname):
-            raise ValueError(f"Failed to create directory {shardset_dirname}")
-        elif len(os.listdir(shardset_dirname)) >= self.disk_cache_size:
-            oldest_file = min(os.listdir(shardset_dirname), key=os.path.getctime)
-            os.remove(os.path.join(shardset_dirname, oldest_file))
+        if shard.location.startswith("file://"):
+            # no need to copy/download
+            filepath = shard.location.replace("file://", "")
+        else:
+            # download
+            dirname = os.path.join(
+                self.dirname,
+                os.path.dirname(shard.location.replace("://", "/")),
+            )
 
-        dirname = os.path.join(
-            shardset_dirname,
-            os.path.dirname(shard.location.replace("://", "/")),
-        )
-
-        if not os.path.exists(dirname):
-            os.makedirs(dirname, exist_ok=True)
-        elif not os.path.isdir(dirname):
-            raise ValueError(f"Failed to create directory {dirname}")
+            if not os.path.exists(dirname):
+                os.makedirs(dirname, exist_ok=True)
+            elif not os.path.isdir(dirname):
+                raise ValueError(f"Failed to create directory {dirname}")
 
         return Reader.get(
             format=shard.format,
             location=shard.location,
             columns=shard.columns,
+            filepath=filepath,
             dirname=dirname,
             uid_column_name=uid_column_name,
             uid_column_type=uid_column_type,
         )
+
+    def _ensure_cache_size(self):
+        all_files = [
+            os.path.join(r, file)
+            for r, d, files in os.walk(self.dirname)
+            for file in files
+        ]
+        while (
+            sum([os.path.getsize(file) for file in all_files]) >= self.disk_cache_size
+        ):
+            oldest_file = min(all_files, key=os.path.getctime)
+            os.remove(oldest_file)
+            all_files.remove(oldest_file)
 
     def get_reader(self, shard: ShardInfo, uid_column_name: str, uid_column_type: str):
         cache_key = f"{shard.shardset_id}-{shard.index}"
@@ -75,30 +89,31 @@ class ServerSideReader:
             self.reader_cache[cache_key] = self._get_reader(
                 shard, uid_column_name, uid_column_type
             )
+            self._ensure_cache_size()
 
         return self.reader_cache[cache_key]
 
-    def get_sample(self, params: GetSampleParams):
+    def get_sample(self, index: GlobalSampleIndex):
         reader = self.get_reader(
-            params.main_shard, params.uid_column_name, params.uid_column_type
+            index.main_shard, index.uid_column_name, index.uid_column_type
         )
         try:
-            sample = reader.get_item_by_index(params.main_shard.sample_index)
+            sample = reader.get_item_by_index(index.main_shard.sample_index)
         except IndexError:
             raise IndexError(
-                f"Failed to read sample {params.main_shard.sample_index} from shard {params.main_shard.location} (shardset {params.main_shard.shardset_id}, {params.main_shard.samples} samples)"
+                f"Failed to read sample {index.main_shard.sample_index} from shard {index.main_shard.location} (shardset {index.main_shard.shardset_id}, {index.main_shard.samples} samples)"
             )
-        sample_uid = sample[params.uid_column_name]
+        sample_uid = sample[index.uid_column_name]
 
-        for feature_shard in params.feature_shards:
+        for feature_shard in index.feature_shards:
             reader = self.get_reader(
-                feature_shard, params.uid_column_name, params.uid_column_type
+                feature_shard, index.uid_column_name, index.uid_column_type
             )
             try:
                 columns = reader.get_item_by_uid(sample_uid)
             except KeyError:
                 raise KeyError(
-                    f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({params.main_shard.sample_index} of {params.main_shard.location}) '
+                    f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({index.main_shard.sample_index} of {index.main_shard.location}) '
                 )
             sample.update(columns)
 
@@ -108,9 +123,9 @@ class ServerSideReader:
 reader = None
 
 
-def setup_reader(disk_cache_size: Optional[int] = None):
+def setup_reader(disk_cache_size: int):
     global reader
-    reader = ServerSideReader(disk_cache_size=disk_cache_size or 100)
+    reader = ServerSideReader(disk_cache_size=disk_cache_size)
 
 
 def get_reader_instance():

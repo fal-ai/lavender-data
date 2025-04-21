@@ -1,0 +1,208 @@
+---
+title: Cluster
+description: Learn about how to distribute your Lavender Data server
+---
+
+import { randomBytes } from "crypto"
+import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+
+Lavender Data can be distributed to multiple servers to improve performance and scalability. This allows you to handle larger datasets and higher request loads by spreading the work across several machines.
+
+To enable the cluster mode, you need to set the following environment variables for each server instance (node).
+
+| Variable                       | Description                                             | Default                  |
+| ------------------------------ | ------------------------------------------------------- | ------------------------ |
+| `LAVENDER_DATA_CLUSTER_ENABLED`| Whether to enable the cluster mode.                     | `false`                  |
+| `LAVENDER_DATA_CLUSTER_SECRET` | The shared secret for the cluster.                      | `""`                     |
+| `LAVENDER_DATA_CLUSTER_HEAD_URL` | The URL of the head node (must be reachable by workers).| `""`                   |
+| `LAVENDER_DATA_CLUSTER_NODE_URL` | The URL of the current node (must be reachable by head).| `""`                   |
+
+`LAVENDER_DATA_CLUSTER_SECRET` is a random string (e.g. <code>{randomBytes(10).toString("hex")}</code>) used for authentication between nodes. **All nodes in the cluster must have the same secret.**
+
+`LAVENDER_DATA_CLUSTER_HEAD_URL` and `LAVENDER_DATA_CLUSTER_NODE_URL` must be accessible from all other nodes in the cluster. These URLs define the communication endpoints for the cluster coordination.
+
+## Example Configuration
+
+Let's go through an example of how to configure a cluster.
+
+### Env files
+
+In this example, we'll run a head node and a worker node on the same machine.
+The head node will be running on port 8000 and the worker node will be running on port 8001.
+Thus, `LAVENDER_DATA_CLUSTER_NODE_URL` is set to `http://127.0.0.1:8000` for the head node and `http://127.0.0.1:8001` for the worker node.
+
+`LAVENDER_DATA_DB_URL` and `LAVENDER_DATA_LOG_FILE` are also set to ensure the nodes can have their own independent database and log file.
+
+**`.env.head` (Head Node)**
+
+```dotenv
+LAVENDER_DATA_DB_URL=sqlite:///head.db
+LAVENDER_DATA_LOG_FILE=logs/head.log
+
+LAVENDER_DATA_CLUSTER_SECRET=your_shared_secret_here # Replace with a secure secret
+LAVENDER_DATA_CLUSTER_ENABLED=true
+LAVENDER_DATA_CLUSTER_HEAD_URL=http://127.0.0.1:8000 # URL of this head node
+LAVENDER_DATA_CLUSTER_NODE_URL=http://127.0.0.1:8000 # URL of this head node
+```
+
+**`.env.worker` (Worker Node)**
+
+```dotenv
+LAVENDER_DATA_DB_URL=sqlite:///worker.db
+LAVENDER_DATA_LOG_FILE=logs/worker.log
+
+LAVENDER_DATA_CLUSTER_SECRET=your_shared_secret_here
+LAVENDER_DATA_CLUSTER_ENABLED=true
+LAVENDER_DATA_CLUSTER_HEAD_URL=http://127.0.0.1:8000 # URL of the head node
+LAVENDER_DATA_CLUSTER_NODE_URL=http://127.0.0.1:8001 # URL of this worker node
+```
+
+### Running the Cluster
+
+Use `--env-file` option to specify the environment file for each node.
+
+```bash
+# Terminal 1: Start Head Node
+lavender-data server run --port 8000 --env-file .env.head
+
+# Terminal 2: Start Worker Node
+lavender-data server run --port 8001 --env-file .env.worker
+```
+
+### Head Node Startup Log
+
+When the head node starts successfully and workers connect, you'll see logs indicating registration.
+
+```
+INFO - uvicorn.error: Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO - uvicorn.access: 127.0.0.1:50356 - "GET /version HTTP/1.1" 200
+INFO - uvicorn.access: 127.0.0.1:50357 - "POST /cluster/register HTTP/1.1" 200
+INFO - uvicorn.access: 127.0.0.1:50358 - "POST /cluster/heartbeat HTTP/1.1" 200
+INFO - lavender_data.server.distributed.cluster: Node http://127.0.0.1:8001 registered <- worker node registered
+```
+
+### Worker Node Startup Log
+
+Worker nodes will wait for the head node to become available before completing startup. They log synchronization attempts.
+
+```
+INFO - lavender_data.server.distributed.cluster: Waiting for head node to be ready: http://127.0.0.1:8000 <- waiting for head node to be ready
+INFO - uvicorn.error: Application startup complete.
+INFO - uvicorn.error: Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO - uvicorn.access: 127.0.0.1:50359 - "GET /version HTTP/1.1" 200
+INFO - uvicorn.access: 127.0.0.1:50360 - "POST /cluster/sync HTTP/1.1" 200 <- worker node synced with head node
+```
+
+If a worker node cannot reach the head node specified in `LAVENDER_DATA_CLUSTER_HEAD_URL`, it will fail to start:
+
+```
+INFO - lavender_data.server.distributed.cluster: Waiting for head node to be ready: http://127.0.0.1:8000
+ERROR:    Traceback (most recent call last):
+    ...
+RuntimeError: Node http://127.0.0.1:8000 did not start in 10.0 seconds
+
+ERROR:    Application startup failed. Exiting.
+```
+
+
+## Data Synchronization
+
+When you create a dataset or add shardsets via any node, this information is synchronized across the cluster.
+
+### Shard Discovery
+
+Each node will inspect the shardset location and discover the shards in it
+when a shardset is created or being synced.
+
+```bash
+# You can trigger shardset sync with CLI.
+lavender-data client --api-url <any-node-url> \
+  shardsets sync --dataset-id <dataset-id> --shardset-id <shardset-id>
+```
+
+If you have different shards accessible in each node, 
+Each node will have the shards in its own.
+This usually happens when you have sharded files, 
+and each node has different files.
+
+Let's say you have shard files in two different nodes like this.
+
+<FileTree>
+- node_1: /path/to/the/shardset/
+  - shard.00.csv
+  - shard.01.csv
+  - shard.02.csv
+
+- node_2: /path/to/the/shardset/
+  - shard.03.csv
+  - shard.04.csv
+  - shard.05.csv
+</FileTree>
+
+Nodes will discover the shards like this.
+
+![local-disk](/cluster/local-disk.png)
+
+If the shards in shardset location are the same regardless of the node
+(e.g. the shards are stored in cloud storage like S3, nodes are using the shared fs, etc.),
+All nodes will use the same shards.
+
+![non-local-disk](/cluster/non-local-disk.png)
+
+
+## Client Interaction
+
+Clients can interact with the cluster by connecting to **any** node (head or worker) using its URL. The cluster handles the internal routing and coordination.
+
+```python
+if args.node == "head":
+    api_url = "http://localhost:8000" # Head node URL
+elif args.node == "worker":
+    api_url = "http://localhost:8001" # Worker node URL
+
+lavender.init(api_url=api_url)
+
+iteration = Iteration.from_dataset(
+    dataset_name="my-dataset",
+    api_url=api_url, # you can also specify the api_url directly here
+)
+```
+
+### `cluster_sync` Option
+
+The `cluster_sync` parameter in `Iteration.from_dataset` controls 
+how iteration state is managed across the cluster nodes.
+Iteration state includes the index of the sample that is being processed, 
+which rank the sample should be processed,
+and the shuffled order of the samples, etc.
+
+Default value is `True` if cluster is enabled, and `False` otherwise.
+
+```python
+iteration = Iteration.from_dataset(
+    dataset_name="my-dataset",
+    cluster_sync=True, # or False
+)
+```
+
+The behavior depends on whether the shard files are identical across all nodes or differ per node.
+Here's a breakdown of the different scenarios:
+
+| `cluster_sync` | Shard Files                                      | Processing Behavior                                                                        |
+| -------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `False`<br/>(default if cluster is not enabled)        | **Same** on all nodes<br/>(e.g., S3, shared FS)    | 😕 **Potentially inefficient**<br/> Each shard may be processed multiple times.    |
+| `False`<br/>(default if cluster is not enabled)        | **Different** on each node<br/>(e.g., local files) | ✅ **Recommended**<br/> Each shard processed exactly once per node.   |
+| `True` <br/>(default if cluster is enabled)        | **Same** on all nodes<br/>(e.g., S3, shared FS)    | ✅ **Recommended**<br/> Each shard processed exactly once cluster-wide. |
+| `True` <br/>(default if cluster is enabled)         | **Different** on each node<br/>(e.g., local files) | 🚨 **Potentially fails**<br/> Workers may try to access non-local files dictated by head. |
+
+**In summary:**
+
+- Use `cluster_sync=False` when each node has its own distinct set of data shards.
+- Use `cluster_sync=True` when all nodes share the exact same set of data shards (e.g., via S3 or a shared network filesystem) to ensure efficient, exactly-once processing across the cluster.
+
+<Aside type="caution" title="Potential Failure">
+Setting `cluster_sync=True` when nodes have different local shard files will lead to runtime errors as nodes attempt to access files dictated by the head node but not present locally.
+</Aside>
+
+If `cluster_sync=True`, the head node becomes responsible for iteration state management.
+Thus, to start iteration with `cluster_sync=True`, you must include the head node in the iteration.

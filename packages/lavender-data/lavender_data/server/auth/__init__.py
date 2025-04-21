@@ -1,51 +1,47 @@
-from typing import Annotated, Optional
-from datetime import datetime
-import secrets
-
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from sqlmodel import select, update
-
 from lavender_data.server.db import DbSession
-from lavender_data.server.db.models import ApiKey
+from lavender_data.server.settings import AppSettings
+from lavender_data.server.distributed import CurrentCluster
 
-http_basic = HTTPBasic()
-
-
-AuthorizationHeader = Annotated[HTTPBasicCredentials, Depends(http_basic)]
-
-
-def get_current_api_key(auth: AuthorizationHeader, session: DbSession):
-    api_key_id = auth.username
-    api_key_secret = auth.password
-
-    api_key = session.exec(
-        select(ApiKey).where(
-            ApiKey.id == api_key_id,
-            ApiKey.secret == api_key_secret,
-        )
-    ).one_or_none()
-
-    if api_key is None:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
-    if api_key.expires_at is not None and api_key.expires_at < datetime.now():
-        raise HTTPException(status_code=401, detail="API key expired")
-
-    if api_key.locked:
-        raise HTTPException(status_code=401, detail="API key is locked")
-
-    session.exec(
-        update(ApiKey)
-        .where(ApiKey.id == api_key_id)
-        .values(last_accessed_at=datetime.now())
-    )
-
-    return api_key
+from .api_key_auth import api_key_auth
+from .cluster_auth import cluster_auth
+from .header import AuthorizationHeader
 
 
-CurrentApiKey: ApiKey = Depends(get_current_api_key)
+class AppAuth:
+    """Merge auth methods with `or` operator.
 
+    api_key_auth: bool
+        If True, the api key auth will be applied.
+    cluster_auth: bool
+        If True, the cluster auth will be applied.
+    """
 
-def generate_api_key_secret():
-    return secrets.token_urlsafe(32)
+    def __init__(self, api_key_auth: bool = False, cluster_auth: bool = False):
+        self.api_key_auth = api_key_auth
+        self.cluster_auth = cluster_auth
+
+    def __call__(
+        self,
+        auth: AuthorizationHeader,
+        session: DbSession,
+        cluster: CurrentCluster,
+        settings: AppSettings,
+    ):
+        err = None
+        if self.api_key_auth:
+            try:
+                return api_key_auth(auth, session, settings)
+            except Exception as e:
+                err = e
+
+        if err is not None:
+            raise err
+
+        if self.cluster_auth:
+            try:
+                return cluster_auth(auth, cluster, settings)
+            except Exception as e:
+                err = e
+
+        if err is not None:
+            raise err

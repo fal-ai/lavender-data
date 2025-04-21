@@ -9,11 +9,12 @@ from .api_call import (
     create_dataset,
     get_shardset,
     create_shardset,
-    create_shard,
+    sync_shardset,
     get_iterations,
     get_iteration,
     get_next_item,
-    get_next_item_async_result,
+    submit_next_item,
+    get_submitted_result,
     complete_index,
     pushback,
     get_progress,
@@ -58,17 +59,10 @@ class ClientCLI:
         self.shardsets_create.add_argument("--dataset-id", type=str, required=True)
         self.shardsets_create.add_argument("--location", type=str, required=True)
 
-        self.shards_parser = subparsers.add_parser("shards")
-        self.shards_command_parser = self.shards_parser.add_subparsers(dest="command")
-        self.shards_create = self.shards_command_parser.add_parser("create")
-        self.shards_create.add_argument("--dataset-id", type=str, required=True)
-        self.shards_create.add_argument("--shardset-id", type=str, required=True)
-        self.shards_create.add_argument("--location", type=str, required=True)
-        self.shards_create.add_argument("--filesize", type=int, required=True)
-        self.shards_create.add_argument("--samples", type=int, required=True)
-        self.shards_create.add_argument("--format", type=str, required=True)
-        self.shards_create.add_argument("--index", type=int, required=True)
-        self.shards_create.add_argument("--overwrite", action="store_true")
+        self.shardsets_sync = self.shardsets_command_parser.add_parser("sync")
+        self.shardsets_sync.add_argument("--dataset-id", type=str, required=True)
+        self.shardsets_sync.add_argument("--shardset-id", type=str, required=True)
+        self.shardsets_sync.add_argument("--overwrite", action="store_true")
 
         self.iterations_parser = subparsers.add_parser("iterations")
         self.iterations_command_parser = self.iterations_parser.add_subparsers(
@@ -84,8 +78,14 @@ class ClientCLI:
         self.iterations_next = self.iterations_command_parser.add_parser("next")
         self.iterations_next.add_argument("id", type=str)
         self.iterations_next.add_argument("--rank", type=int, default=0)
-        self.iterations_next.add_argument("--async-mode", action="store_true")
         self.iterations_next.add_argument("--no-cache", action="store_true")
+
+        self.iterations_submit_next_item = self.iterations_command_parser.add_parser(
+            "async-next"
+        )
+        self.iterations_submit_next_item.add_argument("id", type=str)
+        self.iterations_submit_next_item.add_argument("--rank", type=int, default=0)
+        self.iterations_submit_next_item.add_argument("--no-cache", action="store_true")
 
         self.iterations_async_result = self.iterations_command_parser.add_parser(
             "async-result"
@@ -142,25 +142,16 @@ class ClientCLI:
                 result = create_shardset(
                     args.api_url, args.api_key, args.dataset_id, args.location
                 ).to_dict()
-            else:
-                self.shardsets_parser.print_help()
-                exit(1)
-        elif args.resource == "shards":
-            if args.command == "create":
-                result = create_shard(
+            elif args.command == "sync":
+                result = sync_shardset(
                     args.api_url,
                     args.api_key,
                     args.dataset_id,
                     args.shardset_id,
-                    args.location,
-                    args.filesize,
-                    args.samples,
-                    args.format,
-                    args.index,
                     args.overwrite,
                 ).to_dict()
             else:
-                self.shards_parser.print_help()
+                self.shardsets_parser.print_help()
                 exit(1)
         elif args.resource == "iterations":
             if args.command == "list":
@@ -174,15 +165,14 @@ class ClientCLI:
                 result = get_iteration(args.api_url, args.api_key, args.id).to_dict()
             elif args.command == "next":
                 result = get_next_item(
-                    args.api_url,
-                    args.api_key,
-                    args.id,
-                    args.rank,
-                    args.async_mode,
-                    args.no_cache,
+                    args.api_url, args.api_key, args.id, args.rank, args.no_cache
+                )
+            elif args.command == "async-next":
+                result = submit_next_item(
+                    args.api_url, args.api_key, args.id, args.rank, args.no_cache
                 )
             elif args.command == "async-result":
-                result = get_next_item_async_result(
+                result = get_submitted_result(
                     args.api_url, args.api_key, args.id, args.key
                 )
             elif args.command == "complete-index":

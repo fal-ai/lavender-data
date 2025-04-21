@@ -516,14 +516,13 @@ wheels = [
 
 [[package]]
 name = "lavender-data"
-version = "0.0.1"
+version = "0.0.6"
 source = { editable = "../../packages/lavender-data" }
 dependencies = [
     { name = "attrs" },
     { name = "fastapi", extra = ["standard"] },
     { name = "httpx" },
     { name = "numpy" },
-    { name = "openapi-lavender-data-rest" },
     { name = "psycopg2-binary" },
     { name = "pyarrow" },
     { name = "pydantic-settings" },
@@ -539,7 +538,6 @@ requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = "==0.115.6" },
     { name = "httpx", specifier = ">=0.20.0,<0.29.0" },
     { name = "numpy", specifier = "==2.1.2" },
-    { name = "openapi-lavender-data-rest", directory = "../../packages/lavender-data/openapi-lavender-data-rest" },
     { name = "psycopg2-binary", specifier = ">=2.9.10,<3.0.0" },
     { name = "pyarrow", specifier = "==19.0.1" },
     { name = "pydantic-settings", specifier = ">=2.8.1,<3.0.0" },
@@ -663,23 +661,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/7c/8e/fc1fdd83a55476765329ac2913321c4aed5b082a7915095628c4ca30ea72/numpy-2.1.2-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:13311c2db4c5f7609b462bc0f43d3c465424d25c626d95040f073e30f7570e35", size = 16021174 },
     { url = "https://files.pythonhosted.org/packages/2a/b6/a790742aa88067adb4bd6c89a946778c1417d4deaeafce3ca928f26d4c52/numpy-2.1.2-cp313-cp313t-musllinux_1_1_x86_64.whl", hash = "sha256:2abbf905a0b568706391ec6fa15161fad0fb5d8b68d73c461b3c1bab6064dd62", size = 16400117 },
     { url = "https://files.pythonhosted.org/packages/48/6f/129e3c17e3befe7fefdeaa6890f4c4df3f3cf0831aa053802c3862da67aa/numpy-2.1.2-cp313-cp313t-musllinux_1_2_aarch64.whl", hash = "sha256:ef444c57d664d35cac4e18c298c47d7b504c66b17c2ea91312e979fcfbdfb08a", size = 14066202 },
-]
-
-[[package]]
-name = "openapi-lavender-data-rest"
-version = "0.1.0"
-source = { directory = "../../packages/lavender-data/openapi-lavender-data-rest" }
-dependencies = [
-    { name = "attrs" },
-    { name = "httpx" },
-    { name = "python-dateutil" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "attrs", specifier = ">=22.2.0" },
-    { name = "httpx", specifier = ">=0.20.0,<0.29.0" },
-    { name = "python-dateutil", specifier = ">=2.8.0,<3.0.0" },
 ]
 
 [[package]]

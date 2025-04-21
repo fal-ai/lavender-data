@@ -1,8 +1,12 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+
+if TYPE_CHECKING:
+    from ..models.orphan_shard_info import OrphanShardInfo
+
 
 T = TypeVar("T", bound="SyncShardsetStatus")
 
@@ -14,11 +18,13 @@ class SyncShardsetStatus:
         status (str):
         done_count (int):
         shard_count (int):
+        shards (list['OrphanShardInfo']):
     """
 
     status: str
     done_count: int
     shard_count: int
+    shards: list["OrphanShardInfo"]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -28,6 +34,11 @@ class SyncShardsetStatus:
 
         shard_count = self.shard_count
 
+        shards = []
+        for shards_item_data in self.shards:
+            shards_item = shards_item_data.to_dict()
+            shards.append(shards_item)
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -35,6 +46,7 @@ class SyncShardsetStatus:
                 "status": status,
                 "done_count": done_count,
                 "shard_count": shard_count,
+                "shards": shards,
             }
         )
 
@@ -42,6 +54,8 @@ class SyncShardsetStatus:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.orphan_shard_info import OrphanShardInfo
+
         d = dict(src_dict)
         status = d.pop("status")
 
@@ -49,10 +63,18 @@ class SyncShardsetStatus:
 
         shard_count = d.pop("shard_count")
 
+        shards = []
+        _shards = d.pop("shards")
+        for shards_item_data in _shards:
+            shards_item = OrphanShardInfo.from_dict(shards_item_data)
+
+            shards.append(shards_item)
+
         sync_shardset_status = cls(
             status=status,
             done_count=done_count,
             shard_count=shard_count,
+            shards=shards,
         )
 
         sync_shardset_status.additional_properties = d
