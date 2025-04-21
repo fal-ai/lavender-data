@@ -303,7 +303,7 @@ class LavenderDataClient:
                 cache_key=cache_key,
             )
         if response.status_code == 202:
-            raise LavenderDataApiError("Content is still being processed")
+            raise LavenderDataApiError(response.content.decode("utf-8"))
         content = self._check_response(response).payload.read()
         return deserialize_sample(content)
 
