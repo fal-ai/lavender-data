@@ -6,7 +6,21 @@ formatter = logging.Formatter("[%(asctime)s] %(levelname)s - %(name)s: %(message
 
 def get_handlers():
     sh = logging.StreamHandler()
-    sh.setLevel(logging.INFO)
+    # CRITICAL, ERROR, WARNING, INFO, DEBUG
+    configured_log_level = os.environ.get("LAVENDER_DATA_LOG_LEVEL", "INFO")
+    if configured_log_level == "CRITICAL":
+        sh_log_level = logging.CRITICAL
+    elif configured_log_level == "ERROR":
+        sh_log_level = logging.ERROR
+    elif configured_log_level == "WARNING":
+        sh_log_level = logging.WARNING
+    elif configured_log_level == "INFO":
+        sh_log_level = logging.INFO
+    elif configured_log_level == "DEBUG":
+        sh_log_level = logging.DEBUG
+    else:
+        raise ValueError(f"Invalid log level: {configured_log_level}")
+    sh.setLevel(sh_log_level)
     sh.setFormatter(formatter)
 
     fh = logging.FileHandler(
