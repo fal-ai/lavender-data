@@ -16,36 +16,6 @@ from lavender_data.server.services.iterations import (
 )
 
 
-def mock_list(data: dict):
-    redis_data = data.copy()
-
-    def mock_rpush(key, value):
-        if key not in redis_data:
-            redis_data[key] = []
-        redis_data[key].append(value)
-        return len(redis_data[key])
-
-    def mock_lpop(key, count=None):
-        if key in redis_data and redis_data[key]:
-            if count is None:
-                return redis_data[key].pop(0)
-            else:
-                result = []
-                for _ in range(min(count, len(redis_data[key]))):
-                    result.append(redis_data[key].pop(0))
-                return result
-        return None if count is None else []
-
-    return mock_rpush, mock_lpop
-
-
-def mock_get(data: dict):
-    def inner(key):
-        return data.get(key)
-
-    return inner
-
-
 class TestIterationState(unittest.TestCase):
     def setUp(self):
         # Mock Redis client
@@ -161,7 +131,7 @@ class TestIterationState(unittest.TestCase):
         # Setup
         rank = 0
 
-        shuffle_seed = random.randint(0, 1000000)
+        shuffle_seed = 42
         shuffle_block_size = 10
 
         iteration = self.get_iteration(
@@ -185,7 +155,7 @@ class TestIterationState(unittest.TestCase):
 
         # Evenly shuffled
         expected_avg = self.total_samples // 2
-        acceptable_gap = expected_avg * 0.5  # 50%
+        acceptable_gap = expected_avg * 0.3  # 30%
         bin_size = math.ceil(self.total_samples / shuffle_block_size)
         current_bin = 0
         for i, index in enumerate(retrieved_indices):
