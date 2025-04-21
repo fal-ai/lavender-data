@@ -24,7 +24,10 @@ def get_handlers():
     sh.setFormatter(formatter)
 
     fh = logging.FileHandler(
-        filename=os.environ.get("LAVENDER_DATA_LOG_FILE", "lavender_data.log")
+        filename=os.environ.get(
+            "LAVENDER_DATA_LOG_FILE",
+            os.path.expanduser("~/.lavender-data/server.log"),
+        )
     )
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)

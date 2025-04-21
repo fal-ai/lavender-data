@@ -15,7 +15,7 @@ class ServerCLI:
 
         # create-api-key
         self.create_api_key_parser = subparsers.add_parser("create-api-key")
-        self.create_api_key_parser.add_argument("--note", type=str, required=True)
+        self.create_api_key_parser.add_argument("--note", type=str, default=None)
         self.create_api_key_parser.add_argument("--expires-at", type=str, default=None)
 
         # run

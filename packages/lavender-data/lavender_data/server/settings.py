@@ -11,13 +11,13 @@ class Settings(BaseSettings, extra="ignore"):
     lavender_data_host: str = "0.0.0.0"
     lavender_data_ui_port: int = 3000
     lavender_data_disable_ui: bool = False
+    lavender_data_disable_auth: bool = False
 
     lavender_data_modules_dir: str = ""
     lavender_data_db_url: str = ""
     lavender_data_redis_url: str = ""
     lavender_data_reader_disk_cache_size: int = 4 * 1024**3  # 4GB
     lavender_data_batch_cache_ttl: int = 5 * 60
-    lavender_data_disable_auth: bool = False
 
     lavender_data_cluster_enabled: bool = False
     lavender_data_cluster_secret: str = ""

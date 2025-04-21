@@ -10,8 +10,10 @@ from daemon.pidfile import PIDLockFile
 from .run import run
 
 PID_LOCK_FILE = "/tmp/lavender-data.pid"
-LOG_FILE = "/tmp/lavender-data.log"
-WORKING_DIRECTORY = "./"
+LOG_FILE = os.path.expanduser("~/.lavender-data/server.terminal.log")
+WORKING_DIRECTORY = os.path.expanduser("~/.lavender-data/")
+
+os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
 
 def _run(*args, **kwargs):
@@ -69,7 +71,7 @@ def start(*args, **kwargs):
                 pass
 
         if "Uvicorn running on" in line:
-            url = line.split("http://")[1].split("\n")[0]
+            url = line.split("http://")[1].split("\n")[0].split(" ")[0]
             break
 
     print(f"lavender-data is running on {url}")
@@ -96,6 +98,7 @@ def stop():
 
 def restart(*args, **kwargs):
     stop()
+    time.sleep(1)
     start(*args, **kwargs)
 
 
