@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from lavender_data.logging import get_logger
 
+from .ui import setup_ui
 from .db import setup_db, create_db_and_tables
 from .cache import setup_cache, register_worker, deregister_worker
 from .distributed import setup_cluster, cleanup_cluster
@@ -49,6 +50,18 @@ async def lifespan(app: FastAPI):
             disable_auth=settings.lavender_data_disable_auth,
         )
 
+    if settings.lavender_data_disable_ui:
+        logger.warning("UI is disabled")
+        ui = None
+    else:
+        try:
+            ui = setup_ui(
+                f"http://{settings.lavender_data_host}:{settings.lavender_data_port}",
+                settings.lavender_data_ui_port,
+            )
+        except Exception as e:
+            logger.warning(f"UI failed to start: {e}")
+
     if settings.lavender_data_disable_auth:
         logger.warning("Authentication is disabled")
 
@@ -58,6 +71,12 @@ async def lifespan(app: FastAPI):
 
     if settings.lavender_data_cluster_enabled:
         cleanup_cluster()
+
+    try:
+        if ui is not None:
+            ui.terminate()
+    except Exception as e:
+        pass
 
     deregister_worker()
 

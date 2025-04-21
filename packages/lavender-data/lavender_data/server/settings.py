@@ -7,6 +7,11 @@ from lavender_data.logging import get_logger
 
 
 class Settings(BaseSettings, extra="ignore"):
+    lavender_data_port: int = 8000
+    lavender_data_host: str = "0.0.0.0"
+    lavender_data_ui_port: int = 3000
+    lavender_data_disable_ui: bool = False
+
     lavender_data_modules_dir: str = ""
     lavender_data_db_url: str = ""
     lavender_data_redis_url: str = ""

@@ -31,11 +31,12 @@ def start_server(port: int, env: dict):
             "lavender-data",
             "server",
             "run",
-            "--disable-ui",
-            "--port",
-            str(port),
         ],
-        env=env,
+        env={
+            **env,
+            "LAVENDER_DATA_DISABLE_UI": "true",
+            "LAVENDER_DATA_PORT": str(port),
+        },
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
