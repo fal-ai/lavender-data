@@ -54,7 +54,6 @@ def _api(api_url: Optional[str] = None, api_key: Optional[str] = None):
 class LavenderDataLoader:
     def __init__(
         self,
-        iteration_id: Optional[str] = None,
         dataset_id: Optional[str] = None,
         dataset_name: Optional[str] = None,
         shardsets: Optional[list[str]] = None,
@@ -69,6 +68,7 @@ class LavenderDataLoader:
         rank: int = 0,
         world_size: Optional[int] = None,
         wait_participant_threshold: Optional[float] = None,
+        iteration_id: Optional[str] = None,
         cluster_sync: bool = False,
         no_cache: bool = False,
         api_url: Optional[str] = None,
@@ -76,9 +76,11 @@ class LavenderDataLoader:
     ):
         if iteration_id is None:
             if dataset_id is None:
+                if dataset_name is None:
+                    raise ValueError(
+                        "Either dataset_id or dataset_name must be provided"
+                    )
                 dataset_id = _api(api_url, api_key).get_dataset(name=dataset_name).id
-            else:
-                raise ValueError("Either dataset_id or dataset_name must be provided")
 
             iteration_response = _api(api_url, api_key).create_iteration(
                 dataset_id=dataset_id,

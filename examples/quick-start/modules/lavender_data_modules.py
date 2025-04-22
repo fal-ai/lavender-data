@@ -20,9 +20,6 @@ class PyListCollater(Collater, name="pylist"):
 
 class AppendNewColumn(Preprocessor, name="append_new_column"):
     def process(self, batch: dict) -> dict:
-        import time
-
-        time.sleep(2)
         batch["new_column"] = []
         for uid in batch["uid"]:
             batch["new_column"].append(f"{uid}_processed")

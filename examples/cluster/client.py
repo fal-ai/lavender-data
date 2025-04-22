@@ -3,7 +3,7 @@ import csv
 import time
 import random
 
-from lavender_data.client import api as lavender, Iteration
+import lavender_data.client as lavender
 
 
 def create_test_shards(dirname: str, shard_count: int, samples_per_shard: int):
@@ -39,19 +39,19 @@ if __name__ == "__main__":
         samples_per_shard=100,
     )
     shard_location = f"file://{dirname}"
-    lavender.create_shardset(
+    lavender.api.create_shardset(
         dataset_id=dataset.id,
         location=shard_location,
         columns=[
-            lavender.DatasetColumnOptions(
+            lavender.api.DatasetColumnOptions(
                 name="id",
                 type_="int",
             ),
-            lavender.DatasetColumnOptions(
+            lavender.api.DatasetColumnOptions(
                 name="image_url",
                 type_="string",
             ),
-            lavender.DatasetColumnOptions(
+            lavender.api.DatasetColumnOptions(
                 name="caption",
                 type_="string",
             ),
@@ -59,17 +59,17 @@ if __name__ == "__main__":
     )
     print(f"Dataset created: {dataset_name}")
 
-    iterations = [
-        Iteration.from_dataset(
-            dataset_name=dataset_name,
+    dls = [
+        lavender.LavenderDataLoader(
+            dataset_id=dataset.id,
             cluster_sync=True,
             api_url=api_url,
         )
         for api_url in api_urls
     ]
 
-    for i in range(len(iterations[0])):
-        iteration = random.choice(iterations)
-        sample = next(iteration)
+    for i in range(len(dls[0])):
+        dl = random.choice(dls)
+        sample = next(dl)
 
-        print(f"Sample {i} from {iteration.api_url}: {sample}")
+        print(f"Sample {i} from {dl.api_url}: {sample}")
