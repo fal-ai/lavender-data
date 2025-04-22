@@ -50,29 +50,90 @@ export default defineConfig({
         },
       ],
       sidebar: [
-        { label: "Quickstart", slug: "quick-start" },
         {
-          label: "Guides",
+          label: "Quickstart",
+          slug: "quick-start",
+        },
+        {
+          label: "Dataset Guides",
           items: [
             {
-              label: "Dataset Structure",
-              slug: "guides/dataset-structure",
+              label: "Structure",
+              slug: "dataset/structure",
             },
             {
-              label: "Pipeline",
-              slug: "guides/pipeline",
+              label: "Shardsets",
+              slug: "dataset/shardsets",
             },
             {
-              label: "Iteration",
-              slug: "guides/iteration",
+              label: "Shardset Constraints",
+              slug: "dataset/shardset-constraints",
+            },
+          ],
+        },
+        {
+          label: "DataLoader Guides",
+          items: [
+            {
+              label: "Check Progress",
+              slug: "dataloader/progress",
+            },
+            {
+              label: "Batch",
+              slug: "dataloader/batch",
+            },
+            {
+              label: "Shuffle",
+              slug: "dataloader/shuffle",
             },
             {
               label: "Cache",
-              slug: "guides/cache",
+              slug: "dataloader/cache",
+            },
+            {
+              label: "Pipeline",
+              slug: "dataloader/pipeline",
+            },
+            {
+              label: "PyTorch Integration",
+              slug: "dataloader/pytorch-integration",
+            },
+            {
+              label: "Fault Tolerance",
+              slug: "dataloader/fault-tolerance",
+            },
+            {
+              label: "Resume",
+              slug: "dataloader/resume",
+            },
+            {
+              label: "Data Parallelism",
+              slug: "dataloader/data-parallelism",
+            },
+            {
+              label: "Cluster Sync",
+              slug: "dataloader/cluster-sync",
+            },
+          ],
+        },
+        {
+          label: "Server Guides",
+          items: [
+            {
+              label: "Configuration",
+              slug: "server/configuration",
+            },
+            {
+              label: "Pipeline",
+              slug: "server/pipeline",
             },
             {
               label: "Cluster",
-              slug: "guides/cluster",
+              slug: "server/cluster",
+            },
+            {
+              label: "Cache",
+              slug: "server/cache",
             },
           ],
         },

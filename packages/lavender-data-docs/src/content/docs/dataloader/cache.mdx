@@ -1,0 +1,19 @@
+---
+title: DataLoader - Cache
+description: Learn about DataLoader features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+---
+
+Lavender Data caches yielded samples/batches to avoid redundant processing.
+Please refer to the [Cache](/concepts/cache) page for more details.
+
+### Ignoring Cache
+
+You can ignore caches and reprocess the data by setting the `no_cache` parameter to `True` on creating the iteration instance.
+
+```python
+dataloader = LavenderDataLoader(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    no_cache=True,
+)
+```

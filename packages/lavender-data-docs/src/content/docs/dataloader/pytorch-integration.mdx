@@ -1,0 +1,38 @@
+---
+title: DataLoader - PyTorch Integration
+description: Learn about DataLoader features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+---
+
+
+Convert your iteration to a PyTorch DataLoader for seamless integration with PyTorch, 
+by calling the `.torch()` method.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `prefetch_factor` | Number of batches to prefetch. | `None` |
+| `pin_memory` | Pin memory for faster GPU transfer. | `False` |
+| `pin_memory_device` | Device to pin memory to. | `""` |
+| `in_order` | Whether to iterate in order. <br />If `False`, the order is not guaranteed but can be slightly faster. | `True` |
+| `poll_interval` | How often to check for new samples. <br />Smaller values can make the iteration faster<br />but can lead to more cpu usage on the server side. | `0.01` |
+
+
+```python
+dataloader = LavenderDataLoader(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    batch_size=10,
+    shuffle=True,
+).torch(
+    prefetch_factor=4,
+    pin_memory=True,
+    pin_memory_device="cuda:0",
+    in_order=True,
+)
+
+for batch in dataloader:
+    # Use in PyTorch training loop
+    outputs = model(batch)
+    loss = criterion(outputs, batch["labels"])
+    # ...
+```
+

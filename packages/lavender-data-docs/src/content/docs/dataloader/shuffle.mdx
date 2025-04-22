@@ -1,0 +1,48 @@
+---
+title: DataLoader - Shuffle
+description: Learn about DataLoader features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+---
+
+
+Shuffling is essential for many ML training scenarios.
+Lavender Data provides powerful options for shuffling your data across shards.
+
+### Basic Shuffling
+
+Set `shuffle=True` to shuffle the data.
+
+```python
+dataloader = LavenderDataLoader(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    shuffle=True,
+)
+```
+
+### Controlling Randomness
+
+To ensure reproducibility, you can set a seed for the shuffle.
+
+```python
+dataloader = LavenderDataLoader(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    shuffle=True,
+    shuffle_seed=42,  # Fixed seed for reproducibility
+)
+```
+
+### Block Size Control
+
+The `shuffle_block_size` parameter controls how many shards are shuffled at once.
+Larger values provide better randomness but use more memory:
+
+```python
+dataloader = LavenderDataLoader(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    shuffle=True,
+    shuffle_seed=42,
+    shuffle_block_size=3,  # Shuffle 3 shards at a time
+)
+```

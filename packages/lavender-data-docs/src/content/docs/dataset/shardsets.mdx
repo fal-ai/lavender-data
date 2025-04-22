@@ -1,0 +1,65 @@
+---
+title: Dataset - Shardsets
+description: Understanding the shardsets of Lavender Data
+---
+
+import { Aside, FileTree } from "@astrojs/starlight/components";
+
+
+A **Shardset** represents a collection of related columns (features) stored as **Shards** (files).
+
+
+### Directory Structure
+
+Each shardset can be considered as a directory containing multiple shard files.
+The directory should be flat, containing the shard files only.
+If the order matters, sort shards by the filename.
+
+<FileTree>
+- /shardset_1/
+  - shard.00000.csv
+  - shard.00001.csv
+  - ...
+- /shardset_2/
+  - shard.00000.csv
+  - shard.00001.csv
+  - ...
+</FileTree>
+
+
+
+### File Format
+
+Shard files should be in tabular formats.
+Currently, Lavender Data supports CSV and Parquet formats.
+
+Each shard file should have the same schema within the same shardset.
+
+```
+# /path/to/the/shardset/shard.00000.csv
+uid,image_url,caption
+0,https://example.com/image-00000.jpg,Caption for image 00000
+1,https://example.com/image-00001.jpg,Caption for image 00001
+2,https://example.com/image-00002.jpg,Caption for image 00002
+3,https://example.com/image-00003.jpg,Caption for image 00003
+4,https://example.com/image-00004.jpg,Caption for image 00004
+5,https://example.com/image-00005.jpg,Caption for image 00005
+6,https://example.com/image-00006.jpg,Caption for image 00006
+7,https://example.com/image-00007.jpg,Caption for image 00007
+8,https://example.com/image-00008.jpg,Caption for image 00008
+9,https://example.com/image-00009.jpg,Caption for image 00009
+```
+
+### Location
+
+The directory can be located on a file system or a cloud storage.
+The `location` field of the shardset is used to identify the location of a shardset.
+
+```python
+# file system
+shardset.location = "file:///path/to/the/shardset"
+
+# s3
+shardset.location = "s3://my-bucket/path/to/the/shardset"
+```
+

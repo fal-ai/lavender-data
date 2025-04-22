@@ -1,0 +1,68 @@
+---
+title: DataLoader - Resume
+description: Learn about DataLoader features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+
+One of Lavender Data's powerful features is the ability to pause and resume iterations.
+Here's how to resume an iteration.
+
+### Save the Iteration ID
+
+You need to save the iteration id to resume it later.
+
+```python
+dataloader = LavenderDataLoader(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+)
+print(dataloader.id)
+```
+
+### Put back the Samples In Progress
+
+Before resuming the iteration, you might want to put back
+the samples still in progress. For example, they can still in preprocessing,
+or they are prefetched but not used yet.
+You can put back them into the iteration queue by calling `pushback` method, 
+or through the web UI.
+
+<Tabs syncKey="ui-or-py">
+  <TabItem value="cli" label="CLI">
+
+```bash
+lavender-data client iterations pushback it-...
+```
+
+  </TabItem>
+  <TabItem value="python" label="Python">
+
+```python
+dataloader.pushback()
+# or
+lavender.pushback(dataloader.id)
+```
+
+  </TabItem>
+  <TabItem value="web-ui" label="Web UI">
+
+Click the "Pushback" button in the iteration detail page.
+
+![Pushback](/web-ui/web-ui-iteration-detail.png)
+
+  </TabItem>
+</Tabs>
+
+
+### Resume an Iteration
+
+Later, you can resume the iteration from where it left off:
+
+```python
+for batch in LavenderDataLoader(iteration_id="it-..."):
+    # Continue processing from where you left off
+    process_batch(batch)
+```
+

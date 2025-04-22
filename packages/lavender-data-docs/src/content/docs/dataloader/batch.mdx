@@ -1,0 +1,17 @@
+---
+title: DataLoader - Batch
+description: Learn about DataLoader features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+---
+
+The `batch_size` parameter controls the number of samples returned in each batch.
+
+```python
+dataloader = LavenderDataLoader(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    batch_size=10,
+)
+
+for batch in dataloader:
+    len(batch["uid"]) # 10
+```

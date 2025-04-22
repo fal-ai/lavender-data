@@ -1,0 +1,64 @@
+---
+title: DataLoader - Cluster Sync
+description: Learn about DataLoader features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+---
+
+import { randomBytes } from "crypto"
+import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+
+Lavender Data can be distributed to multiple servers to improve performance and scalability. This allows you to handle larger datasets and higher request loads by spreading the work across several machines.
+
+Clients can interact with the cluster by connecting to **any** node (head or worker) using its URL. The cluster handles the internal routing and coordination.
+
+```python
+if args.node == "head":
+    api_url = "http://localhost:8000" # Head node URL
+elif args.node == "worker":
+    api_url = "http://localhost:8001" # Worker node URL
+
+lavender.init(api_url=api_url)
+# or
+iteration = lavender.LavenderDataLoader(
+    dataset_name="my-dataset",
+    api_url=api_url, # you can also specify the api_url directly here
+)
+```
+
+### `cluster_sync` Option
+
+The `cluster_sync` parameter in `Iteration.from_dataset` controls 
+how iteration state is managed across the cluster nodes.
+Iteration state includes the index of the sample that is being processed, 
+which rank the sample should be processed,
+and the shuffled order of the samples, etc.
+
+Default value is `True` if cluster is enabled, and `False` otherwise.
+
+```python
+iteration = lavender.LavenderDataLoader(
+    dataset_name="my-dataset",
+    cluster_sync=True, # or False
+)
+```
+
+The behavior depends on whether the shard files are identical across all nodes or differ per node.
+Here's a breakdown of the different scenarios:
+
+| `cluster_sync` | Shard Files                                      | Processing Behavior                                                                        |
+| -------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `False`<br/>(default if cluster is not enabled)        | **Same** on all nodes<br/>(e.g., S3, shared FS)    | 😕 **Potentially inefficient**<br/> Each shard may be processed multiple times.    |
+| `False`<br/>(default if cluster is not enabled)        | **Different** on each node<br/>(e.g., local files) | ✅ **Recommended**<br/> Each shard processed exactly once per node.   |
+| `True` <br/>(default if cluster is enabled)        | **Same** on all nodes<br/>(e.g., S3, shared FS)    | ✅ **Recommended**<br/> Each shard processed exactly once cluster-wide. |
+| `True` <br/>(default if cluster is enabled)         | **Different** on each node<br/>(e.g., local files) | 🚨 **Potentially fails**<br/> Workers may try to access non-local files dictated by head. |
+
+**In summary:**
+
+- Use `cluster_sync=False` when each node has its own distinct set of data shards.
+- Use `cluster_sync=True` when all nodes share the exact same set of data shards (e.g., via S3 or a shared network filesystem) to ensure efficient, exactly-once processing across the cluster.
+
+<Aside type="caution" title="Potential Failure">
+Setting `cluster_sync=True` when nodes have different local shard files will lead to runtime errors as nodes attempt to access files dictated by the head node but not present locally.
+</Aside>
+
+If `cluster_sync=True`, the head node becomes responsible for iteration state management.
+Thus, to start iteration with `cluster_sync=True`, you must include the head node in the iteration.

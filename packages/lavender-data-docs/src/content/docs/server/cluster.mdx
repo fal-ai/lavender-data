@@ -1,5 +1,5 @@
 ---
-title: Cluster
+title: Server - Cluster
 description: Learn about how to distribute your Lavender Data server
 ---
 
@@ -114,8 +114,9 @@ When you create a dataset or add shardsets via any node, this information is syn
 Each node will inspect the shardset location and discover the shards in it
 when a shardset is created or being synced.
 
+Alternatively, you can also trigger shardset sync with CLI.
+
 ```bash
-# You can trigger shardset sync with CLI.
 lavender-data client --api-url <any-node-url> \
   shardsets sync --dataset-id <dataset-id> --shardset-id <shardset-id>
 ```
