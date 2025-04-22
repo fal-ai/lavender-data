@@ -17,7 +17,7 @@ def setup_cache(redis_url: Optional[str] = None):
     if redis_url:
         cache_client = RedisCache(redis_url)
     else:
-        get_logger(__name__).warning(
+        get_logger(__name__).debug(
             "LAVENDER_DATA_REDIS_URL is not set, using in memory cache"
         )
         cache_client = InMemoryCache()

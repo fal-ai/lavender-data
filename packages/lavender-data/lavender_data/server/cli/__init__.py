@@ -24,6 +24,7 @@ class ServerCLI:
 
         # daemon
         self.start_parser = subparsers.add_parser("start")
+        self.start_parser.add_argument("--init", action="store_true")
         self.start_parser.add_argument("--env-file", type=str, default=".env")
 
         self.stop_parser = subparsers.add_parser("stop")
@@ -54,7 +55,7 @@ class ServerCLI:
             run(env_file=args.env_file)
 
         elif args.command == "start":
-            start(env_file=args.env_file)
+            start(init=args.init, env_file=args.env_file)
 
         elif args.command == "stop":
             stop()

@@ -8,6 +8,8 @@ import daemon
 from daemon.pidfile import PIDLockFile
 
 from .run import run
+from .create_api_key import create_api_key
+from lavender_data.server.settings import get_settings
 
 PID_LOCK_FILE = "/tmp/lavender-data.pid"
 LOG_FILE = os.path.expanduser("~/.lavender-data/server.terminal.log")
@@ -42,7 +44,7 @@ def watch_log_file():
         pass
 
 
-def start(*args, **kwargs):
+def start(init: bool = False, *args, **kwargs):
     pid_lock_file = PIDLockFile(PID_LOCK_FILE)
     if pid_lock_file.is_locked():
         print("Server already running")
@@ -54,29 +56,29 @@ def start(*args, **kwargs):
     )
     f.flush()
 
+    settings = get_settings()
+
     process = Process(target=_run, args=args, kwargs=kwargs)
     process.start()
     atexit.register(lambda: process.terminate())
 
-    ui_url = None
     for line in watch_log_file():
         if not process.is_alive():
             print(f"Failed to start server (check {LOG_FILE} for more details)")
             exit(1)
 
-        if "lavender-data.server.ui" in line and "Network" in line:
-            try:
-                ui_url = line.split("http://")[1].split("\n")[0]
-            except Exception:
-                pass
-
-        if "Uvicorn running on" in line:
-            url = line.split("http://")[1].split("\n")[0].split(" ")[0]
+        if "Application startup complete" in line:
             break
 
-    print(f"lavender-data is running on {url}")
-    if ui_url is not None:
-        print(f"UI is running on {ui_url}")
+    print(
+        f"lavender-data is running on http://{settings.lavender_data_host}:{settings.lavender_data_port}"
+    )
+    if not settings.lavender_data_disable_ui:
+        print(f"UI is running on http://localhost:{settings.lavender_data_port}")
+
+    if init and not settings.lavender_data_disable_auth:
+        api_key = create_api_key()
+        print(f"API key created: {api_key.id}:{api_key.secret}")
 
     with daemon.DaemonContext(
         working_directory=WORKING_DIRECTORY,
