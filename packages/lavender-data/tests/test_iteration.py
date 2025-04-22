@@ -15,7 +15,7 @@ from lavender_data.client.api import (
     create_shardset,
     DatasetColumnOptions,
 )
-from lavender_data.client.iteration import Iteration
+from lavender_data.client import LavenderDataLoader
 
 from tests.utils.shards import create_test_shards
 from tests.utils.start_server import start_server, stop_server, wait_server_ready
@@ -94,7 +94,7 @@ class TestIteration(unittest.TestCase):
         read_samples = 0
         for i, sample in tqdm.tqdm(
             enumerate(
-                Iteration.from_dataset(
+                LavenderDataLoader(
                     dataset_id=self.dataset_id, shardsets=[self.shardset_id]
                 )
             ),
@@ -112,7 +112,7 @@ class TestIteration(unittest.TestCase):
         batch_size = 10
         for i, batch in tqdm.tqdm(
             enumerate(
-                Iteration.from_dataset(
+                LavenderDataLoader(
                     self.dataset_id,
                     shardsets=[self.shardset_id],
                     batch_size=batch_size,
@@ -132,13 +132,13 @@ class TestIteration(unittest.TestCase):
         self.assertEqual(read_samples, self.total_samples)
 
     def test_iteration_with_rank(self):
-        rank_1 = Iteration.from_dataset(
+        rank_1 = LavenderDataLoader(
             dataset_id=self.dataset_id,
             shardsets=[self.shardset_id],
             rank=1,
             world_size=2,
         )
-        rank_2 = Iteration.from_dataset(
+        rank_2 = LavenderDataLoader(
             dataset_id=self.dataset_id,
             shardsets=[self.shardset_id],
             rank=2,
@@ -180,7 +180,7 @@ class TestIteration(unittest.TestCase):
         read_samples = 0
         for i, sample in tqdm.tqdm(
             enumerate(
-                Iteration.from_dataset(
+                LavenderDataLoader(
                     self.dataset_id,
                     shardsets=[self.shardset_id],
                     filters=[("test_filter", {})],
@@ -196,7 +196,7 @@ class TestIteration(unittest.TestCase):
         read_samples = 0
         for i, sample in tqdm.tqdm(
             enumerate(
-                Iteration.from_dataset(
+                LavenderDataLoader(
                     self.dataset_id,
                     shardsets=[self.shardset_id],
                     preprocessors=[("test_preprocessor", {})],
@@ -208,13 +208,13 @@ class TestIteration(unittest.TestCase):
             read_samples += 1
         self.assertEqual(read_samples, self.total_samples)
 
-    def test_iteration_to_torch_dataloader(self):
+    def test_iteration_torch_dataloader(self):
         read_samples = 0
 
-        dataloader = Iteration.from_dataset(
+        dataloader = LavenderDataLoader(
             self.dataset_id,
             shardsets=[self.shardset_id],
-        ).to_torch_dataloader()
+        ).torch()
 
         for i, sample in enumerate(tqdm.tqdm(dataloader)):
             self.assertEqual(
@@ -224,14 +224,14 @@ class TestIteration(unittest.TestCase):
             read_samples += 1
         self.assertEqual(read_samples, self.total_samples)
 
-    def test_iteration_to_torch_dataloader_with_prefetch_factor(self):
+    def test_iteration_torch_dataloader_with_prefetch_factor(self):
         read_samples = 0
 
-        dataloader = Iteration.from_dataset(
+        dataloader = LavenderDataLoader(
             self.dataset_id,
             shardsets=[self.shardset_id],
             api_url=self.api_url,
-        ).to_torch_dataloader(
+        ).torch(
             prefetch_factor=4,
         )
 
