@@ -72,10 +72,10 @@ _T = TypeVar("T")
 class LavenderDataClient:
     def __init__(
         self,
-        api_url: str = "http://localhost:8000",
+        api_url: Optional[str] = None,
         api_key: Optional[str] = None,
     ):
-        self.api_url = api_url
+        self.api_url = api_url or os.getenv("LAVENDER_DATA_API_URL")
         self.api_key = api_key or os.getenv("LAVENDER_DATA_API_KEY")
 
         try:
@@ -367,7 +367,7 @@ def init(api_url: str = "http://localhost:8000", api_key: Optional[str] = None):
     return _client_instance
 
 
-def get_initialized_client():
+def get_client():
     global _client_instance
     if _client_instance is None:
         raise ValueError(

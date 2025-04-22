@@ -21,7 +21,7 @@ class Settings(BaseSettings, extra="ignore"):
 
     lavender_data_cluster_enabled: bool = False
     lavender_data_cluster_secret: str = ""
-    lavender_data_cluster_head_url: str = "http://127.0.0.1:8000"
+    lavender_data_cluster_head_url: str = ""
     lavender_data_cluster_node_url: str = ""
 
 
