@@ -69,6 +69,10 @@ export default defineConfig({
               label: "Shardset Constraints",
               slug: "dataset/shardset-constraints",
             },
+            {
+              label: "Migrate from Sources",
+              slug: "dataset/converter",
+            },
           ],
         },
         {
