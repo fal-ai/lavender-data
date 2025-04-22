@@ -196,9 +196,10 @@ def sync_shardset_location(
             shard_index = len(shardset_shard_samples)
             total_samples = sum(shardset_shard_samples)
 
+        current_shard_index = shard_index
         session = next(get_session())
-        for i, orphan_shard in enumerate(shard_infos):
-            current_shard_index = shard_index + i
+        for orphan_shard in shard_infos:
+            current_shard_index += 1
 
             # TODO upsert https://github.com/fastapi/sqlmodel/issues/59
             updated = False
@@ -240,7 +241,7 @@ def sync_shardset_location(
             update(Shardset)
             .where(Shardset.id == shardset_id)
             .values(
-                shard_count=shard_index,
+                shard_count=current_shard_index,
                 total_samples=total_samples,
             )
         )
