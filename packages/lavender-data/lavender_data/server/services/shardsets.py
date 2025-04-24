@@ -199,8 +199,6 @@ def sync_shardset_location(
         current_shard_index = shard_index
         session = next(get_session())
         for orphan_shard in shard_infos:
-            current_shard_index += 1
-
             # TODO upsert https://github.com/fastapi/sqlmodel/issues/59
             updated = False
             if overwrite:
@@ -232,6 +230,7 @@ def sync_shardset_location(
                     )
                 )
 
+            current_shard_index += 1
             total_samples += orphan_shard.samples
             logger.info(
                 f"Shard {current_shard_index+1}/{shard_index+len(shard_infos)} ({orphan_shard.location}) synced to {shardset_id}"
