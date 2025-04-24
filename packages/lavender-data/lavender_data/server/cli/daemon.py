@@ -56,8 +56,6 @@ def start(init: bool = False, *args, **kwargs):
     )
     f.flush()
 
-    settings = get_settings()
-
     process = Process(target=_run, args=args, kwargs=kwargs)
     process.start()
     atexit.register(lambda: process.terminate())
@@ -67,9 +65,12 @@ def start(init: bool = False, *args, **kwargs):
             print(f"Failed to start server (check {LOG_FILE} for more details)")
             exit(1)
 
+        # TODO do not depend on the log message (log_level matters)
+        # check if the server is ready by sending a request to the server
         if "Application startup complete" in line:
             break
 
+    settings = get_settings()
     print(
         f"lavender-data is running on http://{settings.lavender_data_host}:{settings.lavender_data_port}"
     )
