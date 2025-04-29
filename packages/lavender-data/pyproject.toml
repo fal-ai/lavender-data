@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lavender-data"
-version = "0.0.8a"
+version = "0.0.8"
 description = "Load & evolve datasets efficiently"
 authors = [
   "Hanch Han <cndghks15@gmail.com>"

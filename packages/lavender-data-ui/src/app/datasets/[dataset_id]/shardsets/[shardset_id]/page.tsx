@@ -11,6 +11,14 @@ import { ErrorCard } from '@/components/error-card';
 import Link from 'next/link';
 import { SyncShardsetButton } from './sync-shardset-button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 
 export default async function ShardsetDetailPage({
   params,
@@ -34,15 +42,38 @@ export default async function ShardsetDetailPage({
   const shardset = shardsetResponse.data;
 
   return (
-    <main className="container flex w-full flex-1 flex-col items-center justify-center space-y-8 py-10">
+    <main className="container flex w-full flex-1 flex-col items-center justify-center gap-8">
+      <Breadcrumb className="w-full pt-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Home</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/datasets">Datasets</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink href={`/datasets/${shardset.dataset_id}`}>
+              {shardset.dataset_id}
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink href={`/datasets/${shardset.dataset_id}`}>
+              Shardsets
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{shardset.id}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <div className="w-full flex flex-col gap-1">
         <div className="text-lg">{shardset.location}</div>
         <div className="text-xs text-muted-foreground">{shardset.id}</div>
-        <Link href={`/datasets/${shardset.dataset_id}`}>
-          <div className="text-xs text-muted-foreground">
-            dataset: {shardset.dataset_id}
-          </div>
-        </Link>
       </div>
 
       <div className="w-full flex flex-col gap-2">
@@ -67,8 +98,11 @@ export default async function ShardsetDetailPage({
               <TableBody>
                 {shardset.columns.map((column) => (
                   <TableRow key={column.id}>
-                    <TableCell>{column.name}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {column.name}
+                    </TableCell>
                     <TableCell>{column.type}</TableCell>
+                    <TableCell>{column.description}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

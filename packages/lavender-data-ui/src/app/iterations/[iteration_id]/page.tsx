@@ -19,6 +19,14 @@ import { ErrorCard } from '@/components/error-card';
 import { Button } from '@/components/ui/button';
 import { revalidatePath } from 'next/cache';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 
 async function pushbackInprogressIndices(formData: FormData) {
   'use server';
@@ -64,7 +72,23 @@ export default async function IterationDetailPage({
   const progress = progressResponse.data;
 
   return (
-    <main className="container flex w-full flex-1 flex-col items-center justify-center space-y-8 py-10">
+    <main className="container flex w-full flex-1 flex-col items-center justify-center gap-8">
+      <Breadcrumb className="w-full pt-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Home</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/iterations">Iterations</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{iteration.id}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <div className="w-full flex flex-col gap-1">
         <div className="text-lg">{iteration.id}</div>
         <div className="text-xs text-muted-foreground">
