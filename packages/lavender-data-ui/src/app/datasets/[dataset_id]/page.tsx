@@ -116,7 +116,9 @@ async function DatasetPreview({
                             <TooltipTrigger asChild>
                               <div>{ellipsizedValue}</div>
                             </TooltipTrigger>
-                            <TooltipContent>{sanitizedValue}</TooltipContent>
+                            <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
+                              {sanitizedValue}
+                            </TooltipContent>
                           </Tooltip>
                         ) : (
                           <div>{sanitizedValue}</div>
