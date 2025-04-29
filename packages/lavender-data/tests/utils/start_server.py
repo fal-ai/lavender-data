@@ -3,6 +3,7 @@ import select
 import subprocess
 import threading
 import time
+import httpx
 
 _threads = {}
 
@@ -31,11 +32,12 @@ def start_server(port: int, env: dict):
             "lavender-data",
             "server",
             "run",
-            "--disable-ui",
-            "--port",
-            str(port),
         ],
-        env=env,
+        env={
+            **env,
+            "LAVENDER_DATA_DISABLE_UI": "true",
+            "LAVENDER_DATA_PORT": str(port),
+        },
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -43,20 +45,27 @@ def start_server(port: int, env: dict):
     return server_process
 
 
-def wait_server_ready(server_process: subprocess.Popen, timeout: int = 30):
-    server_ready = False
+def port_open(port: int):
+    try:
+        httpx.get(f"http://localhost:{port}/version")
+        return True
+    except httpx.ConnectError:
+        return False
+
+
+def wait_server_ready(server_process: subprocess.Popen, port: int, timeout: int = 30):
     start_time = time.time()
-    while server_process.poll() is None and not server_ready:
-        read_fds, _, _ = select.select(
-            [server_process.stdout, server_process.stderr], [], [], 1
-        )
-        for fd in read_fds:
-            line = fd.readline().decode().strip()
-            if "Application startup complete." in line:
-                server_ready = True
+    while True:
+        if port_open(port):
+            break
+
+        if not server_process.poll() is None:
+            raise RuntimeError("Server process terminated.")
 
         if time.time() - start_time > timeout:
             raise TimeoutError("Server did not start in time.")
+
+        time.sleep(0.1)
 
     _threads[server_process] = threading.Thread(
         target=_flush_logs, args=(server_process,), daemon=True

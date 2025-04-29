@@ -1,22 +1,11 @@
 ---
-title: Dataset Structure
-description: Understanding the dataset structure of Lavender Data
+title: Dataset - Shardsets Constraints
+description: Understanding the constraints of shardsets in Lavender Data
 ---
+
 
 import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
 
-
-Lavender Data organizes your data in a hierarchical structure:
-
-![Dataset Layers](/dataset-layers.png)
-
-- **Dataset**: The top-level container for your data, identified by a unique name
-- **Shardset**: A collection of data shards within a dataset, typically representing a group of related columns
-- **Shard**: A single file that contains a subset of the data
-
-This layered approach allows for efficient data management and feature addition without duplicating the entire dataset.
-
-## Shardsets
 
 In Lavender Data, different features (columns) can be organized into separate shardsets. This provides several advantages:
 

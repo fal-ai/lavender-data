@@ -1,0 +1,92 @@
+---
+title: Dataset - Converters
+description: Understanding the converters of Lavender Data
+---
+
+import { Aside, FileTree } from "@astrojs/starlight/components";
+
+
+A **Converter** is a tool that converts data from a source to a Lavender Data shardset.
+
+
+```python
+import lavender_data.client as lavender
+
+# client initialization is required
+lavender.init()
+
+converter = lavender.Converter.get("plain")
+converter.to_shardset(
+    iterable,
+    "dataset_name",
+    location=f"file:///path/to/shardset",
+    uid_column_name="id",
+    samples_per_shard=1000, # optional, default is 1000
+    max_shard_count=None, # optional, default is None
+)
+```
+
+
+### Plain
+
+The `plain` converter is used to convert a generator/iterator of dictionaries to a Lavender Data shardset.
+
+
+```python
+import csv
+
+csv_reader = csv.DictReader(open("path/to/csv"))
+```
+
+```python
+converter = lavender.Converter.get("plain")
+converter.to_shardset(
+    csv_reader,
+    "dataset_name",
+    location=f"file:///path/to/shardset",
+    uid_column_name="id",
+)
+```
+
+### WebDataset
+
+The `webdataset` converter is used to convert WebDataset to a Lavender Data shardset.
+
+
+```python
+import webdataset as wds
+
+url = "https://storage.googleapis.com/webdataset/testdata/publaynet-train-{000000..000009}.tar"
+pil_dataset = wds.WebDataset(url).decode("pil")
+```
+
+```python
+converter = lavender.Converter.get("webdataset")
+converter.to_shardset(
+    pil_dataset,
+    "dataset_name",
+    location=f"file:///path/to/shardset",
+    uid_column_name="id",
+)
+```
+
+### Custom
+
+Or you can implement your own converter by inheriting the `Converter` class.
+
+```python
+import lavender_data.client as lavender
+
+class CustomConverter(lavender.Converter):
+    def transform(self, sample: dict) -> dict:
+        # Do something with the sample
+        return sample
+
+converter = CustomConverter()
+converter.to_shardset(
+    samples,
+    "dataset_name",
+    location=f"file:///path/to/shardset",
+    uid_column_name="id",
+)
+```

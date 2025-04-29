@@ -17,6 +17,7 @@ from openapi_lavender_data_rest.api.datasets import (
     create_dataset_datasets_post,
     create_shardset_datasets_dataset_id_shardsets_post,
     sync_shardset_datasets_dataset_id_shardsets_shardset_id_sync_post,
+    get_sync_status_datasets_dataset_id_shardsets_shardset_id_sync_get,
 )
 from openapi_lavender_data_rest.api.iterations import (
     create_iteration_iterations_post,
@@ -72,10 +73,10 @@ _T = TypeVar("T")
 class LavenderDataClient:
     def __init__(
         self,
-        api_url: str = "http://localhost:8000",
+        api_url: Optional[str] = None,
         api_key: Optional[str] = None,
     ):
-        self.api_url = api_url
+        self.api_url = api_url or os.getenv("LAVENDER_DATA_API_URL")
         self.api_key = api_key or os.getenv("LAVENDER_DATA_API_KEY")
 
         try:
@@ -195,6 +196,15 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
+    def get_sync_shardset_status(self, dataset_id: str, shardset_id: str):
+        with self._get_client() as client:
+            response = get_sync_status_datasets_dataset_id_shardsets_shardset_id_sync_get.sync_detailed(
+                client=client,
+                dataset_id=dataset_id,
+                shardset_id=shardset_id,
+            )
+        return self._check_response(response)
+
     def create_iteration(
         self,
         dataset_id: str,
@@ -303,7 +313,7 @@ class LavenderDataClient:
                 cache_key=cache_key,
             )
         if response.status_code == 202:
-            raise LavenderDataApiError("Content is still being processed")
+            raise LavenderDataApiError(response.content.decode("utf-8"))
         content = self._check_response(response).payload.read()
         return deserialize_sample(content)
 
@@ -367,7 +377,7 @@ def init(api_url: str = "http://localhost:8000", api_key: Optional[str] = None):
     return _client_instance
 
 
-def get_initialized_client():
+def get_client():
     global _client_instance
     if _client_instance is None:
         raise ValueError(
@@ -417,6 +427,13 @@ def create_shardset(
 def sync_shardset(dataset_id: str, shardset_id: str, overwrite: bool = False):
     return _client_instance.sync_shardset(
         dataset_id=dataset_id, shardset_id=shardset_id, overwrite=overwrite
+    )
+
+
+@ensure_client()
+def get_sync_shardset_status(dataset_id: str, shardset_id: str):
+    return _client_instance.get_sync_shardset_status(
+        dataset_id=dataset_id, shardset_id=shardset_id
     )
 
 

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Pagination } from '@/components/pagination';
 import { getClient } from '@/lib/api';
+import type { components } from '@/lib/api/v1';
 import { AddShardsetDialog } from './add-shardset-dialog';
 import { utcToLocal } from '@/lib/date';
 import { ErrorCard } from '@/components/error-card';
@@ -21,6 +22,14 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+  BreadcrumbPage,
+} from '@/components/ui/breadcrumb';
 
 function ShardSetInfo({ shardset }: { shardset: any }) {
   if (!shardset) {
@@ -28,15 +37,13 @@ function ShardSetInfo({ shardset }: { shardset: any }) {
   }
 
   return (
-    <div>
-      <Link href={`/datasets/${shardset.dataset_id}/shardsets/${shardset.id}`}>
-        <div>{shardset.id}</div>
-      </Link>
+    <Link href={`/datasets/${shardset.dataset_id}/shardsets/${shardset.id}`}>
+      <div className="font-mono text-xs">{shardset.id}</div>
       <div className="text-xs text-muted-foreground">{shardset.location}</div>
       <div className="text-xs text-muted-foreground">
         total {shardset.total_samples} samples, {shardset.shard_count} shards
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -116,7 +123,9 @@ async function DatasetPreview({
                             <TooltipTrigger asChild>
                               <div>{ellipsizedValue}</div>
                             </TooltipTrigger>
-                            <TooltipContent>{sanitizedValue}</TooltipContent>
+                            <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
+                              {sanitizedValue}
+                            </TooltipContent>
                           </Tooltip>
                         ) : (
                           <div>{sanitizedValue}</div>
@@ -176,8 +185,48 @@ export default async function DatasetDetailPage({
   const dataset = datasetResponse.data;
   const iterations = iterationsResponse.data;
 
+  const columnsWithRowSpan: (components['schemas']['DatasetColumnPublic'] & {
+    rowSpan: number;
+  })[] = dataset.columns
+    .filter((column) => column.name !== dataset.uid_column_name)
+    .map((column, index) => ({ ...column, rowSpan: 1 }))
+    .sort(
+      (a, b) =>
+        a.shardset_id.localeCompare(b.shardset_id) ||
+        a.name.localeCompare(b.name)
+    );
+
+  let lastShardsetRowIndex = 0;
+  columnsWithRowSpan.forEach((column, index) => {
+    if (
+      column.shardset_id !==
+      columnsWithRowSpan[lastShardsetRowIndex].shardset_id
+    ) {
+      lastShardsetRowIndex = index;
+    } else {
+      columnsWithRowSpan[index].rowSpan = 0;
+      columnsWithRowSpan[lastShardsetRowIndex].rowSpan++;
+    }
+  });
+
   return (
-    <main className="container flex w-full flex-1 flex-col items-center justify-center space-y-8 py-10">
+    <main className="container flex w-full flex-1 flex-col items-center justify-center gap-8">
+      <Breadcrumb className="w-full pt-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Home</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/datasets">Datasets</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{dataset.id}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <div className="w-full flex flex-col gap-1">
         <div className="text-lg">{dataset.name}</div>
         <div className="text-xs text-muted-foreground">{dataset.id}</div>
@@ -186,33 +235,31 @@ export default async function DatasetDetailPage({
       <DatasetPreview dataset_id={dataset_id} preview_page={preview_page} />
 
       <div className="w-full flex flex-col gap-2">
-        <div className="text-lg">Columns</div>
+        <div className="text-lg">Shardsets and Columns</div>
         <Card className="w-full">
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Shardset</TableHead>
                   <TableHead className="w-[100px]">Name</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Shardset</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell>{dataset.uid_column_name}</TableCell>
+                  <TableCell>-</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {dataset.uid_column_name}
+                  </TableCell>
                   <TableCell>-</TableCell>
                   <TableCell>Unique identifier for each sample</TableCell>
-                  <TableCell>-</TableCell>
                 </TableRow>
-                {dataset.columns
-                  .filter((column) => column.name !== dataset.uid_column_name)
-                  .map((column) => (
-                    <TableRow key={column.id}>
-                      <TableCell>{column.name}</TableCell>
-                      <TableCell>{column.type}</TableCell>
-                      <TableCell>{column.description}</TableCell>
-                      <TableCell>
+                {columnsWithRowSpan.map((column) => (
+                  <TableRow key={column.id}>
+                    {column.rowSpan > 0 && (
+                      <TableCell rowSpan={column.rowSpan}>
                         <ShardSetInfo
                           shardset={dataset.shardsets.find(
                             (shardset: any) =>
@@ -220,8 +267,14 @@ export default async function DatasetDetailPage({
                           )}
                         />
                       </TableCell>
-                    </TableRow>
-                  ))}
+                    )}
+                    <TableCell className="font-mono text-xs">
+                      {column.name}
+                    </TableCell>
+                    <TableCell>{column.type}</TableCell>
+                    <TableCell>{column.description}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </CardContent>

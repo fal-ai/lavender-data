@@ -4,7 +4,7 @@ import random
 import time
 import tqdm
 
-from lavender_data.client import api, Iteration
+from lavender_data.client import api, LavenderDataLoader
 
 from tests.utils.shards import create_test_shards
 from tests.utils.start_server import start_server, stop_server, wait_server_ready
@@ -49,9 +49,9 @@ class TestCluster(unittest.TestCase):
             )
         ]
 
-        wait_server_ready(self.head_server)
-        for node_server in self.node_servers:
-            wait_server_ready(node_server)
+        wait_server_ready(self.head_server, head_port)
+        for node_server, node_port in zip(self.node_servers, node_ports):
+            wait_server_ready(node_server, node_port)
 
     def tearDown(self):
         for node_server in self.node_servers:
@@ -112,7 +112,7 @@ class TestCluster(unittest.TestCase):
         time.sleep(1)
 
         iteration_from_nodes = [
-            Iteration.from_dataset(
+            LavenderDataLoader(
                 dataset_id=dataset_id,
                 shardsets=[shardset_id],
                 api_url=url,

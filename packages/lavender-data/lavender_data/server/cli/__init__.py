@@ -3,6 +3,7 @@ from typing import Optional
 
 from .run import run
 from .create_api_key import create_api_key
+from .daemon import start, stop, restart, logs
 
 
 class ServerCLI:
@@ -12,20 +13,28 @@ class ServerCLI:
         )
         subparsers = self.parser.add_subparsers(dest="command")
 
-        # run
-        self.run_parser = subparsers.add_parser("run")
-        self.run_parser.add_argument("--host", type=str, default="0.0.0.0")
-        self.run_parser.add_argument("--port", type=int, default=8000)
-        self.run_parser.add_argument("--reload", action="store_true")
-        self.run_parser.add_argument("--workers", type=int, default=1)
-        self.run_parser.add_argument("--disable-ui", action="store_true")
-        self.run_parser.add_argument("--ui-port", type=int, default=3000)
-        self.run_parser.add_argument("--env-file", type=str, default=".env")
-
         # create-api-key
         self.create_api_key_parser = subparsers.add_parser("create-api-key")
-        self.create_api_key_parser.add_argument("--note", type=str, required=True)
+        self.create_api_key_parser.add_argument("--note", type=str, default=None)
         self.create_api_key_parser.add_argument("--expires-at", type=str, default=None)
+
+        # run
+        self.run_parser = subparsers.add_parser("run")
+        self.run_parser.add_argument("--env-file", type=str, default=".env")
+
+        # daemon
+        self.start_parser = subparsers.add_parser("start")
+        self.start_parser.add_argument("--init", action="store_true")
+        self.start_parser.add_argument("--env-file", type=str, default=".env")
+
+        self.stop_parser = subparsers.add_parser("stop")
+
+        self.restart_parser = subparsers.add_parser("restart")
+        self.restart_parser.add_argument("--env-file", type=str, default=".env")
+
+        self.logs_parser = subparsers.add_parser("logs")
+        self.logs_parser.add_argument("-f", action="store_true")
+        self.logs_parser.add_argument("-n", type=int, default=10)
 
     def get_parser(self):
         return self.parser
@@ -43,15 +52,19 @@ class ServerCLI:
             exit(0)
 
         elif args.command == "run":
-            run(
-                host=args.host,
-                port=args.port,
-                reload=args.reload,
-                workers=args.workers,
-                disable_ui=args.disable_ui,
-                ui_port=args.ui_port,
-                env_file=args.env_file,
-            )
+            run(env_file=args.env_file)
+
+        elif args.command == "start":
+            start(init=args.init, env_file=args.env_file)
+
+        elif args.command == "stop":
+            stop()
+
+        elif args.command == "restart":
+            restart(env_file=args.env_file)
+
+        elif args.command == "logs":
+            logs(f_flag=args.f, n_lines=args.n)
 
         else:
             self.parser.print_help()

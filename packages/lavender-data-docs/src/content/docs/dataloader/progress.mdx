@@ -1,0 +1,75 @@
+---
+title: DataLoader - Progress
+description: Learn about DataLoader features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+---
+
+import { Tabs, TabItem, Aside, FileTree, Steps } from "@astrojs/starlight/components";
+
+You can check the progress of the data loader, including how many samples are processed and left.
+
+The progress object has the following fields:
+
+| Field | Description |
+|-------|-------------|
+| Total | The total number of samples to process in the iteration. |
+| Current | The latest index of the sample that is being processed. |
+| Inprogress | The samples that are being processed.<br/>Includes the index of the sample, the timestamp when it started,<br/>and the rank of the worker that is processing it. |
+| Completed | The number of samples that have been completed. |
+| Filtered | The number of samples that have been filtered out. |
+| Failed | The number of samples that have failed to process. |
+
+<Tabs syncKey="ui-or-py">
+  <TabItem value="cli" label="CLI">
+
+```bash
+# List all iterations for a dataset
+lavender-data client iterations list --dataset-id ds-...
+> {"dataset_id": "ds-...", "id": "it-...", ...}
+> ...
+
+# Get the progress of an iteration
+lavender-data client iterations get-progress it-...
+> {
+>   "total": 100,
+>   "current": 3,
+>   "inprogress": [
+>     {
+>       "index": 2,
+>       "rank": 0,
+>       "started_at": 1744688747.979773
+>     }
+>   ],
+>   "completed": 2,
+>   "filtered": 0,
+>   "failed": 0
+> }
+```
+
+  </TabItem>
+  <TabItem value="python" label="Python">
+
+```python
+# List all iterations for a dataset
+iterations = lavender.api.get_iterations(
+    dataset_id=dataset.id,
+)
+
+# Get the progress of an iteration
+progress = lavender.api.get_progress(
+    iteration_id=iterations[0].id,
+)
+```
+
+  </TabItem>
+  <TabItem value="web-ui" label="Web UI">
+
+Navigate to the [iterations page](http://localhost:3000/iterations) in your browser and click on the iteration id to see the iteration details.
+
+![Iterations](/web-ui/web-ui-iterations.png)
+
+![Iteration Detail](/web-ui/web-ui-iteration-detail.png)
+
+  </TabItem>
+</Tabs>
+
+

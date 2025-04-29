@@ -423,11 +423,13 @@ def sync_shardset(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Shardset not found")
 
-    if cache.exists(_sync_status_key(shardset_id)):
-        raise HTTPException(
-            status_code=400,
-            detail="Shardset is already being synced. Please wait for the sync to complete.",
-        )
+    existing = cache.hgetall(_sync_status_key(shardset_id))
+    if existing:
+        if existing[b"status"] != b"done":
+            raise HTTPException(
+                status_code=400,
+                detail="Shardset is already being synced. Please wait for the sync to complete.",
+            )
     else:
         cache.hset(
             _sync_status_key(shardset.id),

@@ -3,364 +3,168 @@ title: Quick Start
 description: Get started with Lavender Data in minutes
 ---
 
-import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+import { Tabs, TabItem, Aside, FileTree, Steps } from "@astrojs/starlight/components";
 
 
-This guide will walk you through the essential steps to set up the server, create your first dataset, write data to it, and iterate over it.
+This guide will walk you through the essential steps to set up the server, create your first dataset and iterate over it.
 
-## Installation
+<Steps>
+1. Install the `lavender-data`.
 
-Install the `lavender-data` Python package using pip:
+    ```bash
+    pip install lavender-data
+    ```
 
-```bash
-pip install lavender-data
-```
+2. Start the lavender-data server. [details](/server/configuration)
 
-This package contains both the server and the client libraries.
+    ```bash
+    lavender-data server start --init
+    > lavender-data is running on 0.0.0.0:8000
+    > UI is running on http://localhost:8000
+    > API key created: la-...
+    ```
 
-### Start the Server
+3. Create the dataset. [details](/dataset/structure)
 
-Now, start the Lavender Data server. The server handles data loading, preprocessing, and manages iterations.
-The api is available at `http://localhost:8000` and the web ui is available at `http://localhost:3000` by default.
+    <Tabs syncKey="ui-or-py">
+      <TabItem value="cli" label="CLI">
 
-```bash
-lavender-data server run
-```
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `--host` | The host address to bind the server to | `0.0.0.0` |
-| `--port` | The port number to listen on for API requests | `8000` |
-| `--ui-port` | The port number to listen on for Web UI requests | `3000` |
-| `--disable-ui` | Disable the Web UI | `False` |
-| `--env-file` | The path to the environment file | `None` |
+    ```bash
+    lavender-data client \
+      --api-url http://0.0.0.0:8000 --api-key la-... \
+      datasets create \
+      --name my_dataset \  # Identifier for the dataset
+      --uid-column-name uid  # Column name which can be used as a unique identifier for each row
+    > {
+    >   "id": "ds-...",
+    >   "name": "my_dataset",
+    >   "uid_column_name": "uid"
+    > }
+    ```
 
+      </TabItem>
+      <TabItem value="python" label="Python">
 
-### Create an API Key
 
-To interact with the server API (either through the Python client or the Web UI), you need an API key. Generate one using this command:
+    ```python
+    import lavender_data.client as lavender
 
-```bash
-lavender-data server create-api-key --note "My Test Key"
-> la-...
-```
+    lavender.init(api_url="http://0.0.0.0:8000", api_key="la-...")
 
-Copy the generated key (starting with `la-...`) as you'll need it to initialize the client.
+    dataset = lavender.api.create_dataset(name="my-dataset", uid_column_name="uid")
+    ```
 
+      </TabItem>
+      <TabItem value="web-ui" label="Web UI">
 
-### Disable Authentication
+    Navigate to the [datasets page](http://localhost:3000/datasets) in your browser and click on the "+ Dataset" button.
 
-To disable authentication, you can set the environment variable `LAVENDER_DATA_DISABLE_AUTH` to `true`.
+    ![Datasets Empty](/web-ui/web-ui-datasets-empty.png)
 
-```bash
-LAVENDER_DATA_DISABLE_AUTH=true lavender-data server run
-```
+    Enter the dataset name and the unique identifier column name.
 
-This is useful when you are running the server locally for development and want to skip creating an API key.
-However, you should not use this in a production environment.
+    ![Create a Dataset](/web-ui/web-ui-create-dataset.png)
 
+      </TabItem>
+    </Tabs>
 
-## Setup the Dataset
 
-Now that the server is running, you can define your dataset.
+4. Create the shardset. [details](/dataset/shardsets)
 
+    <Tabs syncKey="ui-or-py">
+      <TabItem value="cli" label="CLI">
 
-### Set the API Key
+    ```bash
+    lavender-data client \
+      --api-url http://0.0.0.0:8000 --api-key la-... \
+      shardsets create \
+      --dataset-id ds-... \
+      --location file:///path/to/your/shardset  # Where shard files are located (can be `file://`, `s3://`, etc.)
+    > {
+    >   "id": "ss-...",
+    >   "dataset_id": "ds-...",
+    >   "location": "file:///path/to/your/shardset",
+    >   "shard_count": 0,
+    >   "total_samples": 0
+    > }
+    ```
 
-<Tabs syncKey="ui-or-py">
-  <TabItem value="web-ui" label="Web UI">
+      </TabItem>
+      <TabItem value="python" label="Python">
 
-Navigate to the [ui](http://localhost:3000) in your browser and set the API key.
+    ```python
+    shardset = lavender.api.create_shardset(
+        dataset_id="ds-...",
+        location="file:///path/to/the/shardset/",
+    )
+    ```
+      </TabItem>
+      <TabItem value="web-ui" label="Web UI">
 
-![Set API Key](/web-ui/web-ui-set-api-key.png)
+    Click on "+ Shardset" button in the dataset detail page.
+    Enter the path to the directory containing the shard files.
+    If you don't have any shards yet, you need to specify the columns manually.
 
-  </TabItem>
-  <TabItem value="python" label="Python">
+    ![Create Shardset](/web-ui/web-ui-create-shardset.png)
 
-In your Python script or notebook, initialize the client API, providing the server URL and your API key.
-You can also set the API key in the environment variable `LAVENDER_DATA_API_KEY`.
+      </TabItem>
+    </Tabs>
 
-```python
-from lavender_data.client import api as lavender
 
-# Replace 'la-...' with the API key you generated
-lavender.init(api_url="http://localhost:8000", api_key="la-...")
-```
+5. Check the shardset and wait until it's synced to the server.
 
-  </TabItem>
-  <TabItem value="cli" label="CLI">
 
-In your terminal, set the API key using the `--api-key` flag.
+    <Tabs syncKey="ui-or-py">
+      <TabItem value="cli" label="CLI">
 
+    ```bash
+    lavender-data client \
+      --api-url http://0.0.0.0:8000 --api-key la-... \
+      shardsets get \
+      --dataset-id ds-... --shardset-id ss-...
+    > {
+    >   "id": "ss-...",
+    >   "dataset_id": "ds-...",
+    >   "location": "file:///path/to/your/shardset",
+    >   "shard_count": 10,
+    >   "total_samples": 100
+    > }
+    ```
 
-```bash
-lavender-data client --api-url http://localhost:8000 --api-key la-... -h
-```
+      </TabItem>
+      <TabItem value="python" label="Python">
 
-  </TabItem>
-</Tabs>
+    ```python
+    shardset = lavender.api.get_shardset(
+        dataset_id="ds-...",
+        shardset_id="ss-...",
+    )
+    ```
+      </TabItem>
+      <TabItem value="web-ui" label="Web UI">
 
-### Create a Dataset
+    ![Shardset Created](/web-ui/web-ui-dataset-detail.png)
 
-A **Dataset** is the top-level container for your data. Each dataset needs a unique identifier column (`uid_column_name`).
-Let's create a dataset named "my-dataset" with "uid" as the unique identifier, and add a shardset to hold "uid" and "text" columns.
+      </TabItem>
+    </Tabs>
 
-<Tabs syncKey="ui-or-py">
-  <TabItem value="web-ui" label="Web UI">
+6. Iterate over the dataset. [details](/dataloader/progress)
 
-Navigate to the [datasets page](http://localhost:3000/datasets) in your browser and click on the "+ Dataset" button.
+    ```python
+    import lavender_data.client as lavender
 
-![Datasets Empty](/web-ui/web-ui-datasets-empty.png)
+    lavender.init(api_url="http://0.0.0.0:8000", api_key="la-...")
 
-Enter the dataset name and the unique identifier column name.
+    iteration = lavender.LavenderDataLoader(
+        dataset_name=dataset_name,
+        shuffle=True,
+        shuffle_block_size=10,
+    )
 
-![Create a Dataset](/web-ui/web-ui-create-dataset.png)
+    for i in iteration:
+        print(i["uid"])
+    ```
+</Steps>
 
-You should now see the dataset in the list. Click on the dataset id to see the dataset details.
-
-![Dataset Created](/web-ui/web-ui-datasets-created.png)
-
-![Empty Dataset](/web-ui/web-ui-dataset-empty.png)
-
-  </TabItem>
-  <TabItem value="python" label="Python">
-
-
-```python
-dataset = lavender.create_dataset(name="my-dataset", uid_column_name="uid")
-```
-
-  </TabItem>
-  <TabItem value="cli" label="CLI">
-
-```bash
-lavender-data client datasets create --name my-dataset --uid-column-name uid
-```
-
-  </TabItem>
-</Tabs>
-
-
-### Create a Shardset
-
-A **Shardset** represents a collection of related columns (features) stored as **Shards** (files).
-Let's create a shardset to hold "uid", "image_url" and "caption" columns.
-
-Let's say we have a directory containing the shard files for the dataset, and each shard file is a csv file with the following content.
-
-<FileTree>
-- **/path/to/the/shardset/**
-  - shard.00000.csv
-  - shard.00001.csv
-  - shard.00002.csv
-  - shard.00003.csv
-  - ...
-</FileTree>
-
-```
-# /path/to/the/shardset/shard.00000.csv
-uid,image_url,caption
-0,https://example.com/image-00000.jpg,Caption for image 00000
-1,https://example.com/image-00001.jpg,Caption for image 00001
-2,https://example.com/image-00002.jpg,Caption for image 00002
-3,https://example.com/image-00003.jpg,Caption for image 00003
-4,https://example.com/image-00004.jpg,Caption for image 00004
-5,https://example.com/image-00005.jpg,Caption for image 00005
-6,https://example.com/image-00006.jpg,Caption for image 00006
-7,https://example.com/image-00007.jpg,Caption for image 00007
-8,https://example.com/image-00008.jpg,Caption for image 00008
-9,https://example.com/image-00009.jpg,Caption for image 00009
-```
-
-You need to specify the path to the shardset directory as a `location` of the shardset.
-
-<Aside>
-
-Please note that you need to add `file://` prefix if you are using a local directory.
-In above case, the location should be: `file:///path/to/the/shardset/`, not `/path/to/the/shardset`.
-
-`s3://` prefix is also supported in case you want to store shards in an S3 bucket.
-To use S3 bucket, you need to provide AWS credentials in the environment variables:
-`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (and optionally `AWS_ENDPOINT_URL` if you are using a non-default endpoint)
-
-</Aside>
-
-If you have at least one shard in the directory, the columns will be inferred from the shard and existing shards will be synced automatically.
-You need to specify columns manually if you don't have any shards yet.
-
-<Tabs syncKey="ui-or-py">
-  <TabItem value="web-ui" label="Web UI">
-
-Click on "+ Shardset" button in the dataset detail page.
-Enter the path to the directory containing the shard files.
-If you don't have any shards yet, you need to specify the columns manually.
-
-![Create Shardset](/web-ui/web-ui-create-shardset.png)
-
-If you already have shards, they will be synced automatically.
-You should be able to see them like below.
-
-![Shardset Created](/web-ui/web-ui-dataset-detail.png)
-
-  </TabItem>
-  <TabItem value="python" label="Python">
-
-```python
-# Create the shardset, specifying where the shard files will be stored
-shardset = lavender.create_shardset(
-    dataset_id=dataset.id,
-    location="file:///path/to/the/shardset/",
-)
-
-# If you don't have any shards yet, you need to specify the columns manually.
-shardset = lavender.create_shardset(
-    dataset_id=dataset.id,
-    location="file:///path/to/the/shardset/",
-    columns=[
-        lavender.DatasetColumnOptions(
-            name="uid",
-            description="Unique identifier",
-            type_="int",
-        ),
-        lavender.DatasetColumnOptions(
-            name="image_url",
-            description="Image URL",
-            type_="str",
-        ),
-        lavender.DatasetColumnOptions(
-            name="caption",
-            description="Caption",
-            type_="str",
-        ),
-    ]
-)
-```
-
-  </TabItem>
-  <TabItem value="cli" label="CLI">
-
-```bash
-lavender-data client shardsets create --dataset-id ds-... --location file:///path/to/the/shardset/
-```
-
-  </TabItem>
-</Tabs>
-
-
-## Iterate Over the Dataset
-
-Finally, let's iterate over the dataset. We create an `Iteration` object, specifying which dataset and shardset(s) to use.
-
-```python
-from lavender_data.client import api as lavender, Iteration
-
-lavender.init(api_url="http://localhost:8000", api_key="la-...")
-
-# Create an iteration object for our dataset
-# We'll use a batch size of 10 and shuffle the data
-iteration = Iteration.from_dataset(
-    dataset_name="my-dataset",
-    shardsets=["ss-..."], # Specify which shardset(s) to load data from
-    batch_size=10,
-    shuffle=True,
-)
-
-# Loop through the batches provided by the iteration
-for i, batch in enumerate(iteration):
-    print(f"Batch {i}: {batch}")
-```
-
-This loop will fetch batches of data from the server, handling shuffling and batching automatically.
-
-### Iterate as a PyTorch DataLoader
-
-Lavender Data provides seamless integration with PyTorch. You can convert an `Iteration` directly into a `torch.utils.data.DataLoader`:
-
-```python
-# Ensure you have PyTorch installed: pip install torch
-
-# Convert the Lavender Data iteration into a PyTorch DataLoader
-dataloader = Iteration.from_dataset(
-    dataset_name="my-dataset",
-    shardsets=["ss-..."],
-    batch_size=10,
-    shuffle=True,
-).to_torch_dataloader(
-    prefetch_factor=4,
-)
-
-# Use the DataLoader in your training loop
-if __name__ == "__main__": # Required for multiprocessing with DataLoader
-    for i, batch in enumerate(dataloader):
-        # Process the batch (e.g., move to GPU, feed to model)
-        print(f"Torch Batch {i}: {batch['uid'].shape}")
-```
-
-## Check the Progress
-
-You can check the progress of an iteration in the web UI or using the Python/CLI client.
-The progress object has the following fields:
-
-- Total: The total number of samples to process in the iteration.
-- Current: The latest index of the sample that is being processed.
-- Inprogress: The samples that are being processed. Includes the index of the sample, the timestamp when it started, and the rank of the worker that is processing it.
-- Completed: The number of samples that have been completed.
-- Filtered: The number of samples that have been filtered out.
-- Failed: The number of samples that have failed to process.
-
-
-<Tabs syncKey="ui-or-py">
-  <TabItem value="web-ui" label="Web UI">
-
-Navigate to the [iterations page](http://localhost:3000/iterations) in your browser and click on the iteration id to see the iteration details.
-
-![Iterations](/web-ui/web-ui-iterations.png)
-
-![Iteration Detail](/web-ui/web-ui-iteration-detail.png)
-
-  </TabItem>
-  <TabItem value="python" label="Python">
-
-```python
-# List all iterations for a dataset
-iterations = lavender.get_iterations(
-    dataset_id=dataset.id,
-)
-
-# Get the progress of an iteration
-progress = lavender.get_progress(
-    iteration_id=iterations[0].id,
-)
-```
-
-  </TabItem>
-  <TabItem value="cli" label="CLI">
-
-```bash
-# List all iterations for a dataset
-lavender-data client iterations list --dataset-id ds-...
-> {"dataset_id": "ds-...", "id": "it-...", ...}
-> ...
-
-# Get the progress of an iteration
-lavender-data client iterations get-progress it-...
-> {
->   "total": 100,
->   "current": 3,
->   "inprogress": [
->     {
->       "index": 2,
->       "rank": 0,
->       "started_at": 1744688747.979773
->     }
->   ],
->   "completed": 2,
->   "filtered": 0,
->   "failed": 0
-> }
-```
-
-  </TabItem>
-</Tabs>
-
-You've successfully set up Lavender Data, created a dataset, added data, and iterated over it!
+You've successfully set up Lavender Data, created a dataset, synced data, and iterated over it!

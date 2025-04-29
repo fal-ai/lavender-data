@@ -1,3 +1,4 @@
+import os
 from typing import Annotated, Optional
 
 from fastapi import Depends
@@ -16,10 +17,10 @@ def setup_db(db_url: Optional[str] = None):
     connect_args = {}
 
     if not db_url:
-        get_logger(__name__).warning(
-            "LAVENDER_DATA_DB_URL is not set, using sqlite:///database.db"
-        )
-        db_url = f"sqlite:///database.db"
+        db_path = os.path.expanduser("~/.lavender-data/database.db")
+        db_url = f"sqlite:///{db_path}"
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        get_logger(__name__).debug(f"LAVENDER_DATA_DB_URL is not set, using {db_url}")
         connect_args = {"check_same_thread": False}
 
     engine = create_engine(db_url, connect_args=connect_args)

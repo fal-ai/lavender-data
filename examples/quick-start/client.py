@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-from lavender_data.client import api as lavender, Iteration
+import lavender_data.client as lavender
 
 load_dotenv()
 
@@ -11,13 +11,13 @@ lavender.init(
 )
 
 if __name__ == "__main__":
-    for data in Iteration.from_dataset(
+    for data in lavender.LavenderDataLoader(
         dataset_name="test-dataset",
         preprocessors=["append_new_column"],
         filters=[("uid_mod", {"mod": 10})],
         collater="pylist",
         no_cache=True,
-    ).to_torch_dataloader(
+    ).torch(
         prefetch_factor=2,
         in_order=True,
     ):

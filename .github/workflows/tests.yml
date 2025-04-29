@@ -32,12 +32,17 @@ jobs:
 
       - name: Install dependencies
         run: |
+          apt-get update
+          apt-get install -y curl
+
           cd packages/lavender-data
           poetry install --no-interaction
           # tensor serialization tests
           poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
           # s3 storage tests
           poetry run pip install boto3 tqdm
+          # converter tests
+          poetry run pip install webdataset pillow
 
       - name: Run tests
         run: |
