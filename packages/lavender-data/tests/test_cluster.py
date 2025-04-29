@@ -49,9 +49,9 @@ class TestCluster(unittest.TestCase):
             )
         ]
 
-        wait_server_ready(self.head_server)
-        for node_server in self.node_servers:
-            wait_server_ready(node_server)
+        wait_server_ready(self.head_server, head_port)
+        for node_server, node_port in zip(self.node_servers, node_ports):
+            wait_server_ready(node_server, node_port)
 
     def tearDown(self):
         for node_server in self.node_servers:

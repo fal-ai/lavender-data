@@ -3,6 +3,7 @@ import atexit
 import signal
 import select
 import time
+import httpx
 from multiprocessing import Process
 import daemon
 from daemon.pidfile import PIDLockFile
@@ -44,6 +45,14 @@ def watch_log_file():
         pass
 
 
+def port_open(port: int):
+    try:
+        httpx.get(f"http://localhost:{port}/version")
+        return True
+    except httpx.ConnectError:
+        return False
+
+
 def start(init: bool = False, *args, **kwargs):
     pid_lock_file = PIDLockFile(PID_LOCK_FILE)
     if pid_lock_file.is_locked():
@@ -60,22 +69,31 @@ def start(init: bool = False, *args, **kwargs):
     process.start()
     atexit.register(lambda: process.terminate())
 
-    for line in watch_log_file():
+    settings = get_settings()
+
+    timeout = 30
+    start_time = time.time()
+    while True:
+        if port_open(settings.lavender_data_port):
+            break
+
         if not process.is_alive():
             print(f"Failed to start server (check {LOG_FILE} for more details)")
             exit(1)
 
-        # TODO do not depend on the log message (log_level matters)
-        # check if the server is ready by sending a request to the server
-        if "Application startup complete" in line:
-            break
+        if time.time() - start_time > timeout:
+            print(
+                f"Timeout waiting for server to start (check {LOG_FILE} for more details)"
+            )
+            exit(1)
 
-    settings = get_settings()
+        time.sleep(0.1)
+
     print(
         f"lavender-data is running on http://{settings.lavender_data_host}:{settings.lavender_data_port}"
     )
     if not settings.lavender_data_disable_ui:
-        print(f"UI is running on http://localhost:{settings.lavender_data_port}")
+        print(f"UI is running on http://localhost:{settings.lavender_data_ui_port}")
 
     if init and not settings.lavender_data_disable_auth:
         api_key = create_api_key()

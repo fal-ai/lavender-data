@@ -44,7 +44,7 @@ class TestIteration(unittest.TestCase):
                 "LAVENDER_DATA_MODULES_DIR": "./tests/",
             },
         )
-        wait_server_ready(self.server)
+        wait_server_ready(self.server, self.port)
 
         self.api_url = f"http://localhost:{self.port}"
         init(api_url=self.api_url)

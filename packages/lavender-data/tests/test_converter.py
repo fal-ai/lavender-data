@@ -21,7 +21,7 @@ class TestConverter(unittest.TestCase):
                 "LAVENDER_DATA_LOG_FILE": "./test.log",
             },
         )
-        wait_server_ready(self.server)
+        wait_server_ready(self.server, self.port)
 
         lavender.init(api_url=f"http://localhost:{self.port}")
 
