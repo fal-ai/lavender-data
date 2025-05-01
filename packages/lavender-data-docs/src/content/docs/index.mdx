@@ -16,7 +16,7 @@ hero:
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
 
 <img class="light" src="/fal-logo.svg" alt="fal" width="80px" />
 <img class="dark" src="/fal-logo-dark.svg" alt="fal" width="80px" />
@@ -24,14 +24,14 @@ Lavender Data is a data pipeline framework
 built by [fal.ai](https://fal.ai).
 
 <CardGrid>
+  <Card title="Joinable Dataset" icon="random">
+    - Add new features to your dataset without rewriting your data
+    - Selectively load only the features you need for your task
+  </Card>
   <Card title="Remote Preprocessing" icon="star">
     - Preprocess data on a remote server and offload your training GPUs
     - Load data directly into memory through a network without any disk usage
     - Support cloud storages
-  </Card>
-  <Card title="Joinable Dataset" icon="random">
-    - Add new features to your dataset without rewriting your data
-    - Selectively load only the features you need for your task
   </Card>
   <Card title="Dynamic Data Loading" icon="rocket">
     - Filter rows or columns on the fly
@@ -48,14 +48,42 @@ built by [fal.ai](https://fal.ai).
 
 ## Why Lavender Data?
 
-Traditional ML data pipelines often face several challenges:
+ML data pipelines often face several challenges:
 
-1. **GPU Memory Overhead**: Preprocessing on the same GPU used for training
-2. **Disk Space Limitations**: Having to store entire datasets on disk
-3. **Inflexible Data Management**: Difficulty in adding new features or columns
-4. **Poor Fault Tolerance**: Failing when a single sample errors out
+<Steps>
+1. **Inflexible Dataset**: Difficulty in adding new features or columns
+2. **GPU Overhead**: Preprocessing on the same GPU used for training
+3. **Poor Fault Tolerance**: Failing when a single sample errors out
+4. **Disk Space Limitations**: Having to store entire datasets on disk
+5. **Online Filtering**: Difficulty in filtering data on the fly
+</Steps>
 
 Lavender Data solves these problems by providing a flexible, efficient, and robust solution for ML data management and preprocessing.
 
-Ready to get started? Check out our [Quick Start Guide](/quick-start) to begin using Lavender Data in your ML workflow.
 
+## When do I need Lavender Data?
+
+Lavender Data is designed to solve specific challenges in ML data pipelines.
+Here are the key scenarios where you should consider using Lavender Data.
+
+<Steps>
+1. **Dataset is constantly evolving**: Add features without reprocessing and organize related features.
+2. **GPU utilization bottleneck by preprocessing**: Offload preprocessing to separate machines, run in parallel with training.
+3. **Working with large-scale datasets**: Stream data without disk usage, and work with cloud storage.
+4. **Need dynamic data filtering**: Filter data during training without affecting batch sizes.
+5. **Fault tolerance is critical**: Resume interrupted iterations, handle failed samples gracefully (skip/retry).
+6. **Distributed environments**: Run data-parallel/context-parallel training.
+7. **Need better visibility into your data pipeline**: Monitor iteration progress, preview/inspect data.
+</Steps>
+
+
+## When Lavender Data might NOT be needed
+
+<Steps>
+1. **Small datasets** that fit comfortably in memory and don't require complex preprocessing
+2. **Static datasets** that rarely change or add new features
+3. **Simple preprocessing** that is fast enough to perform on-the-fly without impacting GPU utilization
+4. **Single-file datasets** that don't benefit from Lavender Data's sharded architecture
+</Steps>
+
+Ready to get started? Check out our [Quick Start Guide](/quick-start) to begin using Lavender Data in your ML workflow.

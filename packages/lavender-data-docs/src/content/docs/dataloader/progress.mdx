@@ -24,25 +24,30 @@ The progress object has the following fields:
 ```bash
 # List all iterations for a dataset
 lavender-data client iterations list --dataset-id ds-...
-> {"dataset_id": "ds-...", "id": "it-...", ...}
-> ...
+```
+```json
+{"dataset_id": "ds-...", "id": "it-..."}
+```
 
+```bash
 # Get the progress of an iteration
 lavender-data client iterations get-progress it-...
-> {
->   "total": 100,
->   "current": 3,
->   "inprogress": [
->     {
->       "index": 2,
->       "rank": 0,
->       "started_at": 1744688747.979773
->     }
->   ],
->   "completed": 2,
->   "filtered": 0,
->   "failed": 0
-> }
+```
+```json
+{
+  "total": 100,
+  "current": 3,
+  "inprogress": [
+    {
+      "index": 2,
+      "rank": 0,
+      "started_at": 1744688747.979773
+    }
+  ],
+  "completed": 2,
+  "filtered": 0,
+  "failed": 0
+}
 ```
 
   </TabItem>

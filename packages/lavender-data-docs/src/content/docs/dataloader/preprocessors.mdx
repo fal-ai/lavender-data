@@ -1,0 +1,15 @@
+---
+title: DataLoader - Pipeline
+description: Learn about DataLoader features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+---
+
+Preprocessors transform batches before they're returned to your application.
+
+```python
+dataloader = LavenderDataLoader(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    preprocessors=["append_new_column"],
+    batch_size=10,
+)
+```

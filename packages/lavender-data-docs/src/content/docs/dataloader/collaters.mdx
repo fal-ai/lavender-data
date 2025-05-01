@@ -1,0 +1,16 @@
+---
+title: DataLoader - Collaters
+description: Learn about DataLoader features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+---
+
+
+Collaters control how individual samples are combined into batches.
+
+```python
+dataloader = LavenderDataLoader(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    collater="pylist", # To use a module without parameters, specify the module name only
+    batch_size=10,
+)
+```

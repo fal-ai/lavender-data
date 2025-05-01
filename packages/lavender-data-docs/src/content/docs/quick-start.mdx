@@ -3,7 +3,7 @@ title: Quick Start
 description: Get started with Lavender Data in minutes
 ---
 
-import { Tabs, TabItem, Aside, FileTree, Steps } from "@astrojs/starlight/components";
+import { Tabs, TabItem, Aside, FileTree, Steps, LinkCard } from "@astrojs/starlight/components";
 
 
 This guide will walk you through the essential steps to set up the server, create your first dataset and iterate over it.
@@ -15,16 +15,20 @@ This guide will walk you through the essential steps to set up the server, creat
     pip install lavender-data
     ```
 
-2. Start the lavender-data server. [details](/server/configuration)
+2. Start the lavender-data server.
 
     ```bash
     lavender-data server start --init
-    > lavender-data is running on 0.0.0.0:8000
-    > UI is running on http://localhost:8000
-    > API key created: la-...
+    ```
+    ```
+    lavender-data is running on 0.0.0.0:8000
+    UI is running on http://localhost:3000
+    API key created: la-...
     ```
 
-3. Create the dataset. [details](/dataset/structure)
+    <LinkCard title="Learn more about Server Configuration" href="/server/configuration" />
+
+3. Create the dataset.
 
     <Tabs syncKey="ui-or-py">
       <TabItem value="cli" label="CLI">
@@ -36,11 +40,13 @@ This guide will walk you through the essential steps to set up the server, creat
       datasets create \
       --name my_dataset \  # Identifier for the dataset
       --uid-column-name uid  # Column name which can be used as a unique identifier for each row
-    > {
-    >   "id": "ds-...",
-    >   "name": "my_dataset",
-    >   "uid_column_name": "uid"
-    > }
+    ```
+    ```json
+    {
+      "id": "ds-...",
+      "name": "my_dataset",
+      "uid_column_name": "uid"
+    }
     ```
 
       </TabItem>
@@ -70,7 +76,18 @@ This guide will walk you through the essential steps to set up the server, creat
     </Tabs>
 
 
-4. Create the shardset. [details](/dataset/shardsets)
+4. Create the shardset.
+
+    Each shardset can be considered as a directory containing multiple shard files.
+    The directory should be flat, containing the shard files only.
+    If the order matters, sort shards by the filename.
+
+    <FileTree>
+    - /path/to/your/shardset/
+      - shard.00000.csv
+      - shard.00001.csv
+      - ...
+    </FileTree>
 
     <Tabs syncKey="ui-or-py">
       <TabItem value="cli" label="CLI">
@@ -81,13 +98,15 @@ This guide will walk you through the essential steps to set up the server, creat
       shardsets create \
       --dataset-id ds-... \
       --location file:///path/to/your/shardset  # Where shard files are located (can be `file://`, `s3://`, etc.)
-    > {
-    >   "id": "ss-...",
-    >   "dataset_id": "ds-...",
-    >   "location": "file:///path/to/your/shardset",
-    >   "shard_count": 0,
-    >   "total_samples": 0
-    > }
+    ```
+    ```json
+    {
+      "id": "ss-...",
+      "dataset_id": "ds-...",
+      "location": "file:///path/to/your/shardset",
+      "shard_count": 0,
+      "total_samples": 0
+    }
     ```
 
       </TabItem>
@@ -111,6 +130,7 @@ This guide will walk you through the essential steps to set up the server, creat
       </TabItem>
     </Tabs>
 
+    <LinkCard title="Learn more about Data Structure" href="/dataset/structure" />
 
 5. Check the shardset and wait until it's synced to the server.
 
@@ -123,13 +143,15 @@ This guide will walk you through the essential steps to set up the server, creat
       --api-url http://0.0.0.0:8000 --api-key la-... \
       shardsets get \
       --dataset-id ds-... --shardset-id ss-...
-    > {
-    >   "id": "ss-...",
-    >   "dataset_id": "ds-...",
-    >   "location": "file:///path/to/your/shardset",
-    >   "shard_count": 10,
-    >   "total_samples": 100
-    > }
+    ```
+    ```json
+    {
+      "id": "ss-...",
+      "dataset_id": "ds-...",
+      "location": "file:///path/to/your/shardset",
+      "shard_count": 10,
+      "total_samples": 100
+    }
     ```
 
       </TabItem>
@@ -149,7 +171,7 @@ This guide will walk you through the essential steps to set up the server, creat
       </TabItem>
     </Tabs>
 
-6. Iterate over the dataset. [details](/dataloader/progress)
+6. Iterate over the dataset.
 
     ```python
     import lavender_data.client as lavender
@@ -165,6 +187,9 @@ This guide will walk you through the essential steps to set up the server, creat
     for i in iteration:
         print(i["uid"])
     ```
+
+    <LinkCard title="Learn more about DataLoader" href="/dataloader" />
+
 </Steps>
 
 You've successfully set up Lavender Data, created a dataset, synced data, and iterated over it!

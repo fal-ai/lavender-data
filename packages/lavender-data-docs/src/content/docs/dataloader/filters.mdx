@@ -1,0 +1,16 @@
+---
+title: DataLoader - Filters
+description: Learn about DataLoader features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+---
+
+Filters determine which samples to include or exclude during iteration.
+
+```python
+dataloader = LavenderDataLoader(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    filters=[("uid_mod", {"mod": 2})],  # To give a parameter to the module, use a tuple (name, params)
+    batch_size=10,
+)
+```
+

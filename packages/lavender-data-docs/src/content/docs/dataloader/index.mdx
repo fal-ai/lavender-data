@@ -1,0 +1,22 @@
+---
+title: DataLoader
+description: Learn about DataLoader features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+---
+
+Use `LavenderDataLoader` to iterate over your dataset.
+Pick a dataset and shardsets to iterate over.
+If `shardsets` is not provided, all shardsets of the dataset will be used.
+
+```python
+import lavender_data.client as lavender
+
+lavender.init(api_url="http://0.0.0.0:8000", api_key="la-...")
+
+dataloader = lavender.LavenderDataLoader(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+)
+
+for sample in dataloader:
+    print(sample)
+```

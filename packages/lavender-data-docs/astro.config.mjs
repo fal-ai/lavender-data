@@ -79,44 +79,85 @@ export default defineConfig({
           label: "DataLoader Guides",
           items: [
             {
-              label: "Check Progress",
-              slug: "dataloader/progress",
+              label: "Introduction",
+              slug: "dataloader",
             },
             {
-              label: "Batch",
-              slug: "dataloader/batch",
+              label: "Basic Usage",
+              items: [
+                {
+                  label: "Batch",
+                  slug: "dataloader/batch",
+                },
+                {
+                  label: "Shuffle",
+                  slug: "dataloader/shuffle",
+                },
+                {
+                  label: "Cache",
+                  slug: "dataloader/cache",
+                },
+                {
+                  label: "PyTorch Integration",
+                  slug: "dataloader/pytorch-integration",
+                },
+                {
+                  label: "Fault Tolerance",
+                  slug: "dataloader/fault-tolerance",
+                },
+              ],
             },
             {
-              label: "Shuffle",
-              slug: "dataloader/shuffle",
-            },
-            {
-              label: "Cache",
-              slug: "dataloader/cache",
+              label: "Resumption",
+              items: [
+                {
+                  label: "Check Progress",
+                  slug: "dataloader/progress",
+                },
+                {
+                  label: "Resume",
+                  slug: "dataloader/resume",
+                },
+              ],
             },
             {
               label: "Pipeline",
-              slug: "dataloader/pipeline",
+              items: [
+                {
+                  label: "Filters",
+                  slug: "dataloader/filters",
+                },
+                {
+                  label: "Collaters",
+                  slug: "dataloader/collaters",
+                },
+                {
+                  label: "Preprocessors",
+                  slug: "dataloader/preprocessors",
+                },
+              ],
             },
             {
-              label: "PyTorch Integration",
-              slug: "dataloader/pytorch-integration",
+              label: "Distributed Training",
+              items: [
+                {
+                  label: "Data Parallelism",
+                  slug: "dataloader/data-parallelism",
+                },
+                {
+                  label: "Context Parallelism",
+                  slug: "dataloader/context-parallelism",
+                },
+              ],
             },
             {
-              label: "Fault Tolerance",
-              slug: "dataloader/fault-tolerance",
-            },
-            {
-              label: "Resume",
-              slug: "dataloader/resume",
-            },
-            {
-              label: "Data Parallelism",
-              slug: "dataloader/data-parallelism",
-            },
-            {
-              label: "Cluster Sync",
-              slug: "dataloader/cluster-sync",
+              label: "Distributed Server",
+              items: [
+                {
+                  label: "Cluster Sync",
+                  slug: "dataloader/cluster-sync",
+                },
+              ],
             },
           ],
         },
