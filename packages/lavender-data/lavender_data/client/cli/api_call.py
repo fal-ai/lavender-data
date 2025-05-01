@@ -63,11 +63,13 @@ def get_next_item(
     iteration_id: str,
     rank: int,
     no_cache: bool,
+    max_retry_count: int,
 ):
     return _api(api_url=api_url, api_key=api_key).get_next_item(
         iteration_id=iteration_id,
         rank=rank,
         no_cache=no_cache,
+        max_retry_count=max_retry_count,
     )
 
 
@@ -77,11 +79,13 @@ def submit_next_item(
     iteration_id: str,
     rank: int,
     no_cache: bool,
+    max_retry_count: int,
 ):
     return _api(api_url=api_url, api_key=api_key).submit_next_item(
         iteration_id=iteration_id,
         rank=rank,
         no_cache=no_cache,
+        max_retry_count=max_retry_count,
     )
 
 

@@ -44,13 +44,13 @@ def _download_file_with_retry(
     backoff: float,
 ):
     logger = get_logger(__name__)
-    for i in range(retry):
+    for i in range(retry + 1):
         try:
             return _download_file_with_timeout(remote_path, local_path, timeout=timeout)
         except Exception as e:
-            if i < retry - 1:
+            if i < retry:
                 logger.warning(
-                    f"Failed to download file {remote_path} to {local_path}: {e}, retrying... ({i}/{retry})"
+                    f"Failed to download file {remote_path} to {local_path}: {e}, retrying... ({i+1}/{retry})"
                 )
                 time.sleep(backoff)
             else:
@@ -96,14 +96,14 @@ def _upload_file_with_retry(
     backoff: float,
 ) -> None:
     logger = get_logger(__name__)
-    for i in range(retry):
+    for i in range(retry + 1):
         try:
             _upload_file_with_timeout(local_path, remote_path, timeout=timeout)
             return
         except Exception as e:
-            if i < retry - 1:
+            if i < retry:
                 logger.warning(
-                    f"Failed to upload file {local_path} to {remote_path}: {e}, retrying... ({i}/{retry})"
+                    f"Failed to upload file {local_path} to {remote_path}: {e}, retrying... ({i+1}/{retry})"
                 )
                 time.sleep(backoff)
             else:

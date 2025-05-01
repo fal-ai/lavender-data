@@ -5,6 +5,7 @@ import numpy as np
 import ujson as json
 import hashlib
 from typing import Optional, Annotated
+import traceback
 
 from fastapi import HTTPException, Depends
 from pydantic import BaseModel
@@ -121,9 +122,10 @@ class ProcessNextSamplesParams(BaseModel):
     batch_size: int
 
 
-def process_next_samples(params: ProcessNextSamplesParams) -> bytes:
+def _process_next_samples(
+    params: ProcessNextSamplesParams,
+) -> bytes:
     reader = get_reader_instance()
-    logger = get_logger(__name__)
 
     current = params.current
     global_sample_indices = params.global_sample_indices
@@ -133,39 +135,20 @@ def process_next_samples(params: ProcessNextSamplesParams) -> bytes:
     batch_size = params.batch_size
 
     if samples is None:
-        try:
-            samples = [reader.get_sample(i) for i in global_sample_indices]
-        except Exception as e:
-            # TODO fault tolerance
-            raise HTTPException(
-                status_code=400,
-                detail=f"Failed to read samples: {e.__class__.__name__}({str(e)})",
-            )
+        samples = [reader.get_sample(i) for i in global_sample_indices]
 
-    try:
-        batch = (
-            CollaterRegistry.get(collater["name"]).collate(samples)
-            if collater is not None
-            else CollaterRegistry.get("default").collate(samples)
-        )
-    except Exception as e:
-        logger.exception(f'Error in collater: {e.__class__.__name__}("{str(e)}")')
-        raise HTTPException(
-            status_code=400,
-            detail=f'Error in collater: {e.__class__.__name__}("{str(e)}")',
-        )
+    batch = (
+        CollaterRegistry.get(collater["name"]).collate(samples)
+        if collater is not None
+        else CollaterRegistry.get("default").collate(samples)
+    )
 
     if preprocessors is not None:
-        try:
-            batch = PreprocessorRegistry.process(
-                [(p["name"], p["params"]) for p in preprocessors],
-                batch,
-                # TODO configurable max_workers
-            )
-        except Exception as e:
-            msg = f'Error in preprocessor: {e.__class__.__name__}("{str(e)}")'
-            logger.exception(msg)
-            raise HTTPException(status_code=400, detail=msg)
+        batch = PreprocessorRegistry.process(
+            [(p["name"], p["params"]) for p in preprocessors],
+            batch,
+            # TODO configurable max_workers
+        )
 
     if batch_size == 0:
         _batch = {}
@@ -182,15 +165,38 @@ def process_next_samples(params: ProcessNextSamplesParams) -> bytes:
     return serialize_sample(batch)
 
 
+def process_next_samples(
+    params: ProcessNextSamplesParams,
+    max_retry_count: int,
+) -> bytes:
+    logger = get_logger(__name__)
+
+    if max_retry_count < 0:
+        raise HTTPException(status_code=400, detail="max_retry_count must be >= 0")
+
+    for i in range(max_retry_count + 1):
+        try:
+            return _process_next_samples(params)
+        except Exception as e:
+            tb = traceback.format_exc()
+            msg = f"Error processing next samples: {str(e)}\nTraceback:\n{tb}"
+            if i < max_retry_count:
+                logger.warning(f"{msg}, retrying... ({i+1}/{max_retry_count})")
+            else:
+                logger.error(msg)
+                raise HTTPException(status_code=500, detail=msg)
+
+
 def process_next_samples_and_cache(
     params: ProcessNextSamplesParams,
+    max_retry_count: int,
     cache_key: str,
     cache_ttl: int,
     cache: CacheClient,
 ):
     logger = get_logger(__name__)
     try:
-        content = process_next_samples(params)
+        content = process_next_samples(params, max_retry_count)
         cache.set(cache_key, content, ex=cache_ttl)
     except Exception as e:
         logger.exception(f"Error processing next samples: {e}")

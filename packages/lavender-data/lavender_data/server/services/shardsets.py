@@ -9,7 +9,7 @@ from sqlmodel import update, insert
 from lavender_data.logging import get_logger
 from lavender_data.storage import list_files
 from lavender_data.shard.inspect import OrphanShardInfo, inspect_shard
-from lavender_data.shard.readers.exceptions import ReaderColumnsRequired
+from lavender_data.shard.readers.exceptions import ReaderException
 from lavender_data.server.cache import get_cache
 from lavender_data.server.db import Shardset, Shard, get_session
 from lavender_data.server.distributed import get_cluster
@@ -133,7 +133,7 @@ def inspect_shardset_location(
             cache.hset(cache_key, mapping=status.model_dump())
             cache.expire(cache_key, 60)
 
-    except ReaderColumnsRequired as e:
+    except ReaderException as e:
         logger.warning(f"Failed to inspect shardset {shardset_location}: {e}")
     except Exception as e:
         logger.exception(f"Error inspecting shardset {shardset_location}: {e}")
@@ -245,7 +245,7 @@ def sync_shardset_location(
             )
         )
         session.commit()
-    except ReaderColumnsRequired as e:
+    except ReaderException as e:
         logger.warning(
             f"Failed to sync shardset {shardset_id} at {shardset_location}: {e}"
         )

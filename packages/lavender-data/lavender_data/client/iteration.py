@@ -60,6 +60,7 @@ class LavenderDataLoader:
         filters: Optional[list[Union[tuple[str, dict], str]]] = None,
         preprocessors: Optional[list[Union[tuple[str, dict], str]]] = None,
         collater: Optional[Union[tuple[str, dict], str]] = None,
+        max_retry_count: int = 0,
         shuffle: Optional[bool] = None,
         shuffle_seed: Optional[int] = None,
         shuffle_block_size: Optional[int] = None,
@@ -119,15 +120,16 @@ class LavenderDataLoader:
 
         self._last_indices = None
         self._no_cache = no_cache
+        self._max_retry_count = max_retry_count
         self._rank = rank
+
+        self._api_url = api_url
+        self._api_key = api_key
 
         self.id = self._iteration_id
 
-        self.api_url = api_url
-        self.api_key = api_key
-
     def _api(self):
-        return _api(self.api_url, self.api_key)
+        return _api(self._api_url, self._api_key)
 
     def torch(
         self,
@@ -206,6 +208,7 @@ class LavenderDataLoader:
                 iteration_id=self._iteration_id,
                 rank=self._rank,
                 no_cache=self._no_cache,
+                max_retry_count=self._max_retry_count,
             )
         except LavenderDataApiError as e:
             if "No more indices to pop" in str(e):
@@ -222,6 +225,7 @@ class LavenderDataLoader:
                 iteration_id=self._iteration_id,
                 rank=self._rank,
                 no_cache=self._no_cache,
+                max_retry_count=self._max_retry_count,
             )
             .cache_key
         )

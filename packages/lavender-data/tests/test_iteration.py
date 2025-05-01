@@ -16,6 +16,7 @@ from lavender_data.client.api import (
     DatasetColumnOptions,
 )
 from lavender_data.client import LavenderDataLoader
+from lavender_data.client.api import LavenderDataApiError
 
 from tests.utils.shards import create_test_shards
 from tests.utils.start_server import start_server, stop_server, wait_server_ready
@@ -29,6 +30,20 @@ class TestFilter(Filter, name="test_filter"):
 class TestPreprocessor(Preprocessor, name="test_preprocessor"):
     def process(self, sample: dict) -> dict:
         return {"double_id": i * 2 for i in sample["id"]}
+
+
+class FailOnceInTwoSamples(Preprocessor, name="fail_once_in_two_samples"):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.failed = False
+
+    def process(self, sample: dict) -> dict:
+        if not self.failed:
+            self.failed = True
+            raise Exception("Failed to process sample")
+        else:
+            self.failed = False
+            return sample
 
 
 class TestIteration(unittest.TestCase):
@@ -175,6 +190,38 @@ class TestIteration(unittest.TestCase):
         self.assertEqual(
             len(set(rank_1_image_urls) | set(rank_2_image_urls)), self.total_samples
         )
+
+    def test_iteration_with_max_retry_count(self):
+        self.assertRaises(
+            LavenderDataApiError,
+            lambda: next(
+                LavenderDataLoader(
+                    dataset_id=self.dataset_id,
+                    shardsets=[self.shardset_id],
+                    preprocessors=["fail_once_in_two_samples"],
+                    max_retry_count=0,
+                )
+            ),
+        )
+
+        read_samples = 0
+        for i, sample in tqdm.tqdm(
+            enumerate(
+                LavenderDataLoader(
+                    dataset_id=self.dataset_id,
+                    shardsets=[self.shardset_id],
+                    preprocessors=["fail_once_in_two_samples"],
+                    max_retry_count=1,
+                )
+            ),
+            total=self.total_samples,
+        ):
+            self.assertEqual(
+                sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
+            )
+            self.assertEqual(sample["caption"], f"Caption for image {i:05d}")
+            read_samples += 1
+        self.assertEqual(read_samples, self.total_samples)
 
     def test_iteration_with_filter(self):
         read_samples = 0

@@ -279,6 +279,7 @@ class LavenderDataClient:
         iteration_id: str,
         rank: int = 0,
         no_cache: bool = False,
+        max_retry_count: int = 0,
     ):
         with self._get_client() as client:
             response = get_next_iterations_iteration_id_next_get.sync_detailed(
@@ -286,6 +287,7 @@ class LavenderDataClient:
                 iteration_id=iteration_id,
                 rank=rank,
                 no_cache=no_cache,
+                max_retry_count=max_retry_count,
             )
         content = self._check_response(response).payload.read()
         return deserialize_sample(content)
@@ -295,6 +297,7 @@ class LavenderDataClient:
         iteration_id: str,
         rank: int = 0,
         no_cache: bool = False,
+        max_retry_count: int = 0,
     ):
         with self._get_client() as client:
             response = submit_next_iterations_iteration_id_next_post.sync_detailed(
@@ -302,6 +305,7 @@ class LavenderDataClient:
                 iteration_id=iteration_id,
                 rank=rank,
                 no_cache=no_cache,
+                max_retry_count=max_retry_count,
             )
         return self._check_response(response)
 
@@ -491,11 +495,13 @@ def get_next_item(
     iteration_id: str,
     rank: int = 0,
     no_cache: bool = False,
+    max_retry_count: int = 0,
 ):
     return _client_instance.get_next_item(
         iteration_id=iteration_id,
         rank=rank,
         no_cache=no_cache,
+        max_retry_count=max_retry_count,
     )
 
 
@@ -504,9 +510,13 @@ def submit_next_item(
     iteration_id: str,
     rank: int = 0,
     no_cache: bool = False,
+    max_retry_count: int = 0,
 ):
     return _client_instance.submit_next_item(
-        iteration_id=iteration_id, rank=rank, no_cache=no_cache
+        iteration_id=iteration_id,
+        rank=rank,
+        no_cache=no_cache,
+        max_retry_count=max_retry_count,
     )
 
 

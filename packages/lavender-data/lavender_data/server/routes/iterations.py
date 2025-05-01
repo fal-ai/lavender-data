@@ -298,6 +298,7 @@ def get_next(
     state: CurrentIterationState,
     rank: int = 0,
     no_cache: bool = False,
+    max_retry_count: int = 0,
 ) -> bytes:
     cache_key, params = state.get_next_samples(rank)
 
@@ -312,7 +313,7 @@ def get_next(
         cache.expire(cache_key, cache_ttl)
         content = cache.get(cache_key)
     else:
-        content = process_next_samples(params)
+        content = process_next_samples(params, max_retry_count)
         cache.set(cache_key, content, ex=cache_ttl)
 
     return Response(content=content, media_type="application/octet-stream")
@@ -331,6 +332,7 @@ def submit_next(
     state: CurrentIterationState,
     rank: int = 0,
     no_cache: bool = False,
+    max_retry_count: int = 0,
 ) -> SubmitNextResponse:
     cache_key, params = state.get_next_samples(rank)
 
@@ -342,6 +344,7 @@ def submit_next(
         background_tasks.add_task(
             process_next_samples_and_cache,
             params=params,
+            max_retry_count=max_retry_count,
             cache_key=cache_key,
             cache_ttl=cache_ttl,
             cache=cache,
