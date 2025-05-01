@@ -28,6 +28,7 @@ from lavender_data.server.services.iterations import (
     IterationState,
     CurrentIterationState,
     Progress,
+    ProcessNextSamplesException,
     process_next_samples,
     process_next_samples_and_cache,
     set_cluster_sync,
@@ -300,6 +301,9 @@ def get_next(
     no_cache: bool = False,
     max_retry_count: int = 0,
 ) -> bytes:
+    if max_retry_count < 0:
+        raise HTTPException(status_code=400, detail="max_retry_count must be >= 0")
+
     cache_key, params = state.get_next_samples(rank)
 
     """
@@ -313,7 +317,10 @@ def get_next(
         cache.expire(cache_key, cache_ttl)
         content = cache.get(cache_key)
     else:
-        content = process_next_samples(params, max_retry_count)
+        try:
+            content = process_next_samples(params, max_retry_count)
+        except ProcessNextSamplesException as e:
+            raise e.to_http_exception()
         cache.set(cache_key, content, ex=cache_ttl)
 
     return Response(content=content, media_type="application/octet-stream")
@@ -334,6 +341,9 @@ def submit_next(
     no_cache: bool = False,
     max_retry_count: int = 0,
 ) -> SubmitNextResponse:
+    if max_retry_count < 0:
+        raise HTTPException(status_code=400, detail="max_retry_count must be >= 0")
+
     cache_key, params = state.get_next_samples(rank)
 
     cache_ttl = settings.lavender_data_batch_cache_ttl
@@ -362,8 +372,11 @@ def get_submitted_result(
         raise HTTPException(status_code=404, detail="Cache key not found")
     if content == b"pending":
         raise HTTPException(status_code=202, detail="Data is still being processed")
+    if content.startswith(b"processing_error:"):
+        e = ProcessNextSamplesException.from_json(content[17:])
+        raise e.to_http_exception()
     if content.startswith(b"error:"):
-        raise HTTPException(status_code=400, detail=content[6:].decode("utf-8"))
+        raise HTTPException(status_code=500, detail=content[6:].decode("utf-8"))
     return Response(content=content, media_type="application/octet-stream")
 
 

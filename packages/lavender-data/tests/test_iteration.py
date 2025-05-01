@@ -223,6 +223,34 @@ class TestIteration(unittest.TestCase):
             read_samples += 1
         self.assertEqual(read_samples, self.total_samples)
 
+    def test_iteration_with_stop_on_failure(self):
+        self.assertRaises(
+            LavenderDataApiError,
+            lambda: next(
+                LavenderDataLoader(
+                    dataset_id=self.dataset_id,
+                    shardsets=[self.shardset_id],
+                    preprocessors=["fail_once_in_two_samples"],
+                    stop_on_failure=True,
+                )
+            ),
+        )
+
+        read_samples = 0
+        for i, sample in tqdm.tqdm(
+            enumerate(
+                LavenderDataLoader(
+                    dataset_id=self.dataset_id,
+                    shardsets=[self.shardset_id],
+                    preprocessors=["fail_once_in_two_samples"],
+                    stop_on_failure=False,
+                )
+            ),
+            total=self.total_samples,
+        ):
+            read_samples += 1
+        self.assertEqual(read_samples, self.total_samples // 2)
+
     def test_iteration_with_filter(self):
         read_samples = 0
         for i, sample in tqdm.tqdm(

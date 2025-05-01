@@ -2,7 +2,7 @@ from typing import Optional, TypeVar, Union
 from contextlib import contextmanager
 import base64
 import os
-
+import json
 from lavender_data.serialize import deserialize_sample
 
 from openapi_lavender_data_rest import Client, AuthenticatedClient
@@ -67,6 +67,18 @@ class LavenderDataApiError(Exception):
     pass
 
 
+class LavenderDataSampleProcessingError(LavenderDataApiError):
+    current: int
+    msg: str
+
+    def __init__(self, current: int, msg: str):
+        self.current = current
+        self.msg = msg
+
+    def __str__(self):
+        return self.msg
+
+
 _T = TypeVar("T")
 
 
@@ -100,10 +112,24 @@ class LavenderDataClient:
             yield client
 
     def _check_response(self, response: Response[Union[_T, HTTPValidationError]]) -> _T:
+        if response.headers.get("X-Lavender-Data-Error") == "SAMPLE_PROCESSING_ERROR":
+            raise LavenderDataSampleProcessingError(
+                current=int(response.headers.get("X-Lavender-Data-Sample-Current")),
+                msg=json.loads(response.content)["detail"],
+            )
+
         if response.status_code >= 400:
-            raise LavenderDataApiError(response.content.decode("utf-8"))
+            try:
+                json_content = json.loads(response.content)
+                msg = json_content["detail"]
+            except Exception:
+                msg = response.content.decode("utf-8")
+
+            raise LavenderDataApiError(msg)
+
         if isinstance(response.parsed, HTTPValidationError):
             raise LavenderDataApiError(response.parsed)
+
         return response.parsed
 
     def get_version(self):

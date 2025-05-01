@@ -1,4 +1,5 @@
 import time
+import json
 from typing import Optional, Union, Literal
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 
@@ -6,6 +7,7 @@ from lavender_data.client.api import (
     get_client,
     LavenderDataClient,
     LavenderDataApiError,
+    LavenderDataSampleProcessingError,
     IterationFilter,
     IterationPreprocessor,
     IterationCollater,
@@ -61,6 +63,7 @@ class LavenderDataLoader:
         preprocessors: Optional[list[Union[tuple[str, dict], str]]] = None,
         collater: Optional[Union[tuple[str, dict], str]] = None,
         max_retry_count: int = 0,
+        stop_on_failure: bool = True,
         shuffle: Optional[bool] = None,
         shuffle_seed: Optional[int] = None,
         shuffle_block_size: Optional[int] = None,
@@ -121,6 +124,7 @@ class LavenderDataLoader:
         self._last_indices = None
         self._no_cache = no_cache
         self._max_retry_count = max_retry_count
+        self._stop_on_failure = stop_on_failure
         self._rank = rank
 
         self._api_url = api_url
@@ -249,7 +253,17 @@ class LavenderDataLoader:
 
     def __next__(self):
         self._complete_last_indices()
-        sample_or_batch = self._get_next_item()
+
+        while True:
+            try:
+                sample_or_batch = self._get_next_item()
+                break
+            except LavenderDataSampleProcessingError as e:
+                if self._stop_on_failure:
+                    raise e
+                else:
+                    continue
+
         self._set_last_indices(sample_or_batch)
         return sample_or_batch
 
@@ -320,21 +334,22 @@ class AsyncLavenderDataLoader:
 
         self.dl._complete_last_indices()
         next_index = self.current + 1
-        # check if the data has already arrived during the previous iteration
-        already_arrived = (
-            [data for i, data in self.arrived if i == next_index]
-            if self.in_order
-            else self.arrived
-        )
-        if len(already_arrived) > 0:
-            data = already_arrived[0]
-            self.current = next_index
-            self.arrived = [a for a in self.arrived if a[0] != next_index]
-            self.dl._set_last_indices(data)
-            return data
-
-        # if the iteration is stopped and there are no more futures to be waited, stop iteration
         while True:
+            # check if the data has already arrived during the previous iteration
+            already_arrived = (
+                [data for i, data in self.arrived if i == next_index]
+                if self.in_order
+                else self.arrived
+            )
+            if len(already_arrived) > 0:
+                data = already_arrived[0]
+                self.current = next_index
+                self.arrived = [a for a in self.arrived if a[0] != next_index]
+                if data is not None:
+                    self.dl._set_last_indices(data)
+                    return data
+
+            # if the iteration is stopped and there are no more futures to be waited, stop iteration
             if self.stopped and len(self.futures) == 0:
                 raise StopIteration
 
@@ -344,21 +359,28 @@ class AsyncLavenderDataLoader:
                 future = next(as_completed(self.futures))
                 self.futures.remove(future)
                 data = future.result()
+                arrived_index = data["_lavender_data_current"]
             except StopIteration:
                 # it means one of the workers detected that the iteration is stopped
                 # but it's not guaranteed that all data from the other workers has returned
                 self.stopped = True
                 continue
+            except LavenderDataSampleProcessingError as e:
+                if self.dl._stop_on_failure:
+                    raise e
+                else:
+                    data = None
+                    arrived_index = e.current
 
             self._submit_next()
-
-            arrived_index = data["_lavender_data_current"]
 
             if not self.in_order or arrived_index == next_index:
                 # if arrived index is the next index, return the data
                 self.current = next_index
-                self.dl._set_last_indices(data)
-                break
+                next_index = self.current + 1
+                if data is not None:
+                    self.dl._set_last_indices(data)
+                    break
             else:
                 # if arrived index is not the next index, add the data to the list
                 self.arrived.append((arrived_index, data))

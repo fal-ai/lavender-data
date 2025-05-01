@@ -122,6 +122,49 @@ class ProcessNextSamplesParams(BaseModel):
     batch_size: int
 
 
+class ProcessNextSamplesException(Exception):
+    msg: str
+    current: int
+    global_sample_indices: list[GlobalSampleIndex]
+
+    def __init__(
+        self, msg: str, current: int, global_sample_indices: list[GlobalSampleIndex]
+    ):
+        self.msg = msg
+        self.current = current
+        self.global_sample_indices = global_sample_indices
+
+    def json(self) -> dict:
+        return json.dumps(
+            {
+                "msg": self.msg,
+                "current": self.current,
+                "global_sample_indices": [
+                    i.model_dump() for i in self.global_sample_indices
+                ],
+            }
+        )
+
+    @classmethod
+    def from_json(cls, s: bytes) -> "ProcessNextSamplesException":
+        json_content = json.loads(s)
+        return cls(
+            json_content["msg"],
+            json_content["current"],
+            [GlobalSampleIndex(**i) for i in json_content["global_sample_indices"]],
+        )
+
+    def to_http_exception(self) -> HTTPException:
+        return HTTPException(
+            status_code=500,
+            detail=self.msg,
+            headers={
+                "X-Lavender-Data-Error": "SAMPLE_PROCESSING_ERROR",
+                "X-Lavender-Data-Sample-Current": str(self.current),
+            },
+        )
+
+
 def _process_next_samples(
     params: ProcessNextSamplesParams,
 ) -> bytes:
@@ -144,10 +187,10 @@ def _process_next_samples(
     )
 
     if preprocessors is not None:
+        # TODO configurable max_workers
         batch = PreprocessorRegistry.process(
             [(p["name"], p["params"]) for p in preprocessors],
             batch,
-            # TODO configurable max_workers
         )
 
     if batch_size == 0:
@@ -171,20 +214,21 @@ def process_next_samples(
 ) -> bytes:
     logger = get_logger(__name__)
 
-    if max_retry_count < 0:
-        raise HTTPException(status_code=400, detail="max_retry_count must be >= 0")
-
     for i in range(max_retry_count + 1):
         try:
             return _process_next_samples(params)
         except Exception as e:
             tb = traceback.format_exc()
-            msg = f"Error processing next samples: {str(e)}\nTraceback:\n{tb}"
+            msg = f"Error processing samples (current: {params.current}, global_sample_indices: {params.global_sample_indices}): {str(e)}\n{tb}"
             if i < max_retry_count:
                 logger.warning(f"{msg}, retrying... ({i+1}/{max_retry_count})")
             else:
                 logger.error(msg)
-                raise HTTPException(status_code=500, detail=msg)
+                raise ProcessNextSamplesException(
+                    msg=msg,
+                    current=params.current,
+                    global_sample_indices=params.global_sample_indices,
+                )
 
 
 def process_next_samples_and_cache(
@@ -198,8 +242,11 @@ def process_next_samples_and_cache(
     try:
         content = process_next_samples(params, max_retry_count)
         cache.set(cache_key, content, ex=cache_ttl)
+    except ProcessNextSamplesException as e:
+        logger.error(e)
+        cache.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)
     except Exception as e:
-        logger.exception(f"Error processing next samples: {e}")
+        logger.exception(e)
         cache.set(cache_key, f"error:{e}", ex=cache_ttl)
 
 
