@@ -2,10 +2,6 @@ class ReaderException(Exception):
     pass
 
 
-class ReaderColumnsRequired(ReaderException):
-    pass
-
-
 class ReaderFormatInvalid(ReaderException):
     pass
 
@@ -15,4 +11,8 @@ class ReaderColumnsInvalid(ReaderException):
 
 
 class ReaderDirnameOrFilepathRequired(ReaderException):
+    pass
+
+
+class ReaderPrepareFailed(ReaderException):
     pass

@@ -76,7 +76,7 @@ export default defineConfig({
           ],
         },
         {
-          label: "DataLoader Guides",
+          label: "LavenderDataLoader",
           items: [
             {
               label: "Introduction",
@@ -102,8 +102,8 @@ export default defineConfig({
                   slug: "dataloader/pytorch-integration",
                 },
                 {
-                  label: "Fault Tolerance",
-                  slug: "dataloader/fault-tolerance",
+                  label: "Fault Handling",
+                  slug: "dataloader/fault-handling",
                 },
               ],
             },
@@ -162,7 +162,7 @@ export default defineConfig({
           ],
         },
         {
-          label: "Server Guides",
+          label: "LavenderDataServer",
           items: [
             {
               label: "Configuration",

@@ -2,7 +2,7 @@ from typing import Optional, TypeVar, Union
 from contextlib import contextmanager
 import base64
 import os
-
+import json
 from lavender_data.serialize import deserialize_sample
 
 from openapi_lavender_data_rest import Client, AuthenticatedClient
@@ -67,6 +67,18 @@ class LavenderDataApiError(Exception):
     pass
 
 
+class LavenderDataSampleProcessingError(LavenderDataApiError):
+    current: int
+    msg: str
+
+    def __init__(self, current: int, msg: str):
+        self.current = current
+        self.msg = msg
+
+    def __str__(self):
+        return self.msg
+
+
 _T = TypeVar("T")
 
 
@@ -100,10 +112,24 @@ class LavenderDataClient:
             yield client
 
     def _check_response(self, response: Response[Union[_T, HTTPValidationError]]) -> _T:
+        if response.headers.get("X-Lavender-Data-Error") == "SAMPLE_PROCESSING_ERROR":
+            raise LavenderDataSampleProcessingError(
+                current=int(response.headers.get("X-Lavender-Data-Sample-Current")),
+                msg=json.loads(response.content)["detail"],
+            )
+
         if response.status_code >= 400:
-            raise LavenderDataApiError(response.content.decode("utf-8"))
+            try:
+                json_content = json.loads(response.content)
+                msg = json_content["detail"]
+            except Exception:
+                msg = response.content.decode("utf-8")
+
+            raise LavenderDataApiError(msg)
+
         if isinstance(response.parsed, HTTPValidationError):
             raise LavenderDataApiError(response.parsed)
+
         return response.parsed
 
     def get_version(self):
@@ -279,6 +305,7 @@ class LavenderDataClient:
         iteration_id: str,
         rank: int = 0,
         no_cache: bool = False,
+        max_retry_count: int = 0,
     ):
         with self._get_client() as client:
             response = get_next_iterations_iteration_id_next_get.sync_detailed(
@@ -286,6 +313,7 @@ class LavenderDataClient:
                 iteration_id=iteration_id,
                 rank=rank,
                 no_cache=no_cache,
+                max_retry_count=max_retry_count,
             )
         content = self._check_response(response).payload.read()
         return deserialize_sample(content)
@@ -295,6 +323,7 @@ class LavenderDataClient:
         iteration_id: str,
         rank: int = 0,
         no_cache: bool = False,
+        max_retry_count: int = 0,
     ):
         with self._get_client() as client:
             response = submit_next_iterations_iteration_id_next_post.sync_detailed(
@@ -302,6 +331,7 @@ class LavenderDataClient:
                 iteration_id=iteration_id,
                 rank=rank,
                 no_cache=no_cache,
+                max_retry_count=max_retry_count,
             )
         return self._check_response(response)
 
@@ -491,11 +521,13 @@ def get_next_item(
     iteration_id: str,
     rank: int = 0,
     no_cache: bool = False,
+    max_retry_count: int = 0,
 ):
     return _client_instance.get_next_item(
         iteration_id=iteration_id,
         rank=rank,
         no_cache=no_cache,
+        max_retry_count=max_retry_count,
     )
 
 
@@ -504,9 +536,13 @@ def submit_next_item(
     iteration_id: str,
     rank: int = 0,
     no_cache: bool = False,
+    max_retry_count: int = 0,
 ):
     return _client_instance.submit_next_item(
-        iteration_id=iteration_id, rank=rank, no_cache=no_cache
+        iteration_id=iteration_id,
+        rank=rank,
+        no_cache=no_cache,
+        max_retry_count=max_retry_count,
     )
 
 

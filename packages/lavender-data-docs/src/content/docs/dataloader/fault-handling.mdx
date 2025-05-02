@@ -1,6 +1,6 @@
 ---
-title: DataLoader - Fault Tolerance
-description: Learn about DataLoader features in Lavender Data including shuffling, fault tolerance, and resumable iterations
+title: LavenderDataLoader - Fault Handling
+description: Learn about LavenderDataLoader features
 ---
 
 Lavender Data is designed to handle failures gracefully, ensuring your training pipeline remains robust.
@@ -8,11 +8,11 @@ Lavender Data is designed to handle failures gracefully, ensuring your training 
 ### Handling Failed Samples
 
 By default, Lavender Data will skip failed samples. 
-You can control this behavior with the `stop_on_failure` and `max_retry_count` parameters.
+You can control this behavior with the `skip_on_failure` and `max_retry_count` parameters.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `stop_on_failure` | Stop the iteration if a sample fails, instead of skipping it | `False` |
+| `skip_on_failure` | Skip the sample if it fails (after max_retry_count attempts), instead of stopping the iteration | `False` |
 | `max_retry_count` | Retry each failed sample up to this number of times | `0` |
 
 
@@ -20,8 +20,7 @@ You can control this behavior with the `stop_on_failure` and `max_retry_count` p
 dataloader = LavenderDataLoader(
     dataset_id=dataset.id,
     shardsets=[shardset.id],
-    stop_on_failure=True, # Stop the iteration if a sample fails
+    skip_on_failure=True, # Skip the sample if it fails (after max_retry_count attempts)
     max_retry_count=3, # Retry each failed sample up to 3 times
 )
 ```
-

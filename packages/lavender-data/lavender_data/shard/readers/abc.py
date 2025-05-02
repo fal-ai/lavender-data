@@ -7,10 +7,10 @@ from lavender_data.storage import download_file
 from lavender_data.logging import get_logger
 
 from .exceptions import (
-    ReaderColumnsRequired,
     ReaderColumnsInvalid,
     ReaderFormatInvalid,
     ReaderDirnameOrFilepathRequired,
+    ReaderPrepareFailed,
 )
 
 __all__ = ["Reader"]
@@ -115,8 +115,7 @@ class Reader(ABC):
         try:
             download_file(self.location, self.filepath)
         except Exception as e:
-            # TODO
-            raise e
+            raise ReaderPrepareFailed(f"Failed to prepare shard: {e}") from e
 
     def __len__(self) -> int:
         if not self.loaded:

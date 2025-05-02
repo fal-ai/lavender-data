@@ -79,6 +79,7 @@ class ClientCLI:
         self.iterations_next.add_argument("id", type=str)
         self.iterations_next.add_argument("--rank", type=int, default=0)
         self.iterations_next.add_argument("--no-cache", action="store_true")
+        self.iterations_next.add_argument("--max-retry-count", type=int, default=0)
 
         self.iterations_submit_next_item = self.iterations_command_parser.add_parser(
             "async-next"
@@ -86,6 +87,9 @@ class ClientCLI:
         self.iterations_submit_next_item.add_argument("id", type=str)
         self.iterations_submit_next_item.add_argument("--rank", type=int, default=0)
         self.iterations_submit_next_item.add_argument("--no-cache", action="store_true")
+        self.iterations_submit_next_item.add_argument(
+            "--max-retry-count", type=int, default=0
+        )
 
         self.iterations_async_result = self.iterations_command_parser.add_parser(
             "async-result"
@@ -165,11 +169,21 @@ class ClientCLI:
                 result = get_iteration(args.api_url, args.api_key, args.id).to_dict()
             elif args.command == "next":
                 result = get_next_item(
-                    args.api_url, args.api_key, args.id, args.rank, args.no_cache
+                    args.api_url,
+                    args.api_key,
+                    args.id,
+                    args.rank,
+                    args.no_cache,
+                    args.max_retry_count,
                 )
             elif args.command == "async-next":
                 result = submit_next_item(
-                    args.api_url, args.api_key, args.id, args.rank, args.no_cache
+                    args.api_url,
+                    args.api_key,
+                    args.id,
+                    args.rank,
+                    args.no_cache,
+                    args.max_retry_count,
                 )
             elif args.command == "async-result":
                 result = get_submitted_result(
