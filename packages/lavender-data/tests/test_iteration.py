@@ -223,7 +223,7 @@ class TestIteration(unittest.TestCase):
             read_samples += 1
         self.assertEqual(read_samples, self.total_samples)
 
-    def test_iteration_with_stop_on_failure(self):
+    def test_iteration_with_skip_on_failure(self):
         self.assertRaises(
             LavenderDataApiError,
             lambda: next(
@@ -231,7 +231,7 @@ class TestIteration(unittest.TestCase):
                     dataset_id=self.dataset_id,
                     shardsets=[self.shardset_id],
                     preprocessors=["fail_once_in_two_samples"],
-                    stop_on_failure=True,
+                    skip_on_failure=False,
                 )
             ),
         )
@@ -243,7 +243,7 @@ class TestIteration(unittest.TestCase):
                     dataset_id=self.dataset_id,
                     shardsets=[self.shardset_id],
                     preprocessors=["fail_once_in_two_samples"],
-                    stop_on_failure=False,
+                    skip_on_failure=True,
                 )
             ),
             total=self.total_samples,

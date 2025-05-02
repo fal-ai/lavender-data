@@ -63,7 +63,7 @@ class LavenderDataLoader:
         preprocessors: Optional[list[Union[tuple[str, dict], str]]] = None,
         collater: Optional[Union[tuple[str, dict], str]] = None,
         max_retry_count: int = 0,
-        stop_on_failure: bool = True,
+        skip_on_failure: bool = False,
         shuffle: Optional[bool] = None,
         shuffle_seed: Optional[int] = None,
         shuffle_block_size: Optional[int] = None,
@@ -124,7 +124,7 @@ class LavenderDataLoader:
         self._last_indices = None
         self._no_cache = no_cache
         self._max_retry_count = max_retry_count
-        self._stop_on_failure = stop_on_failure
+        self._skip_on_failure = skip_on_failure
         self._rank = rank
 
         self._api_url = api_url
@@ -259,10 +259,10 @@ class LavenderDataLoader:
                 sample_or_batch = self._get_next_item()
                 break
             except LavenderDataSampleProcessingError as e:
-                if self._stop_on_failure:
-                    raise e
-                else:
+                if self._skip_on_failure:
                     continue
+                else:
+                    raise e
 
         self._set_last_indices(sample_or_batch)
         return sample_or_batch
@@ -366,11 +366,11 @@ class AsyncLavenderDataLoader:
                 self.stopped = True
                 continue
             except LavenderDataSampleProcessingError as e:
-                if self.dl._stop_on_failure:
-                    raise e
-                else:
+                if self.dl._skip_on_failure:
                     data = None
                     arrived_index = e.current
+                else:
+                    raise e
 
             self._submit_next()
 
