@@ -1,0 +1,115 @@
+---
+title: Release Notes
+description: Release notes for Lavender Data
+---
+
+## 0.0.9 (2025-05-02)
+
+### Added
+
+#### Fault handling
+
+Added fault handling features.
+- `skip_on_failure` option
+- `max_retry_count` option
+
+
+## 0.0.8 (2025-04-30)
+
+### Added
+
+#### Daemon commands
+
+Added cli command: `start` `stop` `restart` `logs`
+Those are daemon-related commands.
+
+`start` starts the server daemon in background. You can stop, restart with `stop`, `restart` commands.
+
+```bash
+lavender-data server start --init
+> lavender-data is running on 0.0.0.0:8000
+> UI is running on http://localhost:8000
+> API key created: la-...
+```
+
+You can check the logs from daemon with `logs` command.
+
+```bash
+lavender-data server logs -n 100
+# print last 100 lines of the logs
+
+lavender-data server logs -f
+# wait for new logs and print them
+```
+
+
+#### Converters
+
+A Converter is a tool that converts data from a source to a Lavender Data shardset.
+
+```python
+import webdataset as wds
+
+url = "https://storage.googleapis.com/webdataset/testdata/publaynet-train-{000000..000009}.tar"
+pil_dataset = wds.WebDataset(url).decode("pil")
+
+converter = lavender.Converter.get("webdataset")
+converter.to_shardset(
+    pil_dataset,
+    "dataset_name",
+    location=f"file:///path/to/shardset",
+    uid_column_name="id",
+)
+```
+
+#### UI breadcrumb
+
+Added breadcrumb
+
+
+### Fixed
+
+#### Client sdk interface
+
+Before
+```python
+from lavender_data.client import api as lavender, Iteration
+
+lavender.init(api_url="")
+
+lavender.get_datasets()
+
+for row in Iteration.from_dataset(...).to_torch_data_loader():
+    ...
+```
+
+After
+```python
+import lavender_data.client as lavender
+
+lavender.init(api_url="")
+
+lavender.api.get_datasets()
+# or
+lavender.get_client().get_datasets()
+# or (in case you need ignore `lavender.init()`)
+lavender.LavenderDataClient(api_url="").get_datasets()
+
+for row in lavender.LavenderDataLoader(...).torch():
+   ...
+```
+
+
+## 0.0.7 (2025-04-21)
+
+### Added
+
+#### Cluster
+
+Added cluster features (`LAVENDER_DATA_CLUSTER_*` envs, `cluster_sync` option)
+
+### Fixed
+
+Turned env `API_URL` of UI into runtime so it can be injected when running lavender-data server run
+
+Fixed shards not shuffling bug

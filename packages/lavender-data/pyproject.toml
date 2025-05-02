@@ -1,18 +1,21 @@
 [tool.poetry]
 name = "lavender-data"
-version = "0.0.9"
+version = "0.0.10a"
 description = "Load & evolve datasets efficiently"
 authors = [
   "Hanch Han <cndghks15@gmail.com>"
 ]
 repository = "https://github.com/fal-ai/lavender-data"
-documentation = "https://github.com/fal-ai/lavender-data"
+documentation = "https://docs.lavenderdata.com"
 license = "Apache-2.0"
 readme = "README.md"
 packages = [
   {include = "lavender_data", from = "."},
   {include = "openapi_lavender_data_rest", from = "./openapi-lavender-data-rest"},
 ]
+
+[tool.poetry.urls]
+Changelog = "https://docs.lavenderdata.com/release-notes"
 
 [tool.poetry.scripts]
 lavender-data = "lavender_data.__main__:main"

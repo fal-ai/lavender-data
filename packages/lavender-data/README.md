@@ -1,18 +1,31 @@
 <p align="center">
-    <img src="https://docs.lavenderdata.com/og-thumbnail.webp" alt="Lavender Data Logo" width="50%" />
+    <img src="./assets/logo.webp" alt="Lavender Data Logo" width="50%" />
 </p>
 
-<h3>
+<h2>
     <p align="center">
         Load & evolve datasets efficiently
     </p>
-</h3>
+</h2>
 
 <p align="center">
-    <a href="https://docs.lavenderdata.com/">
-        <img alt="Docs" src="https://img.shields.io/badge/Docs-docs.svg">
+    <a href="https://pypi.org/project/lavender-data/">
+        <img alt="PyPI" src="https://img.shields.io/pypi/v/lavender-data.svg">
     </a>
     <a href="https://discord.gg/fal-ai">
         <img alt="Discord" src="https://img.shields.io/badge/Discord-chat-2eb67d.svg?logo=discord">
+    </a>
+    <a href="https://github.com/fal-ai/lavender-data/blob/main/LICENSE">
+        <img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-green.svg">
+    </a>
+</p>
+
+<br />
+
+<p align="center">
+    Please visit our docs for more information.
+    <br />
+    <a href="https://docs.lavenderdata.com/">
+        docs.lavenderdata.com
     </a>
 </p>

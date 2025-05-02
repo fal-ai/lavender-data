@@ -182,10 +182,10 @@ export default defineConfig({
             },
           ],
         },
-        // {
-        //   label: "FAQ",
-        //   slug: "faq",
-        // },
+        {
+          label: "Release Notes",
+          slug: "release-notes",
+        },
       ],
     }),
   ],
