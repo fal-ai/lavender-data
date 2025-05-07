@@ -3,7 +3,7 @@ import json
 from typing import Optional, Any
 
 from fastapi import HTTPException, APIRouter, BackgroundTasks, Depends
-from sqlmodel import select
+from sqlmodel import select, delete
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 
@@ -12,7 +12,9 @@ from lavender_data.server.db import DbSession
 from lavender_data.server.db.models import (
     Dataset,
     Shardset,
+    Shard,
     DatasetColumn,
+    IterationShardsetLink,
     DatasetPublic,
     ShardsetPublic,
     ShardPublic,
@@ -199,6 +201,52 @@ def create_dataset(
     return dataset
 
 
+@router.delete("/{dataset_id}")
+def delete_dataset(
+    dataset_id: str,
+    session: DbSession,
+    cluster: CurrentCluster,
+) -> DatasetPublic:
+    try:
+        dataset = session.get_one(Dataset, dataset_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # TODO lock
+    try:
+        columns_to_delete = dataset.columns
+        links_to_delete = session.exec(
+            select(IterationShardsetLink).where(
+                IterationShardsetLink.shardset_id.in_(
+                    [shardset.id for shardset in dataset.shardsets]
+                )
+            )
+        ).all()
+        shards_to_delete = [
+            shard for shardset in dataset.shardsets for shard in shardset.shards
+        ]
+        shardsets_to_delete = dataset.shardsets
+        session.exec(delete(Dataset).where(Dataset.id == dataset.id))
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise e
+
+    if cluster:
+        cluster.sync_changes(
+            [
+                dataset,
+                *columns_to_delete,
+                *links_to_delete,
+                *shards_to_delete,
+                *shardsets_to_delete,
+            ],
+            delete=True,
+        )
+
+    return dataset
+
+
 class DatasetColumnOptions(BaseModel):
     name: str
     type: str
@@ -324,7 +372,7 @@ def create_shardset(
 
     if len(shard_basenames) > 0:
         cache.hset(
-            _sync_status_key(shardset.id),
+            _shardset_lock_key(shardset.id),
             mapping=SyncShardsetStatus(
                 status="pending",
                 done_count=0,
@@ -341,7 +389,7 @@ def create_shardset(
             dataset_id=dataset.id,
             num_workers=10,
             overwrite=False,
-            cache_key=_sync_status_key(shardset.id),
+            cache_key=_shardset_lock_key(shardset.id),
         )
 
     return shardset
@@ -400,8 +448,8 @@ class SyncShardsetParams(BaseModel):
     overwrite: bool = False
 
 
-def _sync_status_key(shardset_id: str) -> str:
-    return f"shardset:{shardset_id}:sync-status"
+def _shardset_lock_key(shardset_id: str) -> str:
+    return f"shardset:{shardset_id}:lock"
 
 
 @router.post("/{dataset_id}/shardsets/{shardset_id}/sync")
@@ -423,7 +471,7 @@ def sync_shardset(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Shardset not found")
 
-    existing = cache.hgetall(_sync_status_key(shardset_id))
+    existing = cache.hgetall(_shardset_lock_key(shardset_id))
     if existing:
         if existing[b"status"] != b"done":
             raise HTTPException(
@@ -432,7 +480,7 @@ def sync_shardset(
             )
     else:
         cache.hset(
-            _sync_status_key(shardset.id),
+            _shardset_lock_key(shardset.id),
             mapping=SyncShardsetStatus(
                 status="pending",
                 done_count=0,
@@ -450,7 +498,7 @@ def sync_shardset(
         dataset_id=dataset_id,
         num_workers=10,
         overwrite=params.overwrite,
-        cache_key=_sync_status_key(shardset.id),
+        cache_key=_shardset_lock_key(shardset.id),
     )
     return shardset
 
@@ -461,7 +509,7 @@ def get_sync_status(
     shardset_id: str,
     cache: CacheClient,
 ) -> SyncShardsetStatus:
-    cache_key = _sync_status_key(shardset_id)
+    cache_key = _shardset_lock_key(shardset_id)
     raw_status = cache.hgetall(cache_key)
     if raw_status is None or len(raw_status) == 0:
         raise HTTPException(status_code=404, detail="Sync status not found")
@@ -471,3 +519,66 @@ def get_sync_status(
         shard_count=int(raw_status[b"shard_count"]),
         shards=json.loads(raw_status[b"shards"].decode("utf-8")),
     )
+
+
+@router.delete("/{dataset_id}/shardsets/{shardset_id}")
+def delete_shardset(
+    dataset_id: str,
+    shardset_id: str,
+    session: DbSession,
+    cache: CacheClient,
+    cluster: CurrentCluster,
+) -> ShardsetPublic:
+    try:
+        shardset = session.exec(
+            select(Shardset).where(
+                Shardset.id == shardset_id,
+                Shardset.dataset_id == dataset_id,
+            )
+        ).one()
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Shardset not found")
+
+    with cache.lock(_shardset_lock_key(shardset.id)):
+        try:
+            columns_to_delete = [
+                column
+                for column in shardset.columns
+                if column.name != shardset.dataset.uid_column_name
+                or len(shardset.dataset.shardsets) == 1
+            ]
+            links_to_delete = session.exec(
+                select(IterationShardsetLink).where(
+                    IterationShardsetLink.shardset_id == shardset.id
+                )
+            ).all()
+            shards_to_delete = shardset.shards
+            if len(columns_to_delete) > 0:
+                session.exec(
+                    delete(DatasetColumn).where(
+                        DatasetColumn.id.in_([c.id for c in columns_to_delete])
+                    )
+                )
+            if len(links_to_delete) > 0:
+                session.exec(
+                    delete(IterationShardsetLink).where(
+                        IterationShardsetLink.shardset_id == shardset.id
+                    )
+                )
+            if len(shards_to_delete) > 0:
+                session.exec(
+                    delete(Shard).where(Shard.shardset_id == shardset.id).returning()
+                )
+            session.exec(delete(Shardset).where(Shardset.id == shardset.id))
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
+
+        if cluster:
+            cluster.sync_changes(
+                [shardset, *columns_to_delete, *links_to_delete, *shards_to_delete],
+                delete=True,
+            )
+
+    return shardset
