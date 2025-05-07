@@ -12,6 +12,7 @@
     "openapi-generate": "openapi-typescript http://localhost:8000/openapi.json -o ./src/lib/api/v1.d.ts"
   },
   "dependencies": {
+    "@radix-ui/react-alert-dialog": "^1.1.13",
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-label": "^2.1.2",
     "@radix-ui/react-progress": "^1.1.2",

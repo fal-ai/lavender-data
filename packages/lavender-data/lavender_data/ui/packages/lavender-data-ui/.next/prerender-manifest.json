@@ -1,30 +1,6 @@
 {
   "version": 4,
   "routes": {
-    "/set-api-key": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/set-api-key",
-      "dataRoute": "/set-api-key.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
     "/": {
       "experimentalBypassFor": [
         {
@@ -48,13 +24,37 @@
         "x-next-revalidated-tags",
         "x-next-revalidate-tag-token"
       ]
+    },
+    "/set-api-key": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/set-api-key",
+      "dataRoute": "/set-api-key.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
     }
   },
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "90f861535f1f903cc2a697dc51cc1e7e",
-    "previewModeSigningKey": "14641b8ed7ab03a0cd27adb223d86e2e1ce73c5f71a013862337a31101be0d5d",
-    "previewModeEncryptionKey": "c6ae86a7c17419c142c4a1fb748476a9bfafcb7dcb23ed68541bbbc91dc06f41"
+    "previewModeId": "0daf3650568de328eaf690f79de65902",
+    "previewModeSigningKey": "c5df3ff5abf593cf499c50bb08d4273c387acb4fc8c8d6068deff0ae15cd7b91",
+    "previewModeEncryptionKey": "01425f937fb1f03676b659930a74ba56a3e3397c592d93ae196fd205bcca31e4"
   }
 }
