@@ -50,7 +50,8 @@ export interface paths {
         get: operations["get_dataset_datasets__dataset_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Dataset */
+        delete: operations["delete_dataset_datasets__dataset_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -101,24 +102,8 @@ export interface paths {
         get: operations["get_shardset_datasets__dataset_id__shardsets__shardset_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/datasets/{dataset_id}/shardsets/{shardset_id}/shards": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Shard */
-        post: operations["create_shard_datasets__dataset_id__shardsets__shardset_id__shards_post"];
-        delete?: never;
+        /** Delete Shardset */
+        delete: operations["delete_shardset_datasets__dataset_id__shardsets__shardset_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -160,6 +145,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/iterations/iteration-id-from-hash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cluster Get Iteration Id From Hash */
+        get: operations["cluster_get_iteration_id_from_hash_iterations_iteration_id_from_hash_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/iterations/{iteration_id}": {
         parameters: {
             query?: never;
@@ -187,7 +189,8 @@ export interface paths {
         /** Get Next */
         get: operations["get_next_iterations__iteration_id__next_get"];
         put?: never;
-        post?: never;
+        /** Submit Next */
+        post: operations["submit_next_iterations__iteration_id__next_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -201,8 +204,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Next Async Result */
-        get: operations["get_next_async_result_iterations__iteration_id__next__cache_key__get"];
+        /** Get Submitted Result */
+        get: operations["get_submitted_result_iterations__iteration_id__next__cache_key__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -262,6 +265,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/iterations/{iteration_id}/state/set-cluster-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cluster Set Cluster Sync */
+        post: operations["cluster_set_cluster_sync_iterations__iteration_id__state_set_cluster_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/iterations/{iteration_id}/state/{operation}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cluster Operation */
+        post: operations["cluster_operation_iterations__iteration_id__state__operation__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/registries/preprocessors": {
         parameters: {
             query?: never;
@@ -272,7 +309,8 @@ export interface paths {
         /** Get Preprocessors */
         get: operations["get_preprocessors_registries_preprocessors_get"];
         put?: never;
-        post?: never;
+        /** Create Preprocessor */
+        post: operations["create_preprocessor_registries_preprocessors_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -313,10 +351,135 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cluster/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register */
+        post: operations["register_cluster_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cluster/deregister": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deregister */
+        post: operations["deregister_cluster_deregister_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cluster/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Heartbeat */
+        post: operations["heartbeat_cluster_heartbeat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cluster/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync Initial */
+        post: operations["sync_initial_cluster_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cluster/sync-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync Changes */
+        post: operations["sync_changes_cluster_sync_changes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cluster/nodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Nodes */
+        get: operations["get_nodes_cluster_nodes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ApiKeyPublic */
+        ApiKeyPublic: {
+            /** Id */
+            id?: string;
+            /** Note */
+            note: string | null;
+            /** Secret */
+            secret?: string;
+            /**
+             * Locked
+             * @default false
+             */
+            locked: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Expires At */
+            expires_at: string | null;
+            /** Last Accessed At */
+            last_accessed_at: string | null;
+        };
         /** CreateDatasetParams */
         CreateDatasetParams: {
             /** Name */
@@ -345,24 +508,14 @@ export interface components {
             batch_size?: number | null;
             /** Replication Pg */
             replication_pg?: number[][] | null;
-        };
-        /** CreateShardParams */
-        CreateShardParams: {
-            /** Location */
-            location: string;
-            /** Filesize */
-            filesize: number;
-            /** Samples */
-            samples: number;
-            /** Format */
-            format: string;
-            /** Index */
-            index: number;
-            /**
-             * Overwrite
-             * @default false
-             */
-            overwrite: boolean;
+            /** Rank */
+            rank?: number | null;
+            /** World Size */
+            world_size?: number | null;
+            /** Wait Participant Threshold */
+            wait_participant_threshold?: number | null;
+            /** Cluster Sync */
+            cluster_sync?: boolean | null;
         };
         /** CreateShardsetParams */
         CreateShardsetParams: {
@@ -442,6 +595,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** DeregisterParams */
+        DeregisterParams: {
+            /** Node Url */
+            node_url: string;
         };
         /** GetDatasetResponse */
         GetDatasetResponse: {
@@ -538,6 +696,11 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HeartbeatParams */
+        HeartbeatParams: {
+            /** Node Url */
+            node_url: string;
+        };
         /** InProgressIndex */
         InProgressIndex: {
             /** Index */
@@ -612,6 +775,37 @@ export interface components {
              */
             created_at: string;
         };
+        /** IterationShardsetLink */
+        IterationShardsetLink: {
+            /** Id */
+            id?: string;
+            /** Iteration Id */
+            iteration_id: string;
+            /** Shardset Id */
+            shardset_id: string;
+        };
+        /** NodeStatus */
+        NodeStatus: {
+            /** Node Url */
+            node_url: string;
+            /** Last Heartbeat */
+            last_heartbeat: number | null;
+        };
+        /** OrphanShardInfo */
+        OrphanShardInfo: {
+            /** Samples */
+            samples: number;
+            /** Location */
+            location: string;
+            /** Format */
+            format: string;
+            /** Filesize */
+            filesize: number;
+            /** Columns */
+            columns: {
+                [key: string]: string;
+            };
+        };
         /** PreviewDatasetResponse */
         PreviewDatasetResponse: {
             dataset: components["schemas"]["DatasetPublic"];
@@ -638,6 +832,11 @@ export interface components {
             filtered: number;
             /** Failed */
             failed: number;
+        };
+        /** RegisterParams */
+        RegisterParams: {
+            /** Node Url */
+            node_url: string;
         };
         /** ShardPublic */
         ShardPublic: {
@@ -722,6 +921,28 @@ export interface components {
             /** Columns */
             columns: components["schemas"]["DatasetColumnPublic"][];
         };
+        /** SubmitNextResponse */
+        SubmitNextResponse: {
+            /** Cache Key */
+            cache_key: string;
+        };
+        /** SyncParams */
+        SyncParams: {
+            /** Datasets */
+            datasets: components["schemas"]["DatasetPublic"][];
+            /** Dataset Columns */
+            dataset_columns: components["schemas"]["DatasetColumnPublic"][];
+            /** Shardsets */
+            shardsets: components["schemas"]["ShardsetPublic"][];
+            /** Shards */
+            shards: components["schemas"]["ShardPublic"][];
+            /** Iterations */
+            iterations: components["schemas"]["IterationPublic"][];
+            /** Iteration Shardset Links */
+            iteration_shardset_links: components["schemas"]["IterationShardsetLink"][];
+            /** Api Keys */
+            api_keys: components["schemas"]["ApiKeyPublic"][];
+        };
         /** SyncShardsetParams */
         SyncShardsetParams: {
             /**
@@ -738,6 +959,8 @@ export interface components {
             done_count: number;
             /** Shard Count */
             shard_count: number;
+            /** Shards */
+            shards: components["schemas"]["OrphanShardInfo"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -877,6 +1100,37 @@ export interface operations {
             };
         };
     };
+    delete_dataset_datasets__dataset_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     preview_dataset_datasets__dataset_id__preview_get: {
         parameters: {
             query?: {
@@ -978,7 +1232,7 @@ export interface operations {
             };
         };
     };
-    create_shard_datasets__dataset_id__shardsets__shardset_id__shards_post: {
+    delete_shardset_datasets__dataset_id__shardsets__shardset_id__delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -988,11 +1242,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateShardParams"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -1000,7 +1250,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ShardPublic"];
+                    "application/json": components["schemas"]["ShardsetPublic"];
                 };
             };
             /** @description Validation Error */
@@ -1146,6 +1396,37 @@ export interface operations {
             };
         };
     };
+    cluster_get_iteration_id_from_hash_iterations_iteration_id_from_hash_get: {
+        parameters: {
+            query: {
+                iteration_hash: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_iteration_iterations__iteration_id__get: {
         parameters: {
             query?: never;
@@ -1181,7 +1462,8 @@ export interface operations {
         parameters: {
             query?: {
                 rank?: number;
-                async_mode?: boolean;
+                no_cache?: boolean;
+                max_retry_count?: number;
             };
             header?: never;
             path: {
@@ -1211,7 +1493,42 @@ export interface operations {
             };
         };
     };
-    get_next_async_result_iterations__iteration_id__next__cache_key__get: {
+    submit_next_iterations__iteration_id__next_post: {
+        parameters: {
+            query?: {
+                rank?: number;
+                no_cache?: boolean;
+                max_retry_count?: number;
+            };
+            header?: never;
+            path: {
+                iteration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitNextResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_submitted_result_iterations__iteration_id__next__cache_key__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -1249,7 +1566,7 @@ export interface operations {
             header?: never;
             path: {
                 iteration_id: string;
-                index: string;
+                index: number;
             };
             cookie?: never;
         };
@@ -1337,6 +1654,75 @@ export interface operations {
             };
         };
     };
+    cluster_set_cluster_sync_iterations__iteration_id__state_set_cluster_sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                iteration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cluster_operation_iterations__iteration_id__state__operation__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                iteration_id: string;
+                operation: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_preprocessors_registries_preprocessors_get: {
         parameters: {
             query?: never;
@@ -1353,6 +1739,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": string[];
+                };
+            };
+        };
+    };
+    create_preprocessor_registries_preprocessors_post: {
+        parameters: {
+            query: {
+                name: string;
+                function: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1393,6 +1811,193 @@ export interface operations {
                 };
                 content: {
                     "application/json": string[];
+                };
+            };
+        };
+    };
+    register_cluster_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterParams"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deregister_cluster_deregister_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeregisterParams"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    heartbeat_cluster_heartbeat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HeartbeatParams"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_initial_cluster_sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncParams"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_changes_cluster_sync_changes_post: {
+        parameters: {
+            query?: {
+                delete?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncParams"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_nodes_cluster_nodes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeStatus"][];
                 };
             };
         };

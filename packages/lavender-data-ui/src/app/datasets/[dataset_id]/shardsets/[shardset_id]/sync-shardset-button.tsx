@@ -67,12 +67,18 @@ export function SyncShardsetButton({
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="h-4">
+    <div className="w-full flex flex-col gap-1">
+      <form action={clientSyncAction}>
+        <Button type="submit" className="w-full" disabled={!!syncStatus}>
+          <RefreshCcw className="w-4 h-4" />
+          Sync
+        </Button>
+      </form>
+      <div className="h-[20px]">
         {syncStatus && (
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
             <Progress
-              className="w-80"
+              className="w-full"
               value={
                 syncStatus.shard_count > 0
                   ? (100 * syncStatus.done_count) / syncStatus.shard_count
@@ -81,21 +87,13 @@ export function SyncShardsetButton({
             />
             <div className="text-sm text-muted-foreground">
               {syncStatus.shard_count > 0
-                ? `${syncStatus.done_count} / ${syncStatus.shard_count}`
+                ? `${syncStatus.done_count} / ${syncStatus.shard_count} `
                 : ''}
-            </div>
-            <div className="text-sm text-muted-foreground">
               {syncStatus.status}
             </div>
           </div>
         )}
       </div>
-      <form action={clientSyncAction}>
-        <Button type="submit" disabled={!!syncStatus}>
-          <RefreshCcw className="w-4 h-4" />
-          Sync
-        </Button>
-      </form>
     </div>
   );
 }
