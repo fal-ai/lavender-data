@@ -7,8 +7,10 @@ from .api_call import (
     get_datasets,
     get_dataset,
     create_dataset,
+    delete_dataset,
     get_shardset,
     create_shardset,
+    delete_shardset,
     sync_shardset,
     get_iterations,
     get_iteration,
@@ -39,13 +41,16 @@ class ClientCLI:
         self.datasets_list = self.datasets_command_parser.add_parser("list")
         self.datasets_list.add_argument("--name", type=str, default=None)
 
+        self.datasets_get = self.datasets_command_parser.add_parser("get")
+        self.datasets_get.add_argument("--id", type=str)
+        self.datasets_get.add_argument("--name", type=str)
+
         self.datasets_create = self.datasets_command_parser.add_parser("create")
         self.datasets_create.add_argument("--name", type=str, required=True)
         self.datasets_create.add_argument("--uid-column-name", type=str, required=True)
 
-        self.datasets_get = self.datasets_command_parser.add_parser("get")
-        self.datasets_get.add_argument("--id", type=str)
-        self.datasets_get.add_argument("--name", type=str)
+        self.datasets_delete = self.datasets_command_parser.add_parser("delete")
+        self.datasets_delete.add_argument("--id", type=str, required=True)
 
         self.shardsets_parser = subparsers.add_parser("shardsets")
         self.shardsets_command_parser = self.shardsets_parser.add_subparsers(
@@ -58,6 +63,10 @@ class ClientCLI:
         self.shardsets_create = self.shardsets_command_parser.add_parser("create")
         self.shardsets_create.add_argument("--dataset-id", type=str, required=True)
         self.shardsets_create.add_argument("--location", type=str, required=True)
+
+        self.shardsets_delete = self.shardsets_command_parser.add_parser("delete")
+        self.shardsets_delete.add_argument("--dataset-id", type=str, required=True)
+        self.shardsets_delete.add_argument("--shardset-id", type=str, required=True)
 
         self.shardsets_sync = self.shardsets_command_parser.add_parser("sync")
         self.shardsets_sync.add_argument("--dataset-id", type=str, required=True)
@@ -130,6 +139,8 @@ class ClientCLI:
                 result = create_dataset(
                     args.api_url, args.api_key, args.name, args.uid_column_name
                 ).to_dict()
+            elif args.command == "delete":
+                result = delete_dataset(args.api_url, args.api_key, args.id).to_dict()
             elif args.command == "get":
                 result = get_dataset(
                     args.api_url, args.api_key, args.id, args.name
@@ -145,6 +156,10 @@ class ClientCLI:
             elif args.command == "create":
                 result = create_shardset(
                     args.api_url, args.api_key, args.dataset_id, args.location
+                ).to_dict()
+            elif args.command == "delete":
+                result = delete_shardset(
+                    args.api_url, args.api_key, args.dataset_id, args.shardset_id
                 ).to_dict()
             elif args.command == "sync":
                 result = sync_shardset(

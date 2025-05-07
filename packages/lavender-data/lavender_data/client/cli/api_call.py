@@ -25,6 +25,10 @@ def create_dataset(api_url: str, api_key: str, name: str, uid_column_name: str):
     )
 
 
+def delete_dataset(api_url: str, api_key: str, dataset_id: str):
+    return _api(api_url=api_url, api_key=api_key).delete_dataset(dataset_id=dataset_id)
+
+
 def get_shardset(api_url: str, api_key: str, dataset_id: str, shardset_id: str):
     return _api(api_url=api_url, api_key=api_key).get_shardset(
         dataset_id=dataset_id, shardset_id=shardset_id
@@ -34,6 +38,12 @@ def get_shardset(api_url: str, api_key: str, dataset_id: str, shardset_id: str):
 def create_shardset(api_url: str, api_key: str, dataset_id: str, location: str):
     return _api(api_url=api_url, api_key=api_key).create_shardset(
         dataset_id=dataset_id, location=location, columns=[]
+    )
+
+
+def delete_shardset(api_url: str, api_key: str, dataset_id: str, shardset_id: str):
+    return _api(api_url=api_url, api_key=api_key).delete_shardset(
+        dataset_id=dataset_id, shardset_id=shardset_id
     )
 
 

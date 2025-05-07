@@ -15,7 +15,9 @@ from openapi_lavender_data_rest.api.datasets import (
     get_datasets_datasets_get,
     get_shardset_datasets_dataset_id_shardsets_shardset_id_get,
     create_dataset_datasets_post,
+    delete_dataset_datasets_dataset_id_delete,
     create_shardset_datasets_dataset_id_shardsets_post,
+    delete_shardset_datasets_dataset_id_shardsets_shardset_id_delete,
     sync_shardset_datasets_dataset_id_shardsets_shardset_id_sync_post,
     get_sync_status_datasets_dataset_id_shardsets_shardset_id_sync_get,
 )
@@ -190,6 +192,14 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
+    def delete_dataset(self, dataset_id: str):
+        with self._get_client() as client:
+            response = delete_dataset_datasets_dataset_id_delete.sync_detailed(
+                client=client,
+                dataset_id=dataset_id,
+            )
+        return self._check_response(response)
+
     def get_shardset(self, dataset_id: str, shardset_id: str):
         with self._get_client() as client:
             response = get_shardset_datasets_dataset_id_shardsets_shardset_id_get.sync_detailed(
@@ -207,6 +217,15 @@ class LavenderDataClient:
                 client=client,
                 dataset_id=dataset_id,
                 body=CreateShardsetParams(location=location, columns=columns),
+            )
+        return self._check_response(response)
+
+    def delete_shardset(self, dataset_id: str, shardset_id: str):
+        with self._get_client() as client:
+            response = delete_shardset_datasets_dataset_id_shardsets_shardset_id_delete.sync_detailed(
+                client=client,
+                dataset_id=dataset_id,
+                shardset_id=shardset_id,
             )
         return self._check_response(response)
 
@@ -440,6 +459,11 @@ def create_dataset(name: str, uid_column_name: Optional[str] = None):
 
 
 @ensure_client()
+def delete_dataset(dataset_id: str):
+    return _client_instance.delete_dataset(dataset_id=dataset_id)
+
+
+@ensure_client()
 def get_shardset(dataset_id: str, shardset_id: str):
     return _client_instance.get_shardset(dataset_id=dataset_id, shardset_id=shardset_id)
 
@@ -450,6 +474,13 @@ def create_shardset(
 ):
     return _client_instance.create_shardset(
         dataset_id=dataset_id, location=location, columns=columns
+    )
+
+
+@ensure_client()
+def delete_shardset(dataset_id: str, shardset_id: str):
+    return _client_instance.delete_shardset(
+        dataset_id=dataset_id, shardset_id=shardset_id
     )
 
 
