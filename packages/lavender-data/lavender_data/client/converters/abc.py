@@ -1,5 +1,6 @@
 import os
 import time
+import math
 import tempfile
 from typing import Iterable, Optional
 from abc import ABC, abstractmethod
@@ -37,7 +38,30 @@ class Converter(ABC):
     ):
         with tempfile.NamedTemporaryFile() as temp_file:
             shard_location = self._shard_location(location, shard_index)
-            table = pa.Table.from_pylist(samples)
+            try:
+                table = pa.Table.from_pylist(samples)
+            except pa.ArrowTypeError as e:
+                type_map = {}
+                for i, sample in enumerate(samples):
+                    for k, v in sample.items():
+                        if k not in type_map:
+                            type_map[k] = type(v)
+
+                        if type(v) == type_map[k]:
+                            continue
+
+                        # convert float nan to None
+                        if isinstance(v, float) and math.isnan(v):
+                            samples[i][k] = None
+                            continue
+
+                        raise Exception(
+                            f"Type mismatch for column {k}: expected {type_map[k]}, got {type(v)} ({v})"
+                        ) from e
+
+                # fixed potential type issues, try again
+                table = pa.Table.from_pylist(samples)
+
             pq.write_table(table, temp_file.name)
             upload_file(local_path=temp_file.name, remote_path=shard_location)
 
@@ -90,28 +114,47 @@ class Converter(ABC):
                 )
             )
 
+        print(f"Waiting for shards to be created at {location}")
+
         for future in as_completed(futures):
             future.result()
+
+        print(f"{shard_index} shards are created at {location}")
 
         try:
             api = get_client()
         except Exception as e:
             print(f"Failed to connect to Lavender Data API: {e}")
-            print(f"{shard_index} shards are created at {location}")
             return
 
         try:
             dataset = api.get_dataset(name=dataset_name)
         except Exception as e:
-            dataset = api.create_dataset(
+            api.create_dataset(
                 name=dataset_name,
                 uid_column_name=uid_column_name or self.default_uid_column_name,
             )
-        shardset = api.create_shardset(
-            dataset_id=dataset.id,
-            location=location,
-        )
+            dataset = api.get_dataset(name=dataset_name)
+            print(f"Dataset {dataset_name} created")
 
+        shardset = next(
+            (s for s in dataset.shardsets if s.location == location),
+            None,
+        )
+        if shardset is None:
+            shardset = api.create_shardset(
+                dataset_id=dataset.id,
+                location=location,
+            )
+            print(f"Shardset {location} created")
+        else:
+            api.sync_shardset(
+                dataset_id=dataset.id,
+                shardset_id=shardset.id,
+                overwrite=True,
+            )
+
+        print(f"Syncing shardset {shardset.id} with {location}")
         while True:
             status = api.get_sync_shardset_status(
                 dataset_id=dataset.id, shardset_id=shardset.id
