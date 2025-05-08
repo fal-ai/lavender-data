@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from lavender_data.logging import get_logger
 
 from .ui import setup_ui
-from .db import setup_db, create_db_and_tables
+from .db import setup_db
 from .cache import setup_cache, register_worker, deregister_worker
 from .distributed import setup_cluster, cleanup_cluster
 from .reader import setup_reader
@@ -30,7 +30,6 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
 
     setup_db(settings.lavender_data_db_url)
-    create_db_and_tables()
 
     setup_cache(redis_url=settings.lavender_data_redis_url)
 
@@ -58,6 +57,7 @@ async def lifespan(app: FastAPI):
             ui = setup_ui(
                 f"http://{settings.lavender_data_host}:{settings.lavender_data_port}",
                 settings.lavender_data_ui_port,
+                force_install_dependencies=settings.lavender_data_ui_force_install_dependencies,
             )
         except Exception as e:
             logger.warning(f"UI failed to start: {e}")

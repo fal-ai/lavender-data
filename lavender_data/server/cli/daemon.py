@@ -9,7 +9,6 @@ import daemon
 from daemon.pidfile import PIDLockFile
 
 from .run import run
-from .create_api_key import create_api_key
 from lavender_data.server.settings import get_settings
 
 PID_LOCK_FILE = "/tmp/lavender-data.pid"
@@ -53,7 +52,7 @@ def port_open(port: int):
         return False
 
 
-def start(init: bool = False, *args, **kwargs):
+def start(*args, **kwargs):
     pid_lock_file = PIDLockFile(PID_LOCK_FILE)
     if pid_lock_file.is_locked():
         print("Server already running")
@@ -64,6 +63,7 @@ def start(init: bool = False, *args, **kwargs):
         "[%s] Starting lavender-data server...\n" % time.strftime("%Y-%m-%d %H:%M:%S")
     )
     f.flush()
+    log_file_position = f.tell()
 
     process = Process(target=_run, args=args, kwargs=kwargs)
     process.start()
@@ -89,15 +89,17 @@ def start(init: bool = False, *args, **kwargs):
 
         time.sleep(0.1)
 
+    with open(LOG_FILE, "r") as f:
+        f.seek(log_file_position)
+        for line in f.readlines():
+            if "API key created" in line:
+                print(line, end="")
+
     print(
         f"lavender-data is running on http://{settings.lavender_data_host}:{settings.lavender_data_port}"
     )
     if not settings.lavender_data_disable_ui:
         print(f"UI is running on http://localhost:{settings.lavender_data_ui_port}")
-
-    if init and not settings.lavender_data_disable_auth:
-        api_key = create_api_key()
-        print(f"API key created: {api_key.id}:{api_key.secret}")
 
     with daemon.DaemonContext(
         working_directory=WORKING_DIRECTORY,

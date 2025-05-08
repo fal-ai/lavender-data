@@ -10,6 +10,7 @@ class Settings(BaseSettings, extra="ignore"):
     lavender_data_port: int = 8000
     lavender_data_host: str = "0.0.0.0"
     lavender_data_ui_port: int = 3000
+    lavender_data_ui_force_install_dependencies: bool = False
     lavender_data_disable_ui: bool = False
     lavender_data_disable_auth: bool = False
 
@@ -27,7 +28,7 @@ class Settings(BaseSettings, extra="ignore"):
 
 @lru_cache
 def get_settings():
-    get_logger(__name__).info("Loading settings")
+    get_logger(__name__).debug("Loading settings")
     return Settings()
 
 
