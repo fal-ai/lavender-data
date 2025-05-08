@@ -12,7 +12,21 @@ def _read_process_output(process: subprocess.Popen):
             yield fd.readline().decode().strip()
 
 
-def _start_ui(api_url: str, ui_port: int):
+def _install_ui_dependencies(npm_path: str, ui_dir: str):
+    logger = get_logger("lavender-data.server.ui")
+
+    logger.info("Installing UI dependencies")
+    output = subprocess.Popen(
+        [npm_path, "install", "--omit=dev"],
+        cwd=ui_dir,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    for line in _read_process_output(output):
+        logger.info(line)
+
+
+def _start_ui(api_url: str, ui_port: int, force_install_dependencies: bool = False):
     logger = get_logger("lavender-data.server.ui")
 
     node_path = shutil.which("node")
@@ -26,15 +40,11 @@ def _start_ui(api_url: str, ui_port: int):
         os.path.dirname(__file__), "..", "ui", "packages", "lavender-data-ui"
     )
 
-    logger.info("Installing UI dependencies")
-    output = subprocess.Popen(
-        [npm_path, "install", "--omit=dev"],
-        cwd=ui_dir,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    for line in _read_process_output(output):
-        logger.info(line)
+    if (
+        not os.path.exists(os.path.join(ui_dir, "node_modules"))
+        or force_install_dependencies
+    ):
+        _install_ui_dependencies(npm_path, ui_dir)
 
     logger.info("Starting UI")
     process = subprocess.Popen(
@@ -56,6 +66,10 @@ def _start_ui(api_url: str, ui_port: int):
     raise RuntimeError("UI failed to start")
 
 
-def setup_ui(api_url: str, ui_port: int):
-    process = _start_ui(api_url=api_url, ui_port=ui_port)
+def setup_ui(api_url: str, ui_port: int, force_install_dependencies: bool = True):
+    process = _start_ui(
+        api_url=api_url,
+        ui_port=ui_port,
+        force_install_dependencies=force_install_dependencies,
+    )
     return process

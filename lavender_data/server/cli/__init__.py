@@ -20,6 +20,7 @@ class ServerCLI:
 
         # run
         self.run_parser = subparsers.add_parser("run")
+        self.run_parser.add_argument("--init", action="store_true")
         self.run_parser.add_argument("--env-file", type=str, default=".env")
 
         # daemon
@@ -30,6 +31,7 @@ class ServerCLI:
         self.stop_parser = subparsers.add_parser("stop")
 
         self.restart_parser = subparsers.add_parser("restart")
+        self.restart_parser.add_argument("--init", action="store_true")
         self.restart_parser.add_argument("--env-file", type=str, default=".env")
 
         self.logs_parser = subparsers.add_parser("logs")
@@ -52,16 +54,16 @@ class ServerCLI:
             exit(0)
 
         elif args.command == "run":
-            run(env_file=args.env_file)
+            run(env_file=args.env_file, init=args.init)
 
         elif args.command == "start":
-            start(init=args.init, env_file=args.env_file)
+            start(env_file=args.env_file, init=args.init)
 
         elif args.command == "stop":
             stop()
 
         elif args.command == "restart":
-            restart(env_file=args.env_file)
+            restart(env_file=args.env_file, init=args.init)
 
         elif args.command == "logs":
             logs(f_flag=args.f, n_lines=args.n)

@@ -1,14 +1,24 @@
+import os
 from dotenv import load_dotenv
 import uvicorn
 
 from lavender_data.logging import get_logger
 from lavender_data.server.settings import get_settings
 
+from .create_api_key import create_api_key
 
-def run(env_file: str = ".env"):
+
+def run(env_file: str = ".env", init: bool = False):
     load_dotenv(env_file)
 
+    if init:
+        os.environ["LAVENDER_DATA_UI_FORCE_INSTALL_DEPENDENCIES"] = "true"
+
     settings = get_settings()
+
+    if init:
+        api_key = create_api_key(note="INIT")
+        print(f"API key created: {api_key.id}:{api_key.secret}")
 
     config = uvicorn.Config(
         "lavender_data.server:app",

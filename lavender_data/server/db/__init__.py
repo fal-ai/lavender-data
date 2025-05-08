@@ -11,6 +11,10 @@ from .models import Dataset, Shardset, DatasetColumn, Iteration, Shard
 engine = None
 
 
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+
+
 def setup_db(db_url: Optional[str] = None):
     global engine
 
@@ -24,10 +28,7 @@ def setup_db(db_url: Optional[str] = None):
         connect_args = {"check_same_thread": False}
 
     engine = create_engine(db_url, connect_args=connect_args)
-
-
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
+    create_db_and_tables()
 
 
 def get_session():
