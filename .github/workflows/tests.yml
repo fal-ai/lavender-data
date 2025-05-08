@@ -46,7 +46,6 @@ jobs:
 
       - name: Run tests
         run: |
-          cd packages/lavender-data
           poetry run python -m unittest discover -s tests -p 'test_*.py'
         env:
           LAVENDER_DATA_MODULES_DIR: ''
