@@ -61,6 +61,8 @@ def wait_server_ready(server_process: subprocess.Popen, port: int, timeout: int 
             break
 
         if not server_process.poll() is None:
+            print(server_process.stdout.read().decode("utf-8"))
+            print(server_process.stderr.read().decode("utf-8"))
             raise RuntimeError("Server process terminated.")
 
         if time.time() - start_time > timeout:

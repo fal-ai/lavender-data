@@ -19,6 +19,7 @@ from lavender_data.server.db.models import (
     ShardsetPublic,
     ShardPublic,
     DatasetColumnPublic,
+    Iteration,
 )
 from lavender_data.server.cache import CacheClient
 from lavender_data.server.distributed import CurrentCluster
@@ -215,17 +216,49 @@ def delete_dataset(
     # TODO lock
     try:
         columns_to_delete = dataset.columns
+        shardsets_to_delete = dataset.shardsets
+        iterations_to_delete = dataset.iterations
         links_to_delete = session.exec(
             select(IterationShardsetLink).where(
                 IterationShardsetLink.shardset_id.in_(
-                    [shardset.id for shardset in dataset.shardsets]
-                )
+                    [s.id for s in shardsets_to_delete]
+                ),
+                IterationShardsetLink.iteration_id.in_(
+                    [i.id for i in iterations_to_delete]
+                ),
             )
         ).all()
         shards_to_delete = [
-            shard for shardset in dataset.shardsets for shard in shardset.shards
+            shard for shardset in shardsets_to_delete for shard in shardset.shards
         ]
-        shardsets_to_delete = dataset.shardsets
+        if len(columns_to_delete) > 0:
+            session.exec(
+                delete(DatasetColumn).where(
+                    DatasetColumn.id.in_([c.id for c in columns_to_delete])
+                )
+            )
+        if len(links_to_delete) > 0:
+            session.exec(
+                delete(IterationShardsetLink).where(
+                    IterationShardsetLink.id.in_([l.id for l in links_to_delete])
+                )
+            )
+        if len(shards_to_delete) > 0:
+            session.exec(
+                delete(Shard).where(Shard.id.in_([s.id for s in shards_to_delete]))
+            )
+        if len(iterations_to_delete) > 0:
+            session.exec(
+                delete(Iteration).where(
+                    Iteration.id.in_([i.id for i in iterations_to_delete])
+                )
+            )
+        if len(shardsets_to_delete) > 0:
+            session.exec(
+                delete(Shardset).where(
+                    Shardset.id.in_([s.id for s in shardsets_to_delete])
+                )
+            )
         session.exec(delete(Dataset).where(Dataset.id == dataset.id))
         session.commit()
     except Exception as e:
@@ -238,6 +271,7 @@ def delete_dataset(
                 dataset,
                 *columns_to_delete,
                 *links_to_delete,
+                *iterations_to_delete,
                 *shards_to_delete,
                 *shardsets_to_delete,
             ],

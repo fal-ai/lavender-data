@@ -4,11 +4,17 @@ on:
   push:
     branches: [main, release/*]
     paths:
-      - 'packages/lavender-data/**'
+      - 'lavender_data/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'poetry.lock'
   pull_request:
     branches: [main, release/*]
     paths:
-      - 'packages/lavender-data/**'
+      - 'lavender_data/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'poetry.lock'
 
 jobs:
   test:
