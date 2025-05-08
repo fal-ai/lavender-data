@@ -381,12 +381,13 @@ def create_shardset(
         DatasetColumn(
             dataset_id=dataset.id,
             shardset_id=shardset.id,
-            name=options.name,
-            type=options.type,
-            description=options.description,
+            name=column.name,
+            type=column.type,
+            description=column.description,
         )
-        for options in _columns
-        if uid_column is None or options.name != uid_column.name
+        for column in _columns
+        if (uid_column is None or column.name != uid_column.name)
+        and column.name not in [c.name for c in dataset.columns]
     ]
     session.add_all(columns)
 

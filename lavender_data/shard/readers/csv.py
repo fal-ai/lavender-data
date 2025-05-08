@@ -44,6 +44,7 @@ class CsvReader(UntypedReader):
                     {
                         key: self.resolve_type(value, self.columns[key])
                         for key, value in row.items()
+                        if key in self.columns
                     }
                 )
         return samples
