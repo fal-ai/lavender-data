@@ -24,7 +24,7 @@ from lavender_data.server.db.models import (
     IterationShardsetLink,
 )
 from lavender_data.server.distributed import CurrentCluster
-from lavender_data.server.services.iterations import (
+from lavender_data.server.iteration import (
     IterationState,
     CurrentIterationState,
     Progress,
@@ -37,7 +37,7 @@ from lavender_data.server.services.iterations import (
     get_iteration_id_from_hash,
     get_iteration_id_from_hash_from_head,
 )
-from lavender_data.server.services.registries import (
+from lavender_data.server.registries import (
     PreprocessorRegistry,
     FilterRegistry,
     CollaterRegistry,

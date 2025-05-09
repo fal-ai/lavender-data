@@ -2,8 +2,8 @@ import time
 import unittest
 import numpy as np
 
-from lavender_data.server.services.registries.abc import Registry
-from lavender_data.server.services.registries import (
+from lavender_data.server.registries.abc import Registry
+from lavender_data.server.registries import (
     Preprocessor,
     PreprocessorRegistry,
     Filter,

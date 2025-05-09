@@ -8,10 +8,9 @@ import tqdm
 from datetime import datetime
 from lavender_data.server.cache import get_cache, setup_cache
 from lavender_data.server.db import Iteration, Shardset, DatasetColumn, Shard, Dataset
-from lavender_data.server.services.shardsets import span
-from lavender_data.server.services.iterations import (
+from lavender_data.server.shardset import span
+from lavender_data.server.iteration import (
     IterationState,
-    np_seed,
     IterationStateException,
 )
 

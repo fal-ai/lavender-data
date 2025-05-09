@@ -1,5 +1,5 @@
 from .app import get_rank, app
-from .services.registries import (
+from .registries import (
     Preprocessor,
     Filter,
     Collater,
