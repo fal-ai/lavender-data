@@ -33,7 +33,7 @@ jobs:
         id: cached-poetry-dependencies
         uses: actions/cache@v4
         with:
-          path: packages/lavender-data/.venv
+          path: .venv
           key: lavender-data-venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install dependencies
@@ -41,7 +41,6 @@ jobs:
           apt-get update
           apt-get install -y curl
 
-          cd packages/lavender-data
           poetry install --no-interaction
           # tensor serialization tests
           poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
