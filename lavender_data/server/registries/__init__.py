@@ -32,7 +32,7 @@ def import_from_directory(directory: str):
         spec = importlib.util.spec_from_file_location(mod_name, file)
         mod = importlib.util.module_from_spec(spec)
 
-        sys.modules[f"lavender_data.server.services.registries.{mod_name}"] = mod
+        sys.modules[f"lavender_data.server.registries.{mod_name}"] = mod
         spec.loader.exec_module(mod)
 
         after = {

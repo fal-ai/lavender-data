@@ -29,8 +29,9 @@ from lavender_data.server.reader import (
     ShardInfo,
     MainShardInfo,
 )
-from lavender_data.server.services.iterations import get_main_shardset, span
-from lavender_data.server.services.shardsets import (
+from lavender_data.server.shardset import (
+    get_main_shardset,
+    span,
     sync_shardset_location,
     SyncShardsetStatus,
 )

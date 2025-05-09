@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from lavender_data.server.services.registries import (
+from lavender_data.server.registries import (
     PreprocessorRegistry,
     FilterRegistry,
     CollaterRegistry,
