@@ -20,7 +20,7 @@ from .routes import (
     root_router,
 )
 
-from .services.registries import import_from_directory
+from .registries import import_from_directory
 from .settings import get_settings
 
 
