@@ -27,8 +27,6 @@ from .iteration_preprocessor_params import IterationPreprocessorParams
 from .iteration_public import IterationPublic
 from .iteration_shardset_link import IterationShardsetLink
 from .node_status import NodeStatus
-from .orphan_shard_info import OrphanShardInfo
-from .orphan_shard_info_columns import OrphanShardInfoColumns
 from .preview_dataset_response import PreviewDatasetResponse
 from .preview_dataset_response_samples_item import PreviewDatasetResponseSamplesItem
 from .progress import Progress
@@ -69,8 +67,6 @@ __all__ = (
     "IterationPublic",
     "IterationShardsetLink",
     "NodeStatus",
-    "OrphanShardInfo",
-    "OrphanShardInfoColumns",
     "PreviewDatasetResponse",
     "PreviewDatasetResponseSamplesItem",
     "Progress",
