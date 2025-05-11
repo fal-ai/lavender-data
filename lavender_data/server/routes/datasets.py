@@ -1,8 +1,9 @@
 import os
 import json
 from typing import Optional, Any
+from concurrent.futures import Future
 
-from fastapi import HTTPException, APIRouter, BackgroundTasks, Depends
+from fastapi import HTTPException, APIRouter, Depends
 from sqlmodel import select, delete
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
@@ -407,25 +408,13 @@ def create_shardset(
         cluster.sync_changes([shardset, *columns])
 
     if len(shard_basenames) > 0:
-        cache_key = _sync_shardset_status_key(shardset.id)
-        background_worker.memory().set(
-            cache_key,
-            SyncShardsetStatus(
-                status="pending",
-                done_count=0,
-                shard_count=0,
-            ).model_dump_json(),
-        )
-        background_worker.submit(
-            sync_shardset_location_task,
+        sync_shardset(
+            dataset_id=dataset_id,
             shardset_id=shardset.id,
-            shardset_location=shardset.location,
-            shardset_shard_samples=[s.samples for s in shardset.shards],
-            shardset_shard_locations=[s.location for s in shardset.shards],
-            dataset_id=dataset.id,
-            num_workers=10,
-            overwrite=False,
-            cache_key=cache_key,
+            params=SyncShardsetParams(overwrite=True),
+            session=session,
+            background_worker=background_worker,
+            cluster=cluster,
         )
 
     return shardset
@@ -488,6 +477,24 @@ def _sync_shardset_status_key(shardset_id: str) -> str:
     return f"sync-{shardset_id}"
 
 
+def _sync_shardset_callback(cluster: CurrentCluster):
+    def callback(future: Future):
+        shardset: Shardset
+        shards: list[Shard]
+        shardset, shards = future.result()
+        logger = get_logger(__name__)
+        if cluster is not None and cluster.is_head:
+            try:
+                logger.debug(
+                    f"Syncing shardset {shardset.id} to cluster nodes ({len(shards)} shards)"
+                )
+                cluster.sync_changes([shardset, *shards])
+            except Exception as e:
+                logger.exception(e)
+
+    return callback
+
+
 @router.post("/{dataset_id}/shardsets/{shardset_id}/sync")
 def sync_shardset(
     dataset_id: str,
@@ -495,6 +502,7 @@ def sync_shardset(
     params: SyncShardsetParams,
     session: DbSession,
     background_worker: CurrentBackgroundWorker,
+    cluster: CurrentCluster,
 ) -> GetShardsetResponse:
     try:
         shardset = session.exec(
@@ -526,17 +534,17 @@ def sync_shardset(
             ).model_dump_json(),
         )
 
-    background_worker.submit(
+    future = background_worker.submit(
         sync_shardset_location_task,
         shardset_id=shardset.id,
         shardset_location=shardset.location,
         shardset_shard_samples=[s.samples for s in shardset.shards],
         shardset_shard_locations=[s.location for s in shardset.shards],
-        dataset_id=dataset_id,
         num_workers=10,
         overwrite=params.overwrite,
         cache_key=cache_key,
     )
+    future.add_done_callback(_sync_shardset_callback(cluster))
     return shardset
 
 

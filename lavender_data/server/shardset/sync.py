@@ -3,16 +3,14 @@ from typing import Generator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pydantic import BaseModel
 
-from sqlmodel import update, insert
+from sqlmodel import update, insert, select
 
 from lavender_data.server.background_worker.memory import Memory
 from lavender_data.logging import get_logger
 from lavender_data.storage import list_files
 from lavender_data.shard.inspect import OrphanShardInfo, inspect_shard
 from lavender_data.shard.readers.exceptions import ReaderException
-from lavender_data.server.cache import get_cache
 from lavender_data.server.db import Shardset, Shard, get_session
-from lavender_data.server.distributed import get_cluster
 
 
 class SyncShardsetStatus(BaseModel):
@@ -65,26 +63,12 @@ def sync_shardset_location(
     shardset_location: str,
     shardset_shard_samples: list[int],
     shardset_shard_locations: list[str],
-    dataset_id: str,
     num_workers: int = 10,
     overwrite: bool = False,
 ) -> Generator[SyncShardsetStatus, None, None]:
     # TODO di?
     logger = get_logger(__name__)
     session = next(get_session())
-    cluster = get_cluster()
-
-    # TODO remove
-    need_cluster_sync = cluster is not None and cluster.is_head
-
-    if need_cluster_sync:
-        cluster.broadcast_post(
-            f"/datasets/{dataset_id}/shardsets/{shardset_id}/sync",
-            {
-                "shardset_location": shardset_location,
-                "shardset_shard_samples": shardset_shard_samples,
-            },
-        )
 
     yield SyncShardsetStatus(status="list", done_count=0, shard_count=0)
 
@@ -103,22 +87,6 @@ def sync_shardset_location(
 
     shard_and_index.sort(key=lambda x: x[1])
     shard_infos = [x[0] for x in shard_and_index]
-
-    if need_cluster_sync:
-        not_yet_done = True
-        while not_yet_done:
-            not_yet_done = False
-            for node_url, result in cluster.broadcast_get(
-                f"/datasets/{dataset_id}/shardsets/{shardset_id}/sync"
-            ):
-                if result is None:
-                    logger.warning(
-                        f"Failed to sync shardset {shardset_id} at {shardset_location} from {node_url}"
-                    )
-                    continue
-
-                if result["status"] != "done":
-                    not_yet_done = True
 
     if overwrite:
         shard_index = 0
@@ -190,7 +158,6 @@ def sync_shardset_location_task(
     shardset_location: str,
     shardset_shard_samples: list[int],
     shardset_shard_locations: list[str],
-    dataset_id: str,
     num_workers: int,
     overwrite: bool,
     cache_key: str,
@@ -204,7 +171,6 @@ def sync_shardset_location_task(
             shardset_location,
             shardset_shard_samples,
             shardset_shard_locations,
-            dataset_id,
             num_workers,
             overwrite,
         ):
@@ -219,3 +185,7 @@ def sync_shardset_location_task(
             ).model_dump_json(),
             ex=10,
         )
+
+    session = next(get_session())
+    shardset = session.exec(select(Shardset).where(Shardset.id == shardset_id)).one()
+    return shardset, shardset.shards

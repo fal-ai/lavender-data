@@ -27,9 +27,6 @@ from lavender_data.server.background_worker import (
     CurrentBackgroundWorker,
     CurrentBackgroundWorkerMemory,
 )
-from lavender_data.server.background_worker.tasks.process_next_samples import (
-    process_next_samples_task,
-)
 from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.iteration import (
     IterationState,
@@ -37,6 +34,7 @@ from lavender_data.server.iteration import (
     Progress,
     ProcessNextSamplesException,
     process_next_samples,
+    process_next_samples_task,
     set_cluster_sync,
     get_iteration_hash,
     set_iteration_hash,

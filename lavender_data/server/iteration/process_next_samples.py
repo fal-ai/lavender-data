@@ -12,7 +12,7 @@ except ImportError:
 
 from lavender_data.logging import get_logger
 from lavender_data.serialize import serialize_sample
-from lavender_data.server.cache import CacheClient
+from lavender_data.server.background_worker.memory import Memory
 from lavender_data.server.db.models import (
     IterationPreprocessor,
     IterationCollater,
@@ -145,20 +145,21 @@ def process_next_samples(
                 )
 
 
-def process_next_samples_and_cache(
+def process_next_samples_task(
     params: ProcessNextSamplesParams,
     max_retry_count: int,
     cache_key: str,
     cache_ttl: int,
-    cache: CacheClient,
+    *,
+    memory: Memory,
 ):
     logger = get_logger(__name__)
     try:
         content = process_next_samples(params, max_retry_count)
-        cache.set(cache_key, content, ex=cache_ttl)
+        memory.set(cache_key, content, ex=cache_ttl)
     except ProcessNextSamplesException as e:
         logger.error(e)
-        cache.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)
+        memory.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)
     except Exception as e:
         logger.exception(e)
-        cache.set(cache_key, f"error:{e}", ex=cache_ttl)
+        memory.set(cache_key, f"error:{e}", ex=cache_ttl)
