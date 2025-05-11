@@ -137,6 +137,7 @@ class Cluster:
         self.api_key_note = "_CLUSTER"
         self.logger = get_logger(__name__)
 
+    def start(self):
         if self.is_head:
             self.start_check_heartbeat()
         else:

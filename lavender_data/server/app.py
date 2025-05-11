@@ -10,8 +10,9 @@ from lavender_data.logging import get_logger
 from .ui import setup_ui
 from .db import setup_db
 from .cache import setup_cache, register_worker, deregister_worker
-from .distributed import setup_cluster, cleanup_cluster
+from .distributed import setup_cluster, cleanup_cluster, get_cluster
 from .reader import setup_reader
+from .background_worker import setup_background_worker, shutdown_background_worker
 from .routes import (
     datasets_router,
     iterations_router,
@@ -20,7 +21,7 @@ from .routes import (
     root_router,
 )
 
-from .registries import import_from_directory
+from .registries import setup_registries
 from .settings import get_settings
 
 
@@ -33,21 +34,26 @@ async def lifespan(app: FastAPI):
 
     setup_cache(redis_url=settings.lavender_data_redis_url)
 
-    if settings.lavender_data_modules_dir:
-        import_from_directory(settings.lavender_data_modules_dir)
+    setup_registries(settings.lavender_data_modules_dir)
 
     setup_reader(settings.lavender_data_reader_disk_cache_size)
 
+    setup_cluster(
+        enabled=settings.lavender_data_cluster_enabled,
+        head_url=settings.lavender_data_cluster_head_url,
+        node_url=settings.lavender_data_cluster_node_url,
+        secret=settings.lavender_data_cluster_secret,
+        disable_auth=settings.lavender_data_disable_auth,
+    )
+
+    cluster = get_cluster()
+    if cluster is not None:
+        cluster.start()
+
+    setup_background_worker(settings.lavender_data_num_workers)
+
     rank = register_worker()
     app.state.rank = rank
-
-    if settings.lavender_data_cluster_enabled:
-        setup_cluster(
-            head_url=settings.lavender_data_cluster_head_url,
-            node_url=settings.lavender_data_cluster_node_url,
-            secret=settings.lavender_data_cluster_secret,
-            disable_auth=settings.lavender_data_disable_auth,
-        )
 
     if settings.lavender_data_disable_ui:
         logger.warning("UI is disabled")
@@ -79,6 +85,11 @@ async def lifespan(app: FastAPI):
         pass
 
     deregister_worker()
+
+    try:
+        shutdown_background_worker()
+    except Exception as e:
+        pass
 
 
 class EndpointFilter(logging.Filter):

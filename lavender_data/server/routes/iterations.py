@@ -23,6 +23,13 @@ from lavender_data.server.db.models import (
     IterationCollater,
     IterationShardsetLink,
 )
+from lavender_data.server.background_worker import (
+    CurrentBackgroundWorker,
+    CurrentBackgroundWorkerMemory,
+)
+from lavender_data.server.background_worker.tasks.process_next_samples import (
+    process_next_samples_task,
+)
 from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.iteration import (
     IterationState,
@@ -30,7 +37,6 @@ from lavender_data.server.iteration import (
     Progress,
     ProcessNextSamplesException,
     process_next_samples,
-    process_next_samples_and_cache,
     set_cluster_sync,
     get_iteration_hash,
     set_iteration_hash,
@@ -294,7 +300,7 @@ def get_iteration(iteration_id: str, session: DbSession) -> GetIterationResponse
 @router.get("/{iteration_id}/next")
 def get_next(
     iteration_id: str,
-    cache: CacheClient,
+    memory: CurrentBackgroundWorkerMemory,
     settings: AppSettings,
     state: CurrentIterationState,
     rank: int = 0,
@@ -313,15 +319,15 @@ def get_next(
     """
 
     cache_ttl = settings.lavender_data_batch_cache_ttl
-    if cache.exists(cache_key) and not no_cache:
-        cache.expire(cache_key, cache_ttl)
-        content = cache.get(cache_key)
+    if memory.exists(cache_key) and not no_cache:
+        memory.expire(cache_key, cache_ttl)
+        content = memory.get(cache_key)
     else:
         try:
             content = process_next_samples(params, max_retry_count)
         except ProcessNextSamplesException as e:
             raise e.to_http_exception()
-        cache.set(cache_key, content, ex=cache_ttl)
+        memory.set(cache_key, content, ex=cache_ttl)
 
     return Response(content=content, media_type="application/octet-stream")
 
@@ -333,9 +339,9 @@ class SubmitNextResponse(BaseModel):
 @router.post("/{iteration_id}/next")
 def submit_next(
     iteration_id: str,
-    cache: CacheClient,
     settings: AppSettings,
-    background_tasks: BackgroundTasks,
+    background_worker: CurrentBackgroundWorker,
+    memory: CurrentBackgroundWorkerMemory,
     state: CurrentIterationState,
     rank: int = 0,
     no_cache: bool = False,
@@ -347,17 +353,16 @@ def submit_next(
     cache_key, params = state.get_next_samples(rank)
 
     cache_ttl = settings.lavender_data_batch_cache_ttl
-    if cache.exists(cache_key) and not no_cache:
-        cache.expire(cache_key, cache_ttl)
+    if memory.exists(cache_key) and not no_cache:
+        memory.expire(cache_key, cache_ttl)
     else:
-        cache.set(cache_key, "pending", ex=cache_ttl)
-        background_tasks.add_task(
-            process_next_samples_and_cache,
+        memory.set(cache_key, "pending", ex=cache_ttl)
+        background_worker.submit(
+            process_next_samples_task,
             params=params,
             max_retry_count=max_retry_count,
             cache_key=cache_key,
             cache_ttl=cache_ttl,
-            cache=cache,
         )
 
     return SubmitNextResponse(cache_key=cache_key)
@@ -365,9 +370,11 @@ def submit_next(
 
 @router.get("/{iteration_id}/next/{cache_key}")
 def get_submitted_result(
-    iteration_id: str, cache_key: str, cache: CacheClient
+    iteration_id: str,
+    cache_key: str,
+    memory: CurrentBackgroundWorkerMemory,
 ) -> bytes:
-    content = cache.get(cache_key)
+    content = memory.get(cache_key)
     if content is None:
         raise HTTPException(status_code=404, detail="Cache key not found")
     if content == b"pending":

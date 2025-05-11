@@ -1,7 +1,7 @@
 import sys
 import importlib.util
 from pathlib import Path
-
+from typing import Optional
 from lavender_data.logging import get_logger
 
 from .collater import CollaterRegistry, Collater
@@ -9,7 +9,7 @@ from .filter import FilterRegistry, Filter
 from .preprocessor import PreprocessorRegistry, Preprocessor
 
 __all__ = [
-    "import_from_directory",
+    "setup_registries",
     "CollaterRegistry",
     "Collater",
     "FilterRegistry",
@@ -46,3 +46,8 @@ def import_from_directory(directory: str):
             if set(after[key]) - set(before[key])
         }
         logger.info(f"Imported {file}: {diff}")
+
+
+def setup_registries(modules_dir: Optional[str] = None):
+    if modules_dir:
+        import_from_directory(modules_dir)

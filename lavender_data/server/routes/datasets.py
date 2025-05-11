@@ -29,11 +29,12 @@ from lavender_data.server.reader import (
     ShardInfo,
     MainShardInfo,
 )
+from lavender_data.server.background_worker import CurrentBackgroundWorker
 from lavender_data.server.shardset import (
     get_main_shardset,
     span,
-    sync_shardset_location,
     SyncShardsetStatus,
+    sync_shardset_location_task,
 )
 from lavender_data.server.auth import AppAuth
 from lavender_data.storage import list_files
@@ -324,8 +325,7 @@ def create_shardset(
     dataset_id: str,
     params: CreateShardsetParams,
     session: DbSession,
-    cache: CacheClient,
-    background_tasks: BackgroundTasks,
+    background_worker: CurrentBackgroundWorker,
     cluster: CurrentCluster,
 ) -> CreateShardsetResponse:
     logger = get_logger(__name__)
@@ -407,17 +407,17 @@ def create_shardset(
         cluster.sync_changes([shardset, *columns])
 
     if len(shard_basenames) > 0:
-        cache.hset(
-            _shardset_lock_key(shardset.id),
-            mapping=SyncShardsetStatus(
+        cache_key = _sync_shardset_status_key(shardset.id)
+        background_worker.memory().set(
+            cache_key,
+            SyncShardsetStatus(
                 status="pending",
                 done_count=0,
                 shard_count=0,
-                shards=[],
-            ).model_dump(),
+            ).model_dump_json(),
         )
-        background_tasks.add_task(
-            sync_shardset_location,
+        background_worker.submit(
+            sync_shardset_location_task,
             shardset_id=shardset.id,
             shardset_location=shardset.location,
             shardset_shard_samples=[s.samples for s in shardset.shards],
@@ -425,7 +425,7 @@ def create_shardset(
             dataset_id=dataset.id,
             num_workers=10,
             overwrite=False,
-            cache_key=_shardset_lock_key(shardset.id),
+            cache_key=cache_key,
         )
 
     return shardset
@@ -484,8 +484,8 @@ class SyncShardsetParams(BaseModel):
     overwrite: bool = False
 
 
-def _shardset_lock_key(shardset_id: str) -> str:
-    return f"shardset:{shardset_id}:lock"
+def _sync_shardset_status_key(shardset_id: str) -> str:
+    return f"sync-{shardset_id}"
 
 
 @router.post("/{dataset_id}/shardsets/{shardset_id}/sync")
@@ -494,8 +494,7 @@ def sync_shardset(
     shardset_id: str,
     params: SyncShardsetParams,
     session: DbSession,
-    cache: CacheClient,
-    background_tasks: BackgroundTasks,
+    background_worker: CurrentBackgroundWorker,
 ) -> GetShardsetResponse:
     try:
         shardset = session.exec(
@@ -507,26 +506,28 @@ def sync_shardset(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Shardset not found")
 
-    existing = cache.hgetall(_shardset_lock_key(shardset_id))
+    cache_key = _sync_shardset_status_key(shardset.id)
+
+    existing = background_worker.memory().get(cache_key)
     if existing:
-        if existing[b"status"] != b"done":
+        existing = json.loads(existing)
+        if existing["status"] != "done":
             raise HTTPException(
                 status_code=400,
                 detail="Shardset is already being synced. Please wait for the sync to complete.",
             )
     else:
-        cache.hset(
-            _shardset_lock_key(shardset.id),
-            mapping=SyncShardsetStatus(
+        background_worker.memory().set(
+            cache_key,
+            SyncShardsetStatus(
                 status="pending",
                 done_count=0,
                 shard_count=0,
-                shards=[],
-            ).model_dump(),
+            ).model_dump_json(),
         )
 
-    background_tasks.add_task(
-        sync_shardset_location,
+    background_worker.submit(
+        sync_shardset_location_task,
         shardset_id=shardset.id,
         shardset_location=shardset.location,
         shardset_shard_samples=[s.samples for s in shardset.shards],
@@ -534,7 +535,7 @@ def sync_shardset(
         dataset_id=dataset_id,
         num_workers=10,
         overwrite=params.overwrite,
-        cache_key=_shardset_lock_key(shardset.id),
+        cache_key=cache_key,
     )
     return shardset
 
@@ -543,18 +544,22 @@ def sync_shardset(
 def get_sync_status(
     dataset_id: str,
     shardset_id: str,
-    cache: CacheClient,
+    background_worker: CurrentBackgroundWorker,
 ) -> SyncShardsetStatus:
-    cache_key = _shardset_lock_key(shardset_id)
-    raw_status = cache.hgetall(cache_key)
-    if raw_status is None or len(raw_status) == 0:
+    cache_key = _sync_shardset_status_key(shardset_id)
+    raw_status_str = background_worker.memory().get(cache_key)
+    if raw_status_str is None or len(raw_status_str) == 0:
         raise HTTPException(status_code=404, detail="Sync status not found")
+    raw_status = json.loads(raw_status_str)
     return SyncShardsetStatus(
-        status=raw_status[b"status"].decode("utf-8"),
-        done_count=int(raw_status[b"done_count"]),
-        shard_count=int(raw_status[b"shard_count"]),
-        shards=json.loads(raw_status[b"shards"].decode("utf-8")),
+        status=raw_status["status"],
+        done_count=int(raw_status["done_count"]),
+        shard_count=int(raw_status["shard_count"]),
     )
+
+
+def _shardset_lock_key(shardset_id: str) -> str:
+    return f"shardset:{shardset_id}:lock"
 
 
 @router.delete("/{dataset_id}/shardsets/{shardset_id}")

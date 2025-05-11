@@ -13,6 +13,7 @@ class Settings(BaseSettings, extra="ignore"):
     lavender_data_ui_force_install_dependencies: bool = False
     lavender_data_disable_ui: bool = False
     lavender_data_disable_auth: bool = False
+    lavender_data_num_workers: int = 1
 
     lavender_data_modules_dir: str = ""
     lavender_data_db_url: str = ""
