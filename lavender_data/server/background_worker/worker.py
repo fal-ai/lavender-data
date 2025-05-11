@@ -1,8 +1,11 @@
 import time
-import threading
 import uuid
+import os
+import signal
+import threading
+import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, Future
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Callable, Optional, Any
 
 from pydantic import BaseModel
@@ -24,10 +27,11 @@ class TaskMetadata(BaseModel):
 
 class BackgroundWorker:
     def __init__(self, num_workers: int):
+        self._kill_switch = mp.Event()
         self._executor = ProcessPoolExecutor(
             num_workers,
             initializer=BackgroundWorker._initializer,
-            initargs=(get_settings(),),
+            initargs=(get_settings(), self._kill_switch),
         )
         self._memory = Memory()
         self._tasks: list[tuple[TaskMetadata, Future]] = []
@@ -36,11 +40,17 @@ class BackgroundWorker:
         self._start_cleanup_thread()
 
     @staticmethod
-    def _initializer(settings: Settings):
+    def _initializer(settings: Settings, kill_switch):
         setup_db(settings.lavender_data_db_url)
         setup_cache(redis_url=settings.lavender_data_redis_url)
         setup_registries(settings.lavender_data_modules_dir)
         setup_reader(settings.lavender_data_reader_disk_cache_size)
+
+        def _abort_on_kill_switch():
+            kill_switch.wait()
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        threading.Thread(target=_abort_on_kill_switch, daemon=True).start()
 
     def _cleanup_tasks(self):
         with self._tasks_lock:
@@ -55,8 +65,7 @@ class BackgroundWorker:
                 time.sleep(1)
                 self._cleanup_tasks()
 
-        self._cleanup_thread = threading.Thread(target=_cleanup_tasks, daemon=True)
-        self._cleanup_thread.start()
+        threading.Thread(target=_cleanup_tasks, daemon=True).start()
 
     def running_tasks(self) -> list[TaskMetadata]:
         self._cleanup_tasks()
@@ -79,13 +88,10 @@ class BackgroundWorker:
         )
 
         def on_done(future: Future):
-            try:
-                result = future.result()
-                if on_complete is not None:
-                    on_complete(result)
-            except Exception as e:
-                if on_error is not None:
-                    on_error(e)
+            if on_complete is not None:
+                on_complete(future.result())
+            elif on_error is not None:
+                on_error(future.exception())
 
         future.add_done_callback(on_done)
 
@@ -95,7 +101,7 @@ class BackgroundWorker:
                     TaskMetadata(
                         uid=task_uid,
                         name=task_name or func.__name__,
-                        start_time=datetime.now(),
+                        start_time=datetime.now(UTC),
                         kwargs=kwargs,
                     ),
                     future,
@@ -118,7 +124,9 @@ class BackgroundWorker:
             # abort
 
     def shutdown(self):
-        self._executor.shutdown(wait=True)
+        self._executor.shutdown(wait=False)
+        self._kill_switch.set()
+        self._memory.clear()
 
     def memory(self) -> Memory:
         return self._memory

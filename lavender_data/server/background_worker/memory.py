@@ -18,7 +18,11 @@ class Memory:
         def check_expiry():
             while True:
                 now = time.time()
-                expired_keys = [k for k, exp in self._expiry.items() if exp <= now]
+                expired_keys = [
+                    k
+                    for k, exp in self._expiry.items()
+                    if exp is not None and exp <= now
+                ]
                 for key in expired_keys:
                     self.delete(key)
                 time.sleep(1)
@@ -64,8 +68,10 @@ class Memory:
         memory = self._create_shared_memory(name, len(_value))
         memory.buf[: len(_value)] = _value
 
-        if ex:
+        if ex is not None:
             self._expiry[name] = time.time() + ex
+        else:
+            self._expiry[name] = None
 
     def get(self, name: str) -> bytes:
         try:
@@ -78,3 +84,8 @@ class Memory:
 
     def delete(self, name: str):
         self._get_shared_memory(name).unlink()
+
+    def clear(self):
+        self._logger.debug(f"Clearing memory: {len(self._expiry)} keys")
+        for name in self._expiry.keys():
+            self.delete(name)
