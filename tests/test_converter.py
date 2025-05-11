@@ -35,45 +35,45 @@ class TestConverter(unittest.TestCase):
         bucket = "https://storage.googleapis.com/webdataset/testdata/"
         dataset = "publaynet-train-{000000..000009}.tar"
 
-        # url = bucket + dataset
-        # pil_dataset = wds.WebDataset(url, shardshuffle=None).decode("pil")
+        url = bucket + dataset
+        pil_dataset = wds.WebDataset(url, shardshuffle=None).decode("pil")
 
-        # max_shard_count = 2
-        # samples_per_shard = 100
-        # total_samples = max_shard_count * samples_per_shard
-        # dataset_name = "publaynet-train"
+        max_shard_count = 2
+        samples_per_shard = 100
+        total_samples = max_shard_count * samples_per_shard
+        dataset_name = "publaynet-train"
 
-        # with tempfile.TemporaryDirectory() as temp_dir:
-        #     lavender.Converter.get(
-        #         "webdataset",
-        #     ).to_shardset(
-        #         tqdm.tqdm(pil_dataset, total=total_samples),
-        #         dataset_name,
-        #         location=f"file://{temp_dir}/{dataset_name}",
-        #         uid_column_name="id",
-        #         max_shard_count=max_shard_count,
-        #         samples_per_shard=samples_per_shard,
-        #     )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            lavender.Converter.get(
+                "webdataset",
+            ).to_shardset(
+                tqdm.tqdm(pil_dataset, total=total_samples),
+                dataset_name,
+                location=f"file://{temp_dir}/{dataset_name}",
+                uid_column_name="id",
+                max_shard_count=max_shard_count,
+                samples_per_shard=samples_per_shard,
+            )
 
-        #     dataset = lavender.api.get_dataset(name=dataset_name)
-        #     shardset = lavender.api.get_shardset(dataset.id, dataset.shardsets[0].id)
+            dataset = lavender.api.get_dataset(name=dataset_name)
+            shardset = lavender.api.get_shardset(dataset.id, dataset.shardsets[0].id)
 
-        #     self.assertEqual(len(shardset.shards), max_shard_count)
-        #     for shard in shardset.shards:
-        #         self.assertTrue(os.path.exists(shard.location.split("file://")[1]))
+            self.assertEqual(len(shardset.shards), max_shard_count)
+            for shard in shardset.shards:
+                self.assertTrue(os.path.exists(shard.location.split("file://")[1]))
 
-        #     sample_count = 0
-        #     for sample in lavender.LavenderDataLoader(dataset_name=dataset_name):
-        #         for key in {
-        #             "__key__",
-        #             "id",
-        #             "file_name",
-        #             "height",
-        #             "width",
-        #             "annotations",
-        #             "png",
-        #         }:
-        #             self.assertIn(key, sample)
-        #         sample_count += 1
+            sample_count = 0
+            for sample in lavender.LavenderDataLoader(dataset_name=dataset_name):
+                for key in {
+                    "__key__",
+                    "id",
+                    "file_name",
+                    "height",
+                    "width",
+                    "annotations",
+                    "png",
+                }:
+                    self.assertIn(key, sample)
+                sample_count += 1
 
-        #     self.assertEqual(sample_count, total_samples)
+            self.assertEqual(sample_count, total_samples)
