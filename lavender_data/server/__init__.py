@@ -1,4 +1,4 @@
-from .app import get_rank, app
+from .app import app
 from .registries import (
     Preprocessor,
     Filter,
@@ -7,7 +7,6 @@ from .registries import (
 
 __all__ = [
     "app",
-    "get_rank",
     "Preprocessor",
     "Filter",
     "Collater",

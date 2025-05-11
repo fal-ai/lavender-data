@@ -30,12 +30,3 @@ def get_cache():
 
 
 CacheClient = Annotated[CacheInterface, Depends(get_cache)]
-
-
-def register_worker():
-    rank = cache_client.incr("lavender_data_worker_rank", 1) - 1
-    return rank
-
-
-def deregister_worker():
-    cache_client.decr("lavender_data_worker_rank", 1)

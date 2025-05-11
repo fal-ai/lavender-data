@@ -9,7 +9,7 @@ from lavender_data.logging import get_logger
 
 from .ui import setup_ui
 from .db import setup_db
-from .cache import setup_cache, register_worker, deregister_worker
+from .cache import setup_cache
 from .distributed import setup_cluster, cleanup_cluster, get_cluster
 from .reader import setup_reader
 from .background_worker import setup_background_worker, shutdown_background_worker
@@ -52,9 +52,6 @@ async def lifespan(app: FastAPI):
 
     setup_background_worker(settings.lavender_data_num_workers)
 
-    rank = register_worker()
-    app.state.rank = rank
-
     if settings.lavender_data_disable_ui:
         logger.warning("UI is disabled")
         ui = None
@@ -84,8 +81,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         pass
 
-    deregister_worker()
-
     try:
         shutdown_background_worker()
     except Exception as e:
@@ -101,10 +96,6 @@ class EndpointFilter(logging.Filter):
 logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 app = FastAPI(lifespan=lifespan)
-
-
-def get_rank():
-    return app.state.rank
 
 
 app.add_middleware(
