@@ -1,6 +1,6 @@
 'use client';
 
-import { Database, IterationCw } from 'lucide-react';
+import { Database, IterationCw, ListChecks } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
@@ -58,17 +58,27 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Iterations</SidebarGroupLabel>
-          <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <Link href="/iterations">
                     <IterationCw />
                     <span>Iterations</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Server</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/background-tasks">
+                    <ListChecks />
+                    <span>Background Tasks</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

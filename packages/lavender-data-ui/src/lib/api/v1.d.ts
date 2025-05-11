@@ -309,8 +309,7 @@ export interface paths {
         /** Get Preprocessors */
         get: operations["get_preprocessors_registries_preprocessors_get"];
         put?: never;
-        /** Create Preprocessor */
-        post: operations["create_preprocessor_registries_preprocessors_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -445,6 +444,23 @@ export interface paths {
         };
         /** Get Nodes */
         get: operations["get_nodes_cluster_nodes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/background-tasks/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Tasks */
+        get: operations["get_tasks_background_tasks__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -791,21 +807,6 @@ export interface components {
             /** Last Heartbeat */
             last_heartbeat: number | null;
         };
-        /** OrphanShardInfo */
-        OrphanShardInfo: {
-            /** Samples */
-            samples: number;
-            /** Location */
-            location: string;
-            /** Format */
-            format: string;
-            /** Filesize */
-            filesize: number;
-            /** Columns */
-            columns: {
-                [key: string]: string;
-            };
-        };
         /** PreviewDatasetResponse */
         PreviewDatasetResponse: {
             dataset: components["schemas"]["DatasetPublic"];
@@ -959,8 +960,22 @@ export interface components {
             done_count: number;
             /** Shard Count */
             shard_count: number;
-            /** Shards */
-            shards: components["schemas"]["OrphanShardInfo"][];
+        };
+        /** TaskMetadata */
+        TaskMetadata: {
+            /** Uid */
+            uid: string;
+            /** Name */
+            name: string;
+            /**
+             * Start Time
+             * Format: date-time
+             */
+            start_time: string;
+            /** Kwargs */
+            kwargs: {
+                [key: string]: unknown;
+            };
         };
         /** ValidationError */
         ValidationError: {
@@ -1743,38 +1758,6 @@ export interface operations {
             };
         };
     };
-    create_preprocessor_registries_preprocessors_post: {
-        parameters: {
-            query: {
-                name: string;
-                function: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_filters_registries_filters_get: {
         parameters: {
             query?: never;
@@ -1998,6 +1981,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NodeStatus"][];
+                };
+            };
+        };
+    };
+    get_tasks_background_tasks__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskMetadata"][];
                 };
             };
         };
