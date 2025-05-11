@@ -54,3 +54,8 @@ jobs:
           poetry run python -m unittest discover -s tests -p 'test_*.py'
         env:
           LAVENDER_DATA_MODULES_DIR: ''
+
+      - name: Server logs on failure
+        if: ${{ failure() || cancelled() }}
+        run: |
+          cat test.log

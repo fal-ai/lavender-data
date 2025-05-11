@@ -534,8 +534,9 @@ def sync_shardset(
             ).model_dump_json(),
         )
 
-    future = background_worker.submit(
+    background_worker.submit(
         sync_shardset_location_task,
+        on_complete=_sync_shardset_callback(cluster),
         shardset_id=shardset.id,
         shardset_location=shardset.location,
         shardset_shard_samples=[s.samples for s in shardset.shards],
@@ -544,7 +545,6 @@ def sync_shardset(
         overwrite=params.overwrite,
         cache_key=cache_key,
     )
-    future.add_done_callback(_sync_shardset_callback(cluster))
     return shardset
 
 
