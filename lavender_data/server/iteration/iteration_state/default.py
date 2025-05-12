@@ -113,10 +113,6 @@ class IterationState(IterationStateOps):
             }
         )
 
-    def _count_batch(self) -> int:
-        batch_count = self.cache.incr(self._key("batch_count"), 1)
-        return int(batch_count)
-
     def _batch_size(self) -> int:
         return int(self.cache.get(self._key("batch_size")))
 
@@ -491,9 +487,9 @@ class IterationState(IterationStateOps):
             samples.append(sample)
 
         cache_key = self._cache_key([i.index for i in global_sample_indices])
-
+        current = int(self.cache.incr(self._key("batch_count"), 1)) - 1
         return cache_key, ProcessNextSamplesParams(
-            current=self._count_batch(),
+            current=current,
             global_sample_indices=global_sample_indices,
             samples=samples,
             collater=self._collater(),
