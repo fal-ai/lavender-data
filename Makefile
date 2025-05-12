@@ -13,9 +13,3 @@ ui:
 	cd ./ui && pnpm build && cd ../
 	cp -r ./ui/.next/standalone/ui/ lavender_data/ui/
 	rm -rf ./ui/.next/node_modules
-
-db-migration:
-	alembic revision --autogenerate -m "$(msg)"
-
-db-migrate:
-	alembic upgrade head

@@ -1,5 +1,4 @@
 from logging.config import fileConfig
-from dotenv import load_dotenv
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -20,7 +19,6 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 if not config.get_main_option("sqlalchemy.url"):
-    load_dotenv()
     url = get_settings().lavender_data_db_url or default_db_url()
     config.set_main_option("sqlalchemy.url", url)
 
