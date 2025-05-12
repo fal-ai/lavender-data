@@ -11,6 +11,12 @@ from .models import Dataset, Shardset, DatasetColumn, Iteration, Shard
 engine = None
 
 
+def default_db_url():
+    db_path = os.path.expanduser("~/.lavender-data/database.db")
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    return f"sqlite:///{db_path}"
+
+
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
@@ -21,9 +27,7 @@ def setup_db(db_url: Optional[str] = None):
     connect_args = {}
 
     if not db_url:
-        db_path = os.path.expanduser("~/.lavender-data/database.db")
-        db_url = f"sqlite:///{db_path}"
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        db_url = default_db_url()
         get_logger(__name__).debug(f"LAVENDER_DATA_DB_URL is not set, using {db_url}")
         connect_args = {"check_same_thread": False}
 
