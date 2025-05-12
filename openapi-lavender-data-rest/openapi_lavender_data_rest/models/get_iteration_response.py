@@ -10,6 +10,7 @@ from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.dataset_public import DatasetPublic
+    from ..models.iteration_categorizer import IterationCategorizer
     from ..models.iteration_collater import IterationCollater
     from ..models.iteration_filter import IterationFilter
     from ..models.iteration_preprocessor import IterationPreprocessor
@@ -30,8 +31,9 @@ class GetIterationResponse:
         id (Union[Unset, str]):
         total (Union[Unset, int]):  Default: 0.
         filters (Union[None, Unset, list['IterationFilter']]):
-        preprocessors (Union[None, Unset, list['IterationPreprocessor']]):
+        categorizer (Union['IterationCategorizer', None, Unset]):
         collater (Union['IterationCollater', None, Unset]):
+        preprocessors (Union[None, Unset, list['IterationPreprocessor']]):
         shuffle (Union[Unset, bool]):  Default: False.
         shuffle_seed (Union[None, Unset, int]):
         shuffle_block_size (Union[None, Unset, int]):
@@ -46,8 +48,9 @@ class GetIterationResponse:
     id: Union[Unset, str] = UNSET
     total: Union[Unset, int] = 0
     filters: Union[None, Unset, list["IterationFilter"]] = UNSET
-    preprocessors: Union[None, Unset, list["IterationPreprocessor"]] = UNSET
+    categorizer: Union["IterationCategorizer", None, Unset] = UNSET
     collater: Union["IterationCollater", None, Unset] = UNSET
+    preprocessors: Union[None, Unset, list["IterationPreprocessor"]] = UNSET
     shuffle: Union[Unset, bool] = False
     shuffle_seed: Union[None, Unset, int] = UNSET
     shuffle_block_size: Union[None, Unset, int] = UNSET
@@ -56,6 +59,7 @@ class GetIterationResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.iteration_categorizer import IterationCategorizer
         from ..models.iteration_collater import IterationCollater
 
         dataset_id = self.dataset_id
@@ -85,6 +89,22 @@ class GetIterationResponse:
         else:
             filters = self.filters
 
+        categorizer: Union[None, Unset, dict[str, Any]]
+        if isinstance(self.categorizer, Unset):
+            categorizer = UNSET
+        elif isinstance(self.categorizer, IterationCategorizer):
+            categorizer = self.categorizer.to_dict()
+        else:
+            categorizer = self.categorizer
+
+        collater: Union[None, Unset, dict[str, Any]]
+        if isinstance(self.collater, Unset):
+            collater = UNSET
+        elif isinstance(self.collater, IterationCollater):
+            collater = self.collater.to_dict()
+        else:
+            collater = self.collater
+
         preprocessors: Union[None, Unset, list[dict[str, Any]]]
         if isinstance(self.preprocessors, Unset):
             preprocessors = UNSET
@@ -96,14 +116,6 @@ class GetIterationResponse:
 
         else:
             preprocessors = self.preprocessors
-
-        collater: Union[None, Unset, dict[str, Any]]
-        if isinstance(self.collater, Unset):
-            collater = UNSET
-        elif isinstance(self.collater, IterationCollater):
-            collater = self.collater.to_dict()
-        else:
-            collater = self.collater
 
         shuffle = self.shuffle
 
@@ -150,10 +162,12 @@ class GetIterationResponse:
             field_dict["total"] = total
         if filters is not UNSET:
             field_dict["filters"] = filters
-        if preprocessors is not UNSET:
-            field_dict["preprocessors"] = preprocessors
+        if categorizer is not UNSET:
+            field_dict["categorizer"] = categorizer
         if collater is not UNSET:
             field_dict["collater"] = collater
+        if preprocessors is not UNSET:
+            field_dict["preprocessors"] = preprocessors
         if shuffle is not UNSET:
             field_dict["shuffle"] = shuffle
         if shuffle_seed is not UNSET:
@@ -170,6 +184,7 @@ class GetIterationResponse:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.dataset_public import DatasetPublic
+        from ..models.iteration_categorizer import IterationCategorizer
         from ..models.iteration_collater import IterationCollater
         from ..models.iteration_filter import IterationFilter
         from ..models.iteration_preprocessor import IterationPreprocessor
@@ -215,6 +230,40 @@ class GetIterationResponse:
 
         filters = _parse_filters(d.pop("filters", UNSET))
 
+        def _parse_categorizer(data: object) -> Union["IterationCategorizer", None, Unset]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                categorizer_type_0 = IterationCategorizer.from_dict(data)
+
+                return categorizer_type_0
+            except:  # noqa: E722
+                pass
+            return cast(Union["IterationCategorizer", None, Unset], data)
+
+        categorizer = _parse_categorizer(d.pop("categorizer", UNSET))
+
+        def _parse_collater(data: object) -> Union["IterationCollater", None, Unset]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                collater_type_0 = IterationCollater.from_dict(data)
+
+                return collater_type_0
+            except:  # noqa: E722
+                pass
+            return cast(Union["IterationCollater", None, Unset], data)
+
+        collater = _parse_collater(d.pop("collater", UNSET))
+
         def _parse_preprocessors(data: object) -> Union[None, Unset, list["IterationPreprocessor"]]:
             if data is None:
                 return data
@@ -236,23 +285,6 @@ class GetIterationResponse:
             return cast(Union[None, Unset, list["IterationPreprocessor"]], data)
 
         preprocessors = _parse_preprocessors(d.pop("preprocessors", UNSET))
-
-        def _parse_collater(data: object) -> Union["IterationCollater", None, Unset]:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, dict):
-                    raise TypeError()
-                collater_type_0 = IterationCollater.from_dict(data)
-
-                return collater_type_0
-            except:  # noqa: E722
-                pass
-            return cast(Union["IterationCollater", None, Unset], data)
-
-        collater = _parse_collater(d.pop("collater", UNSET))
 
         shuffle = d.pop("shuffle", UNSET)
 
@@ -306,8 +338,9 @@ class GetIterationResponse:
             id=id,
             total=total,
             filters=filters,
-            preprocessors=preprocessors,
+            categorizer=categorizer,
             collater=collater,
+            preprocessors=preprocessors,
             shuffle=shuffle,
             shuffle_seed=shuffle_seed,
             shuffle_block_size=shuffle_block_size,
