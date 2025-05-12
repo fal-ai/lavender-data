@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'packages/lavender-data-docs/**'
+      - 'docs/**'
 
 jobs:
   deploy-docs:
@@ -35,12 +35,12 @@ jobs:
 
       - name: Build docs
         run: |
-          cd packages/lavender-data-docs
+          cd docs
           pnpm build
 
       - name: Deploy docs
         run: |
-          aws s3 sync ./packages/lavender-data-docs/dist s3://${{ secrets.AWS_DOCS_S3_BUCKET }}/ --delete
+          aws s3 sync ./docs/dist s3://${{ secrets.AWS_DOCS_S3_BUCKET }}/ --delete
 
       - name: Invalidate CloudFront
         run: |
