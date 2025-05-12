@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="./assets/logo.webp" alt="Lavender Data Logo" width="50%" />
+    <img src="https://github.com/fal-ai/lavender-data/raw/main/assets/logo.webp" alt="Lavender Data Logo" width="50%" />
 </p>
 
 <h2>
