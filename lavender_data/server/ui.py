@@ -36,9 +36,7 @@ def _start_ui(api_url: str, ui_port: int, force_install_dependencies: bool = Fal
             "Node is not installed, cannot start UI. Please refer to https://nodejs.org/download for installation instructions."
         )
 
-    ui_dir = os.path.join(
-        os.path.dirname(__file__), "..", "ui", "packages", "lavender-data-ui"
-    )
+    ui_dir = os.path.join(os.path.dirname(__file__), "..", "ui")
 
     if (
         not os.path.exists(os.path.join(ui_dir, "node_modules"))
