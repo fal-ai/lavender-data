@@ -1,4 +1,4 @@
-name: Tests
+name: Deploy docs
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  deploy-docs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -32,4 +32,8 @@ jobs:
 
       - name: Deploy docs
         run: |
-          aws s3 sync ./packages/lavender-data-docs/dist s3://${{ secrets.AWS_S3_DOCS_BUCKET }}/ --delete
+          aws s3 sync ./packages/lavender-data-docs/dist s3://${{ secrets.AWS_DOCS_S3_BUCKET }}/ --delete
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation --distribution-id ${{ secrets.AWS_DOCS_CLOUDFRONT_DISTRIBUTION_ID }} --paths '/*'
