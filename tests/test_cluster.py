@@ -109,7 +109,7 @@ class TestCluster(unittest.TestCase):
         shardset_id = response.id
 
         # wait until shardset is synced
-        time.sleep(1)
+        time.sleep(3)
 
         iteration_from_nodes = [
             LavenderDataLoader(

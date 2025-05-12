@@ -97,7 +97,7 @@ class TestIteration(unittest.TestCase):
                 ),
             ],
         )
-        time.sleep(1)
+        time.sleep(3)
         self.shardset_id = response.id
 
     def tearDown(self):
