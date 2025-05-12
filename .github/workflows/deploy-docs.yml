@@ -32,4 +32,4 @@ jobs:
 
       - name: Deploy docs
         run: |
-          aws s3 sync ./packages/lavender-data-docs/dist s3://${{ secrets.AWS_DOCS_S3_BUCKET }}/ --delete
+          aws s3 sync ./packages/lavender-data-docs/dist s3://${{ secrets.AWS_S3_DOCS_BUCKET }}/ --delete
