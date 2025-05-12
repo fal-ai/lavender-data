@@ -114,6 +114,7 @@ class TestIteration(unittest.TestCase):
                 )
             ),
             total=self.total_samples,
+            desc="test_iteration",
         ):
             self.assertEqual(
                 sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
@@ -134,6 +135,7 @@ class TestIteration(unittest.TestCase):
                 )
             ),
             total=self.total_samples // batch_size,
+            desc="test_iteration_with_batch_size",
         ):
             self.assertEqual(len(batch["image_url"]), batch_size)
             for j, (image_url, caption) in enumerate(
@@ -166,6 +168,7 @@ class TestIteration(unittest.TestCase):
         rank_2_stopped = False
         for i in tqdm.tqdm(
             range(self.total_samples * 2),
+            desc="test_iteration_with_rank",
         ):
             if rank_1_stopped and rank_2_stopped:
                 break
@@ -215,6 +218,7 @@ class TestIteration(unittest.TestCase):
                 )
             ),
             total=self.total_samples,
+            desc="test_iteration_with_max_retry_count",
         ):
             self.assertEqual(
                 sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
@@ -247,6 +251,7 @@ class TestIteration(unittest.TestCase):
                 )
             ),
             total=self.total_samples,
+            desc="test_iteration_with_skip_on_failure",
         ):
             read_samples += 1
         self.assertEqual(read_samples, self.total_samples // 2)
@@ -262,6 +267,7 @@ class TestIteration(unittest.TestCase):
                 )
             ),
             total=self.total_samples // 2,
+            desc="test_iteration_with_filter",
         ):
             self.assertEqual(sample["id"] % 2, 0)
             read_samples += 1
@@ -278,6 +284,7 @@ class TestIteration(unittest.TestCase):
                 )
             ),
             total=self.total_samples,
+            desc="test_iteration_with_preprocessor",
         ):
             self.assertEqual(sample["double_id"], i * 2)
             read_samples += 1
@@ -291,7 +298,9 @@ class TestIteration(unittest.TestCase):
             shardsets=[self.shardset_id],
         ).torch()
 
-        for i, sample in enumerate(tqdm.tqdm(dataloader)):
+        for i, sample in enumerate(
+            tqdm.tqdm(dataloader, desc="test_iteration_torch_dataloader")
+        ):
             self.assertEqual(
                 sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
             )
@@ -310,7 +319,11 @@ class TestIteration(unittest.TestCase):
             prefetch_factor=4,
         )
 
-        for i, sample in enumerate(tqdm.tqdm(dataloader)):
+        for i, sample in enumerate(
+            tqdm.tqdm(
+                dataloader, desc="test_iteration_torch_dataloader_with_prefetch_factor"
+            )
+        ):
             self.assertEqual(
                 sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
             )

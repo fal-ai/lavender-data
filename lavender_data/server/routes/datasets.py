@@ -521,13 +521,6 @@ def sync_shardset(
             status_code=400,
             detail="Shardset is already being synced. Please wait for the sync to complete.",
         )
-    else:
-        background_worker.memory().set_task_status(
-            task_uid,
-            status="pending",
-            current=0,
-            total=0,
-        )
 
     background_worker.submit(
         sync_shardset_location_task,

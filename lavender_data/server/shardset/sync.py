@@ -171,7 +171,6 @@ def sync_shardset_location_task(
     except Exception as e:
         logger.exception(e)
 
-    memory.set_task_status(task_uid, status="done", ex=10)
     session = next(get_session())
     shardset = session.exec(select(Shardset).where(Shardset.id == shardset_id)).one()
     return shardset, shardset.shards

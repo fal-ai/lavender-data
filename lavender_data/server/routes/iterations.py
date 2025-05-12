@@ -349,18 +349,19 @@ def submit_next(
         raise HTTPException(status_code=400, detail="max_retry_count must be >= 0")
 
     cache_key, params = state.get_next_samples(rank)
-
     cache_ttl = settings.lavender_data_batch_cache_ttl
+
     if memory.exists(cache_key) and not no_cache:
         memory.expire(cache_key, cache_ttl)
     else:
-        memory.set(cache_key, "pending", ex=cache_ttl)
+        task_uid = cache_key
         background_worker.submit(
             process_next_samples_task,
             params=params,
             max_retry_count=max_retry_count,
             cache_key=cache_key,
             cache_ttl=cache_ttl,
+            task_uid=task_uid,
         )
 
     return SubmitNextResponse(cache_key=cache_key)
@@ -372,16 +373,20 @@ def get_submitted_result(
     cache_key: str,
     memory: CurrentBackgroundWorkerMemory,
 ) -> bytes:
-    content = memory.get(cache_key)
-    if content is None:
+    task_uid = cache_key
+    status = memory.get_task_status(task_uid)
+    if status is None:
         raise HTTPException(status_code=404, detail="Cache key not found")
-    if content == b"pending":
+    elif status.status != "completed":
         raise HTTPException(status_code=202, detail="Data is still being processed")
+
+    content = memory.get(cache_key)
     if content.startswith(b"processing_error:"):
         e = ProcessNextSamplesException.from_json(content[17:])
         raise e.to_http_exception()
     if content.startswith(b"error:"):
         raise HTTPException(status_code=500, detail=content[6:].decode("utf-8"))
+
     return Response(content=content, media_type="application/octet-stream")
 
 

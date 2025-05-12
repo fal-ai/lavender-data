@@ -38,6 +38,7 @@ def start_server(port: int, env: dict):
             "LAVENDER_DATA_DISABLE_UI": "true",
             "LAVENDER_DATA_PORT": str(port),
             "LAVENDER_DATA_LOG_FILE": "./test.log",
+            "LAVENDER_DATA_LOG_LEVEL": "DEBUG",
         },
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

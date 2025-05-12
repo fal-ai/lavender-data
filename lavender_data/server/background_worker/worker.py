@@ -30,14 +30,16 @@ class TaskMetadata(BaseModel):
 
 class BackgroundWorker:
     def __init__(self, num_workers: int):
+        self._logger = get_logger(__name__)
         self._mp_ctx = mp.get_context("spawn")
         self._kill_switch = self._mp_ctx.Event()
+        max_workers = num_workers if num_workers > 0 else mp.cpu_count()
+        self._logger.debug(f"Starting background worker with {max_workers} workers")
         self._executor = ProcessPoolExecutor(
-            num_workers,
+            max_workers,
             mp_context=self._mp_ctx,
             initializer=BackgroundWorker._initializer,
             initargs=(get_settings(), self._kill_switch),
-            max_tasks_per_child=1,
         )
         self._memory = Memory()
         self._tasks: list[tuple[TaskMetadata, Future]] = []
@@ -104,6 +106,9 @@ class BackgroundWorker:
         def on_done(future: Future):
             try:
                 result = future.result(timeout=0.1)
+                self._memory.set_task_status(
+                    task_uid, status="completed", ex=24 * 60 * 60
+                )
                 if on_complete is not None:
                     on_complete(result)
             except BrokenProcessPool:
@@ -131,6 +136,8 @@ class BackgroundWorker:
                 )
             )
 
+        self._memory.set_task_status(task_uid, status="pending", current=0, total=0)
+
         return task_uid
 
     def cancel(self, task_uid: str):
@@ -147,12 +154,11 @@ class BackgroundWorker:
             # abort
 
     def shutdown(self):
-        logger = get_logger(__name__)
-        logger.debug("Shutting down background worker")
+        self._logger.debug("Shutting down background worker")
         self._executor.shutdown(wait=False)
         self._kill_switch.set()
         self._memory.clear()
-        logger.debug("Shutdown complete")
+        self._logger.debug("Shutdown complete")
 
     def memory(self) -> Memory:
         return self._memory
