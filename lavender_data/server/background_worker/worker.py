@@ -17,6 +17,7 @@ from lavender_data.server.db import setup_db
 from lavender_data.server.cache import setup_cache
 from lavender_data.server.reader import setup_reader
 from lavender_data.server.registries import setup_registries
+from lavender_data.logging import get_logger
 
 
 class TaskMetadata(BaseModel):
@@ -29,11 +30,14 @@ class TaskMetadata(BaseModel):
 
 class BackgroundWorker:
     def __init__(self, num_workers: int):
-        self._kill_switch = mp.Event()
+        self._mp_ctx = mp.get_context("spawn")
+        self._kill_switch = self._mp_ctx.Event()
         self._executor = ProcessPoolExecutor(
             num_workers,
+            mp_context=self._mp_ctx,
             initializer=BackgroundWorker._initializer,
             initargs=(get_settings(), self._kill_switch),
+            max_tasks_per_child=1,
         )
         self._memory = Memory()
         self._tasks: list[tuple[TaskMetadata, Future]] = []
@@ -49,8 +53,10 @@ class BackgroundWorker:
         setup_reader(settings.lavender_data_reader_disk_cache_size)
 
         def _abort_on_kill_switch():
-            kill_switch.wait()
-            os.kill(os.getpid(), signal.SIGTERM)
+            while True:
+                if kill_switch.is_set():
+                    os.kill(os.getpid(), signal.SIGTERM)
+                time.sleep(0.1)
 
         threading.Thread(target=_abort_on_kill_switch, daemon=True).start()
 
@@ -139,9 +145,12 @@ class BackgroundWorker:
             # abort
 
     def shutdown(self):
+        logger = get_logger(__name__)
+        logger.debug("Shutting down background worker")
         self._executor.shutdown(wait=False)
         self._kill_switch.set()
         self._memory.clear()
+        logger.debug("Shutdown complete")
 
     def memory(self) -> Memory:
         return self._memory
