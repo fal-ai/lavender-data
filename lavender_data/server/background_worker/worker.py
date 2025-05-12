@@ -33,10 +33,12 @@ class BackgroundWorker:
         self._logger = get_logger(__name__)
         self._mp_ctx = mp.get_context("spawn")
         self._kill_switch = self._mp_ctx.Event()
-        max_workers = num_workers if num_workers > 0 else mp.cpu_count()
-        self._logger.debug(f"Starting background worker with {max_workers} workers")
+        self._num_workers = num_workers if num_workers > 0 else mp.cpu_count()
+        self._logger.debug(
+            f"Starting background worker with {self._num_workers} workers"
+        )
         self._executor = ProcessPoolExecutor(
-            max_workers,
+            self._num_workers,
             mp_context=self._mp_ctx,
             initializer=BackgroundWorker._initializer,
             initargs=(get_settings(), self._kill_switch),
@@ -51,9 +53,7 @@ class BackgroundWorker:
     def _initializer(settings: Settings, kill_switch):
         setup_db(settings.lavender_data_db_url)
         setup_cache(redis_url=settings.lavender_data_redis_url)
-        setup_registries(
-            settings.lavender_data_modules_dir, initialize_preprocessor=True
-        )
+        setup_registries(settings.lavender_data_modules_dir)
         setup_reader(settings.lavender_data_reader_disk_cache_size)
 
         def _abort_on_kill_switch():
