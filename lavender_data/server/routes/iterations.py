@@ -1,7 +1,7 @@
 import random
 from typing import Optional
 
-from fastapi import HTTPException, APIRouter, Response, BackgroundTasks, Depends
+from fastapi import HTTPException, APIRouter, Response, Depends
 
 from sqlmodel import select, col
 from sqlalchemy.exc import NoResultFound
@@ -19,8 +19,9 @@ from lavender_data.server.db.models import (
     ShardPublic,
     Dataset,
     IterationFilter,
-    IterationPreprocessor,
+    IterationCategorizer,
     IterationCollater,
+    IterationPreprocessor,
     IterationShardsetLink,
 )
 from lavender_data.server.background_worker import (
@@ -41,9 +42,10 @@ from lavender_data.server.iteration import (
     get_iteration_id_from_hash_from_head,
 )
 from lavender_data.server.registries import (
-    PreprocessorRegistry,
     FilterRegistry,
+    CategorizerRegistry,
     CollaterRegistry,
+    PreprocessorRegistry,
 )
 from lavender_data.server.settings import AppSettings
 from lavender_data.server.auth import AppAuth
@@ -72,8 +74,9 @@ class CreateIterationParams(BaseModel):
     shardsets: Optional[list[str]] = None
 
     filters: Optional[list[IterationFilter]] = None
-    preprocessors: Optional[list[IterationPreprocessor]] = None
+    categorizer: Optional[IterationCategorizer] = None
     collater: Optional[IterationCollater] = None
+    preprocessors: Optional[list[IterationPreprocessor]] = None
 
     shuffle: Optional[bool] = None
     shuffle_seed: Optional[int] = None
@@ -120,16 +123,6 @@ def create_iteration(
     if batch_size < 0:
         raise HTTPException(status_code=400, detail="batch_size must be >= 0")
 
-    if params.preprocessors is not None:
-        for preprocessor in params.preprocessors:
-            if preprocessor["name"] not in PreprocessorRegistry.list():
-                raise HTTPException(
-                    status_code=400,
-                    detail="preprocessor must be one of the following: ["
-                    + ", ".join(PreprocessorRegistry.list())
-                    + "]",
-                )
-
     if params.filters is not None:
         for f in params.filters:
             if f["name"] not in FilterRegistry.list():
@@ -140,6 +133,15 @@ def create_iteration(
                     + "]",
                 )
 
+    if params.categorizer is not None:
+        if params.categorizer["name"] not in CategorizerRegistry.list():
+            raise HTTPException(
+                status_code=400,
+                detail="categorizer must be one of the following: ["
+                + ", ".join(CategorizerRegistry.list())
+                + "]",
+            )
+
     if params.collater is not None:
         if params.collater["name"] not in CollaterRegistry.list():
             raise HTTPException(
@@ -148,6 +150,16 @@ def create_iteration(
                 + ", ".join(CollaterRegistry.list())
                 + "]",
             )
+
+    if params.preprocessors is not None:
+        for preprocessor in params.preprocessors:
+            if preprocessor["name"] not in PreprocessorRegistry.list():
+                raise HTTPException(
+                    status_code=400,
+                    detail="preprocessor must be one of the following: ["
+                    + ", ".join(PreprocessorRegistry.list())
+                    + "]",
+                )
 
     try:
         dataset = session.get_one(Dataset, params.dataset_id)
@@ -186,8 +198,9 @@ def create_iteration(
         dataset_id=dataset.id,
         total=total_samples,
         filters=params.filters,
-        preprocessors=params.preprocessors,
+        categorizer=params.categorizer,
         collater=params.collater,
+        preprocessors=params.preprocessors,
         shuffle=shuffle,
         shuffle_seed=params.shuffle_seed,
         shuffle_block_size=params.shuffle_block_size,

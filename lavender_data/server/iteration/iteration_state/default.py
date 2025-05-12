@@ -15,6 +15,7 @@ from lavender_data.server.db.models import (
     IterationPreprocessor,
     IterationFilter,
     IterationCollater,
+    IterationCategorizer,
 )
 from lavender_data.server.reader import (
     get_reader_instance,
@@ -89,16 +90,19 @@ class IterationState(IterationStateOps):
                     self._key("replication_pg"), json.dumps(iteration.replication_pg)
                 )
 
+            if iteration.filters is not None:
+                pipe.set(self._key("filters"), json.dumps(iteration.filters))
+
+            if iteration.categorizer is not None:
+                pipe.set(self._key("categorizer"), json.dumps(iteration.categorizer))
+
+            if iteration.collater is not None:
+                pipe.set(self._key("collater"), json.dumps(iteration.collater))
+
             if iteration.preprocessors is not None:
                 pipe.set(
                     self._key("preprocessors"), json.dumps(iteration.preprocessors)
                 )
-
-            if iteration.filters is not None:
-                pipe.set(self._key("filters"), json.dumps(iteration.filters))
-
-            if iteration.collater is not None:
-                pipe.set(self._key("collater"), json.dumps(iteration.collater))
 
             pipe.set(self._key("iteration_hash"), get_iteration_hash(iteration))
             pipe.execute()
@@ -124,6 +128,12 @@ class IterationState(IterationStateOps):
 
     def _filters(self) -> Optional[list[IterationFilter]]:
         v = self.cache.get(self._key("filters"))
+        if v is None:
+            return None
+        return json.loads(v)
+
+    def _categorizer(self) -> Optional[IterationCategorizer]:
+        v = self.cache.get(self._key("categorizer"))
         if v is None:
             return None
         return json.loads(v)
@@ -455,6 +465,7 @@ class IterationState(IterationStateOps):
 
         batch_size = self._batch_size()
         filters = self._filters()
+        # categorizer = self._categorizer()
 
         global_sample_indices = []
         samples = []

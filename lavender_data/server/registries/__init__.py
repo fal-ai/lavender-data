@@ -6,6 +6,7 @@ from lavender_data.logging import get_logger
 
 from .collater import CollaterRegistry, Collater
 from .filter import FilterRegistry, Filter
+from .categorizer import CategorizerRegistry, Categorizer
 from .preprocessor import PreprocessorRegistry, Preprocessor
 
 __all__ = [
@@ -14,6 +15,8 @@ __all__ = [
     "Collater",
     "FilterRegistry",
     "Filter",
+    "CategorizerRegistry",
+    "Categorizer",
     "PreprocessorRegistry",
     "Preprocessor",
 ]
@@ -23,9 +26,10 @@ def import_from_directory(directory: str):
     logger = get_logger(__name__)
     for file in Path(directory).glob("*.py"):
         before = {
-            "preprocessor": PreprocessorRegistry.list(),
             "filter": FilterRegistry.list(),
+            "categorizer": CategorizerRegistry.list(),
             "collater": CollaterRegistry.list(),
+            "preprocessor": PreprocessorRegistry.list(),
         }
 
         mod_name = file.stem
@@ -36,13 +40,14 @@ def import_from_directory(directory: str):
         spec.loader.exec_module(mod)
 
         after = {
-            "preprocessor": PreprocessorRegistry.list(),
             "filter": FilterRegistry.list(),
+            "categorizer": CategorizerRegistry.list(),
             "collater": CollaterRegistry.list(),
+            "preprocessor": PreprocessorRegistry.list(),
         }
         diff = {
             key: list(set(after[key]) - set(before[key]))
-            for key in ["preprocessor", "filter", "collater"]
+            for key in ["preprocessor", "filter", "collater", "categorizer"]
             if set(after[key]) - set(before[key])
         }
         logger.info(f"Imported {file}: {diff}")
@@ -53,5 +58,6 @@ def setup_registries(modules_dir: Optional[str] = None):
         import_from_directory(modules_dir)
 
     FilterRegistry.initialize()
+    CategorizerRegistry.initialize()
     CollaterRegistry.initialize()
     PreprocessorRegistry.initialize()

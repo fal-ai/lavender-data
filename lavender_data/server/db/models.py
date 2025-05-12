@@ -149,12 +149,17 @@ class IterationFilter(TypedDict):
     params: dict[str, Any]
 
 
-class IterationPreprocessor(TypedDict):
+class IterationCategorizer(TypedDict):
     name: str
     params: dict[str, Any]
 
 
 class IterationCollater(TypedDict):
+    name: str
+    params: dict[str, Any]
+
+
+class IterationPreprocessor(TypedDict):
     name: str
     params: dict[str, Any]
 
@@ -165,10 +170,11 @@ class IterationBase(SQLModel):
     total: int = Field(default=0)
 
     filters: Optional[list[IterationFilter]] = Field(default=None, sa_type=JSON)
+    categorizer: Optional[IterationCategorizer] = Field(default=None, sa_type=JSON)
+    collater: Optional[IterationCollater] = Field(default=None, sa_type=JSON)
     preprocessors: Optional[list[IterationPreprocessor]] = Field(
         default=None, sa_type=JSON
     )
-    collater: Optional[IterationCollater] = Field(default=None, sa_type=JSON)
 
     shuffle: bool = Field(default=False)
     shuffle_seed: Optional[int] = Field(default=None)
