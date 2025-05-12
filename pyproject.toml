@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lavender-data"
-version = "0.0.13"
+version = "0.0.14a"
 description = "Load & evolve datasets efficiently"
 authors = [
   "Hanch Han <cndghks15@gmail.com>"
@@ -38,6 +38,7 @@ psycopg2-binary = "^2.9.10"
 redis = {extras = ["hiredis"], version = "^5.2.1"}
 boto3 = "^1.38.13"
 webdataset = "^0.2.111"
+huggingface-hub = "^0.31.1"
 
 [tool.poetry.group.dev.dependencies]
 autopep8 = "2.1.0"
@@ -54,6 +55,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.extras]
 s3 = ["boto3"]
-psql = ["psycopg2-binary"]
+hf = ["huggingface-hub"]
+pgsql = ["psycopg2-binary"]
 redis = ["redis"]
 wds = ["webdataset"]

@@ -7,7 +7,13 @@ class HuggingfaceStorage(Storage):
     scheme = "hf"
 
     def __init__(self):
-        from huggingface_hub import utils, hf_hub_download, upload_file
+        try:
+            from huggingface_hub import utils, hf_hub_download, upload_file
+        except ImportError:
+            raise ImportError(
+                "Please install required dependencies for HuggingfaceStorage. "
+                "You can install them with `pip install lavender-data[hf]`"
+            )
 
         utils.disable_progress_bars("huggingface_hub.http_get")
         utils.disable_progress_bars("huggingface_hub.http_post")

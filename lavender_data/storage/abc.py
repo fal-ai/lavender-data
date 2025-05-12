@@ -13,12 +13,7 @@ class Storage(ABC):
         scheme = parsed.scheme
         for subcls in cls.__subclasses__():
             if scheme == subcls.scheme:
-                try:
-                    return subcls()
-                except ImportError as e:
-                    raise ImportError(
-                        f"Please install required dependencies for {subcls.__name__}"
-                    ) from e
+                return subcls()
         raise ValueError(f"Invalid protocol: {parsed.scheme}")
 
     @abstractmethod
