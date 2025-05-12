@@ -154,13 +154,10 @@ def process_next_samples_task(
     memory: Memory,
     task_uid: str,
 ):
-    logger = get_logger(__name__)
     try:
         content = process_next_samples(params, max_retry_count)
         memory.set(cache_key, content, ex=cache_ttl)
     except ProcessNextSamplesException as e:
-        logger.error(e)
         memory.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)
     except Exception as e:
-        logger.exception(e)
         memory.set(cache_key, f"error:{e}", ex=cache_ttl)

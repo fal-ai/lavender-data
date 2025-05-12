@@ -203,6 +203,7 @@ class TestIteration(unittest.TestCase):
                     shardsets=[self.shardset_id],
                     preprocessors=["fail_once_in_two_samples"],
                     max_retry_count=0,
+                    no_cache=True,
                 )
             ),
         )
@@ -215,6 +216,7 @@ class TestIteration(unittest.TestCase):
                     shardsets=[self.shardset_id],
                     preprocessors=["fail_once_in_two_samples"],
                     max_retry_count=1,
+                    no_cache=True,
                 )
             ),
             total=self.total_samples,

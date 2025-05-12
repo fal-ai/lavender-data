@@ -48,6 +48,15 @@ def import_from_directory(directory: str):
         logger.info(f"Imported {file}: {diff}")
 
 
-def setup_registries(modules_dir: Optional[str] = None):
+def setup_registries(
+    modules_dir: Optional[str] = None,
+    initialize_preprocessor: bool = True,
+):
     if modules_dir:
         import_from_directory(modules_dir)
+
+    FilterRegistry.initialize()
+    CollaterRegistry.initialize()
+
+    if initialize_preprocessor:
+        PreprocessorRegistry.initialize()

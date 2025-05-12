@@ -77,6 +77,12 @@ class CountCollater(Collater, name="count"):
 
 
 class RegistriesTest(unittest.TestCase):
+    def setUp(self):
+        TestRegistry.initialize()
+        PreprocessorRegistry.initialize()
+        FilterRegistry.initialize()
+        CollaterRegistry.initialize()
+
     def test_base_registry(self):
         # Test registration
         self.assertEqual(len(TestRegistry.list()), 2)

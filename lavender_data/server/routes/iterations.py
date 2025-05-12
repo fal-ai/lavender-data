@@ -33,7 +33,6 @@ from lavender_data.server.iteration import (
     CurrentIterationState,
     Progress,
     ProcessNextSamplesException,
-    process_next_samples,
     process_next_samples_task,
     set_cluster_sync,
     get_iteration_hash,
@@ -295,9 +294,20 @@ def get_iteration(iteration_id: str, session: DbSession) -> GetIterationResponse
     return iteration
 
 
+def get_process_result(cache_key: str, memory: CurrentBackgroundWorkerMemory):
+    content = memory.get(cache_key)
+    if content.startswith(b"processing_error:"):
+        e = ProcessNextSamplesException.from_json(content[17:])
+        raise e.to_http_exception()
+    if content.startswith(b"error:"):
+        raise HTTPException(status_code=500, detail=content[6:].decode("utf-8"))
+    return content
+
+
 @router.get("/{iteration_id}/next")
 def get_next(
     iteration_id: str,
+    background_worker: CurrentBackgroundWorker,
     memory: CurrentBackgroundWorkerMemory,
     settings: AppSettings,
     state: CurrentIterationState,
@@ -317,15 +327,25 @@ def get_next(
     """
 
     cache_ttl = settings.lavender_data_batch_cache_ttl
-    if memory.exists(cache_key) and not no_cache:
+
+    if no_cache:
+        memory.delete(cache_key)
+
+    if memory.exists(cache_key):
         memory.expire(cache_key, cache_ttl)
-        content = memory.get(cache_key)
     else:
-        try:
-            content = process_next_samples(params, max_retry_count)
-        except ProcessNextSamplesException as e:
-            raise e.to_http_exception()
-        memory.set(cache_key, content, ex=cache_ttl)
+        task_uid = cache_key
+        background_worker.submit(
+            process_next_samples_task,
+            params=params,
+            max_retry_count=max_retry_count,
+            cache_key=cache_key,
+            cache_ttl=cache_ttl,
+            task_uid=task_uid,
+        )
+        background_worker.wait(task_uid)
+
+    content = get_process_result(cache_key, memory)
 
     return Response(content=content, media_type="application/octet-stream")
 
@@ -351,7 +371,10 @@ def submit_next(
     cache_key, params = state.get_next_samples(rank)
     cache_ttl = settings.lavender_data_batch_cache_ttl
 
-    if memory.exists(cache_key) and not no_cache:
+    if no_cache:
+        memory.delete(cache_key)
+
+    if memory.exists(cache_key):
         memory.expire(cache_key, cache_ttl)
     else:
         task_uid = cache_key
@@ -380,13 +403,7 @@ def get_submitted_result(
     elif status.status != "completed":
         raise HTTPException(status_code=202, detail="Data is still being processed")
 
-    content = memory.get(cache_key)
-    if content.startswith(b"processing_error:"):
-        e = ProcessNextSamplesException.from_json(content[17:])
-        raise e.to_http_exception()
-    if content.startswith(b"error:"):
-        raise HTTPException(status_code=500, detail=content[6:].decode("utf-8"))
-
+    content = get_process_result(cache_key, memory)
     return Response(content=content, media_type="application/octet-stream")
 
 

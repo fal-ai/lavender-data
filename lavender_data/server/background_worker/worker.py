@@ -51,7 +51,9 @@ class BackgroundWorker:
     def _initializer(settings: Settings, kill_switch):
         setup_db(settings.lavender_data_db_url)
         setup_cache(redis_url=settings.lavender_data_redis_url)
-        setup_registries(settings.lavender_data_modules_dir)
+        setup_registries(
+            settings.lavender_data_modules_dir, initialize_preprocessor=True
+        )
         setup_reader(settings.lavender_data_reader_disk_cache_size)
 
         def _abort_on_kill_switch():
@@ -109,6 +111,7 @@ class BackgroundWorker:
                 self._memory.set_task_status(
                     task_uid, status="completed", ex=24 * 60 * 60
                 )
+                self._cleanup_tasks()
                 if on_complete is not None:
                     on_complete(result)
             except BrokenProcessPool:
@@ -139,6 +142,14 @@ class BackgroundWorker:
         self._memory.set_task_status(task_uid, status="pending", current=0, total=0)
 
         return task_uid
+
+    def wait(self, task_uid: str):
+        task = next((t for t in self._tasks if t[0].uid == task_uid), None)
+        if task is None:
+            return
+
+        _, future = task
+        future.result()
 
     def cancel(self, task_uid: str):
         with self._tasks_lock:

@@ -90,7 +90,10 @@ class Memory:
             return None
 
     def delete(self, name: str):
-        self._get_shared_memory(name).unlink()
+        try:
+            self._get_shared_memory(name).unlink()
+        except FileNotFoundError:
+            pass
 
     def clear(self):
         self._logger.debug(f"Clearing memory: {len(self._expiry)} keys")
@@ -98,7 +101,7 @@ class Memory:
             self.delete(name)
 
     def get_task_status(self, task_uid: str) -> Optional[TaskStatus]:
-        status = self.get(f"task:{task_uid}")
+        status = self.get(f"task-{task_uid}")
         if status is None:
             return None
 
@@ -122,7 +125,7 @@ class Memory:
             _status = TaskStatus(status="", current=0, total=0)
 
         self.set(
-            f"task:{task_uid}",
+            f"task-{task_uid}",
             json.dumps(
                 {
                     "status": status if status is not None else _status.status,
@@ -134,4 +137,4 @@ class Memory:
         )
 
     def delete_task_status(self, task_uid: str):
-        self.delete(f"task:{task_uid}")
+        self.delete(f"task-{task_uid}")
