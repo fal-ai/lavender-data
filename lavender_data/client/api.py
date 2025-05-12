@@ -59,10 +59,11 @@ from openapi_lavender_data_rest.models.shardset_public import ShardsetPublic
 from openapi_lavender_data_rest.models.shardset_with_shards import ShardsetWithShards
 from openapi_lavender_data_rest.models.shard_public import ShardPublic
 from openapi_lavender_data_rest.models.iteration_filter import IterationFilter
+from openapi_lavender_data_rest.models.iteration_categorizer import IterationCategorizer
+from openapi_lavender_data_rest.models.iteration_collater import IterationCollater
 from openapi_lavender_data_rest.models.iteration_preprocessor import (
     IterationPreprocessor,
 )
-from openapi_lavender_data_rest.models.iteration_collater import IterationCollater
 
 
 class LavenderDataApiError(Exception):
@@ -260,8 +261,9 @@ class LavenderDataClient:
         batch_size: Optional[int] = None,
         replication_pg: Optional[list[list[int]]] = None,
         filters: Optional[list[IterationFilter]] = None,
-        preprocessors: Optional[list[IterationPreprocessor]] = None,
+        categorizer: Optional[IterationCategorizer] = None,
         collater: Optional[IterationCollater] = None,
+        preprocessors: Optional[list[IterationPreprocessor]] = None,
         rank: int = 0,
         world_size: Optional[int] = None,
         wait_participant_threshold: Optional[float] = None,
@@ -277,9 +279,10 @@ class LavenderDataClient:
                     shuffle_seed=shuffle_seed,
                     shuffle_block_size=shuffle_block_size,
                     batch_size=batch_size,
-                    preprocessors=preprocessors,
                     filters=filters,
+                    categorizer=categorizer,
                     collater=collater,
+                    preprocessors=preprocessors,
                     replication_pg=replication_pg,
                     rank=rank,
                     world_size=world_size,
@@ -508,8 +511,9 @@ def create_iteration(
     batch_size: Optional[int] = None,
     replication_pg: Optional[list[list[int]]] = None,
     filters: Optional[list[IterationFilter]] = None,
-    preprocessors: Optional[list[IterationPreprocessor]] = None,
+    categorizer: Optional[IterationCategorizer] = None,
     collater: Optional[IterationCollater] = None,
+    preprocessors: Optional[list[IterationPreprocessor]] = None,
     rank: int = 0,
     world_size: Optional[int] = None,
     wait_participant_threshold: Optional[float] = None,
@@ -524,8 +528,9 @@ def create_iteration(
         batch_size=batch_size,
         replication_pg=replication_pg,
         filters=filters,
-        preprocessors=preprocessors,
+        categorizer=categorizer,
         collater=collater,
+        preprocessors=preprocessors,
         rank=rank,
         world_size=world_size,
         wait_participant_threshold=wait_participant_threshold,
