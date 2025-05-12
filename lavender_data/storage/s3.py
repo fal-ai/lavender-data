@@ -14,7 +14,13 @@ class S3Storage(Storage):
     scheme = "s3"
 
     def __init__(self):
-        import boto3
+        try:
+            import boto3
+        except ImportError:
+            raise ImportError(
+                "Please install required dependencies for S3Storage. "
+                "You can install them with `pip install lavender-data[s3]`"
+            )
 
         endpoint_url = os.getenv("AWS_ENDPOINT_URL", None)
         aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)

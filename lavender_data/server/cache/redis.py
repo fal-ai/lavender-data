@@ -1,6 +1,5 @@
 import contextlib
 from urllib.parse import urlparse
-import redis
 
 from .abc import CacheInterface, PipelineInterface
 from typing import Optional, Iterator, Union
@@ -8,6 +7,14 @@ from typing import Optional, Iterator, Union
 
 class RedisCache(CacheInterface):
     def __init__(self, redis_url: str):
+        try:
+            import redis
+        except ImportError:
+            raise ImportError(
+                "Please install required dependencies for S3Storage. "
+                "You can install them with `pip install lavender-data[redis]`"
+            )
+
         url = urlparse(redis_url)
         self.redis = redis.StrictRedis(
             host=url.hostname,

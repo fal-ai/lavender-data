@@ -8,5 +8,5 @@ dependencies = [
 
 
 [tool.uv.sources]
-lavender-data = {path = "../../packages/lavender-data", editable = true}
+lavender-data = {path = "../../", editable = true}
 

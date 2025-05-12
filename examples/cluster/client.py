@@ -30,7 +30,7 @@ if __name__ == "__main__":
     ]
 
     dataset_name = f"test-dataset-{time.time()}"
-    dataset = lavender.create_dataset(name=dataset_name, uid_column_name="id")
+    dataset = lavender.api.create_dataset(name=dataset_name, uid_column_name="id")
 
     dirname = os.path.abspath(f".cache/shards/")
     create_test_shards(

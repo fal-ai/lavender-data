@@ -1,0 +1,75 @@
+---
+title: Server - Configuration
+description: Learn about how to configure the server
+---
+
+To configure the server, you can set the following environment variables.
+Set them in the `.env` file in the current directory. 
+Alternatively, you can set them in any other file and pass it to the server using `--env-file` option.
+
+```bash
+lavender-data server start --env-file .env
+```
+
+After changing the environment variables, you need to restart the server to take effect.
+
+```bash
+lavender-data server restart
+```
+
+
+### General
+
+| Environment Variable | Description | Default |
+|----------------------|-------------|---------|
+| `LAVENDER_DATA_PORT` | The port number to listen on for API requests | `8000` |
+| `LAVENDER_DATA_HOST` | The host address to bind the server to | `0.0.0.0` |
+| `LAVENDER_DATA_DB_URL` | The database URL. Uses local sqlite db if not set. | `""` |
+| `LAVENDER_DATA_REDIS_URL` | The Redis URL. Uses memory if not set. | `""` |
+| `LAVENDER_DATA_NUM_WORKERS` | The number of workers to use for the background worker. (0 for auto) | `0` |
+| `LAVENDER_DATA_DISABLE_AUTH` | Disable authentication | `false` |
+
+
+If you want to use a different database or cache, you need to install the corresponding dependencies.
+
+```bash
+# Postgres
+pip install lavender-data[pgsql]
+
+# Redis
+pip install lavender-data[redis]
+```
+
+### Web UI
+
+| Environment Variable | Description | Default |
+|----------------------|-------------|---------|
+| `LAVENDER_DATA_UI_PORT` | The port number to listen on for Web UI requests | `3000` |
+| `LAVENDER_DATA_DISABLE_UI` | Disable the Web UI | `false` |
+
+
+### Logging
+
+| Environment Variable | Description | Default |
+|----------------------|-------------|---------|
+| `LAVENDER_DATA_LOG_LEVEL` | The log level for the stdout/stderr. | `"INFO"` |
+| `LAVENDER_DATA_LOG_FILE` | The log file. Always logs to this file with `DEBUG` level. | `"~/.lavender-data/server.log"` |
+
+
+### Pipeline
+
+| Environment Variable | Description | Default |
+|----------------------|-------------|---------|
+| `LAVENDER_DATA_MODULES_DIR` | The directory to load the modules from | `""` |
+| `LAVENDER_DATA_READER_DISK_CACHE_SIZE` | The disk cache size for the shard file reader | `4294967296` (4GB) |
+| `LAVENDER_DATA_BATCH_CACHE_TTL` | The TTL for the batch cache | `300` (5 minutes) |
+
+### Cluster
+
+| Environment Variable | Description | Default |
+|----------------------|-------------|---------|
+| `LAVENDER_DATA_CLUSTER_ENABLED` | Enable the cluster | `false` |
+| `LAVENDER_DATA_CLUSTER_SECRET` | The shared secret for the cluster | `""` |
+| `LAVENDER_DATA_CLUSTER_HEAD_URL` | The URL of the head node | `""` |
+| `LAVENDER_DATA_CLUSTER_NODE_URL` | The URL of the current node | `""` |
+

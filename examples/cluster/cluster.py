@@ -5,6 +5,9 @@ import subprocess
 import time
 
 
+logs_dir = "./logs"
+
+
 def flush_logs(server_process: subprocess.Popen):
     if server_process.poll() is not None:
         return
@@ -17,17 +20,20 @@ def flush_logs(server_process: subprocess.Popen):
 
 
 def start_server(port: int, env_file: str, timeout: int = 10):
+    lavender_data = shutil.which("lavender-data")
+
     server_process = subprocess.Popen(
         [
-            "lavender-data",
+            lavender_data,
             "server",
             "run",
-            "--disable-ui",
-            "--port",
-            str(port),
             "--env-file",
             env_file,
         ],
+        env={
+            "LAVENDER_DATA_PORT": str(port),
+            "LAVENDER_DATA_LOG_FILE": os.path.join(logs_dir, f"server-{port}.log"),
+        },
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -40,6 +46,7 @@ def start_server(port: int, env_file: str, timeout: int = 10):
         )
         for fd in read_fds:
             line = fd.readline().decode().strip()
+            print(line)
             if "Application startup complete." in line:
                 server_ready = True
 
@@ -60,7 +67,6 @@ def stop_server(server_process: subprocess.Popen):
 
 
 if __name__ == "__main__":
-    logs_dir = "./logs"
     shutil.rmtree(logs_dir, ignore_errors=True)
     os.makedirs(logs_dir, exist_ok=True)
 

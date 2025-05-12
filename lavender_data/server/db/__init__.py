@@ -27,6 +27,15 @@ def setup_db(db_url: Optional[str] = None):
         get_logger(__name__).debug(f"LAVENDER_DATA_DB_URL is not set, using {db_url}")
         connect_args = {"check_same_thread": False}
 
+    if db_url.startswith("postgres"):
+        try:
+            import psycopg2
+        except ImportError:
+            raise ImportError(
+                "Please install required dependencies for PostgresStorage. "
+                "You can install them with `pip install lavender-data[pgsql]`"
+            )
+
     engine = create_engine(db_url, connect_args=connect_args)
     create_db_and_tables()
 

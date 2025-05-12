@@ -9,5 +9,6 @@ openapi-python-client:
 	rm openapi-lavender-data-rest/openapi_lavender_data_rest/api/iterations/get_next_iterations_iteration_id_next_get.py-e 2> /dev/null
 	rm openapi-lavender-data-rest/openapi_lavender_data_rest/api/iterations/get_submitted_result_iterations_iteration_id_next_cache_key_get.py-e 2> /dev/null
 ui:
-	cd ./packages/lavender-data-ui && pnpm build && cd ../..
-	cp -r ./packages/lavender-data-ui/.next/standalone/ lavender_data/ui/
+	cd ./ui && pnpm build && cd ../
+	cp -r ./ui/.next/standalone/ui/ lavender_data/ui/
+	rm -rf ./ui/.next/node_modules
