@@ -6,11 +6,11 @@ from lavender_data.server.background_worker import (
 )
 
 
-def sleep_task(amount: int, memory):
+def sleep_task(amount: int, memory, task_uid):
     time.sleep(amount)
 
 
-def sleep_task_with_error(amount: int, memory):
+def sleep_task_with_error(amount: int, memory, task_uid):
     time.sleep(amount)
     raise Exception("Error")
 

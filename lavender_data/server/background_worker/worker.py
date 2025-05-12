@@ -103,16 +103,18 @@ class BackgroundWorker:
 
         def on_done(future: Future):
             try:
+                result = future.result(timeout=0.1)
                 if on_complete is not None:
-                    on_complete(future.result(timeout=0.1))
-                elif on_error is not None:
-                    on_error(future.exception(timeout=0.1))
+                    on_complete(result)
             except BrokenProcessPool:
                 if self._kill_switch.is_set():
                     # The process pool was killed, so we don't need to do anything
-                    pass
+                    return
                 else:
                     raise
+            except Exception as e:
+                if on_error is not None:
+                    on_error(e)
 
         future.add_done_callback(on_done)
 
