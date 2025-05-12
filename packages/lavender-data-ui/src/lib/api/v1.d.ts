@@ -967,7 +967,7 @@ export interface components {
             kwargs: {
                 [key: string]: unknown;
             };
-            status: components["schemas"]["TaskStatus"] | null;
+            status?: components["schemas"]["TaskStatus"] | null;
         };
         /** TaskStatus */
         TaskStatus: {
@@ -1298,7 +1298,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["TaskStatus"] | null;
                 };
             };
             /** @description Validation Error */

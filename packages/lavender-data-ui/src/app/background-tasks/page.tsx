@@ -22,15 +22,17 @@ import {
 import { getBackgroundTasks } from '@/lib/client-side-api';
 import { components } from '@/lib/api/v1';
 import { utcToLocal } from '@/lib/date';
+import { Button } from '@/components/ui/button';
+import { RefreshCcw } from 'lucide-react';
 
 type TaskMetadata = components['schemas']['TaskMetadata'];
 
 export default function BackgroundTasksPage() {
   const [loading, setLoading] = useState(true);
   const [backgroundTasks, setBackgroundTasks] = useState<TaskMetadata[]>([]);
-  const [intervalRef, setIntervalRef] = useState<NodeJS.Timeout | null>(null);
 
   const refreshBackgroundTasks = async () => {
+    setLoading(true);
     const backgroundTasks = await getBackgroundTasks();
     setBackgroundTasks(backgroundTasks);
     setLoading(false);
@@ -38,14 +40,6 @@ export default function BackgroundTasksPage() {
 
   useEffect(() => {
     refreshBackgroundTasks();
-    setIntervalRef(setInterval(refreshBackgroundTasks, 1000));
-
-    return () => {
-      if (intervalRef != null) {
-        clearInterval(intervalRef);
-        setIntervalRef(null);
-      }
-    };
   }, []);
 
   return (
@@ -63,6 +57,12 @@ export default function BackgroundTasksPage() {
       </Breadcrumb>
       <div className="w-full flex flex-col gap-2">
         <div className="text-lg">Background Tasks</div>
+        <div className="flex flex-row gap-2">
+          <Button variant="outline" onClick={refreshBackgroundTasks}>
+            <RefreshCcw className="w-4 h-4" />
+            Refresh
+          </Button>
+        </div>
         {loading ? (
           <div className="text-center text-muted-foreground m-8">
             Loading...

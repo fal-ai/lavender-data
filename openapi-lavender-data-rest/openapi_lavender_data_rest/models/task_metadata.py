@@ -6,6 +6,8 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
+from ..types import UNSET, Unset
+
 if TYPE_CHECKING:
     from ..models.task_metadata_kwargs import TaskMetadataKwargs
     from ..models.task_status import TaskStatus
@@ -22,14 +24,14 @@ class TaskMetadata:
         name (str):
         start_time (datetime.datetime):
         kwargs (TaskMetadataKwargs):
-        status (Union['TaskStatus', None]):
+        status (Union['TaskStatus', None, Unset]):
     """
 
     uid: str
     name: str
     start_time: datetime.datetime
     kwargs: "TaskMetadataKwargs"
-    status: Union["TaskStatus", None]
+    status: Union["TaskStatus", None, Unset] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -43,8 +45,10 @@ class TaskMetadata:
 
         kwargs = self.kwargs.to_dict()
 
-        status: Union[None, dict[str, Any]]
-        if isinstance(self.status, TaskStatus):
+        status: Union[None, Unset, dict[str, Any]]
+        if isinstance(self.status, Unset):
+            status = UNSET
+        elif isinstance(self.status, TaskStatus):
             status = self.status.to_dict()
         else:
             status = self.status
@@ -57,9 +61,10 @@ class TaskMetadata:
                 "name": name,
                 "start_time": start_time,
                 "kwargs": kwargs,
-                "status": status,
             }
         )
+        if status is not UNSET:
+            field_dict["status"] = status
 
         return field_dict
 
@@ -77,8 +82,10 @@ class TaskMetadata:
 
         kwargs = TaskMetadataKwargs.from_dict(d.pop("kwargs"))
 
-        def _parse_status(data: object) -> Union["TaskStatus", None]:
+        def _parse_status(data: object) -> Union["TaskStatus", None, Unset]:
             if data is None:
+                return data
+            if isinstance(data, Unset):
                 return data
             try:
                 if not isinstance(data, dict):
@@ -88,9 +95,9 @@ class TaskMetadata:
                 return status_type_0
             except:  # noqa: E722
                 pass
-            return cast(Union["TaskStatus", None], data)
+            return cast(Union["TaskStatus", None, Unset], data)
 
-        status = _parse_status(d.pop("status"))
+        status = _parse_status(d.pop("status", UNSET))
 
         task_metadata = cls(
             uid=uid,

@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from .worker import BackgroundWorker, TaskMetadata
+from .worker import BackgroundWorker, TaskMetadata, TaskStatus
 from .memory import Memory
 
 

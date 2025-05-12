@@ -1,98 +1,43 @@
-'use client';
-
-import type { components } from '@/lib/api/v1';
-import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCcw } from 'lucide-react';
 import { syncShardset } from './sync-shardset-action';
-import { Progress } from '@/components/ui/progress';
-import { useRouter } from 'next/navigation';
-import { getSyncShardsetStatus } from '@/lib/client-side-api';
+import { getClient } from '@/lib/api';
+import { redirect } from 'next/navigation';
 
-type TaskStatus = components['schemas']['TaskStatus'];
-
-export function SyncShardsetButton({
+export async function SyncShardsetButton({
   dataset_id,
   shardset_id,
 }: {
   dataset_id: string;
   shardset_id: string;
 }) {
-  const [syncStatus, setSyncStatus] = useState<TaskStatus | null>(null);
-  const [intervalRef, setIntervalRef] = useState<NodeJS.Timeout | null>(null);
-  const router = useRouter();
+  const syncStatusResponse = await (
+    await getClient()
+  ).GET('/datasets/{dataset_id}/shardsets/{shardset_id}/sync', {
+    params: {
+      path: {
+        dataset_id,
+        shardset_id,
+      },
+    },
+  });
 
-  const refreshStatus = async () => {
-    try {
-      const response = await getSyncShardsetStatus(dataset_id, shardset_id);
-      setSyncStatus(response);
-    } catch (error) {
-      console.error('error', error);
-      setSyncStatus(null);
-    }
-  };
+  const syncStatus = syncStatusResponse.data ? syncStatusResponse.data : null;
 
-  useEffect(() => {
-    refreshStatus();
-
-    return () => {
-      if (intervalRef != null) {
-        clearInterval(intervalRef);
-        setIntervalRef(null);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (
-      intervalRef == null &&
-      syncStatus != null &&
-      syncStatus.status != 'done'
-    ) {
-      setIntervalRef(setInterval(() => refreshStatus(), 100));
-    } else if (
-      intervalRef != null &&
-      (syncStatus == null || syncStatus.status == 'done')
-    ) {
-      clearInterval(intervalRef);
-      setIntervalRef(null);
-      router.refresh();
-    }
-  }, [syncStatus, intervalRef]);
-
-  const clientSyncAction = async () => {
+  const syncAction = async () => {
+    'use server';
     await syncShardset(dataset_id, shardset_id, true);
-    await refreshStatus();
-    setIntervalRef(setInterval(() => refreshStatus(), 100));
+    redirect(`/background-tasks/`);
   };
 
   return (
     <div className="w-full flex flex-col gap-1">
-      <form action={clientSyncAction}>
+      <form action={syncAction}>
         <Button type="submit" className="w-full" disabled={!!syncStatus}>
           <RefreshCcw className="w-4 h-4" />
           Sync
         </Button>
       </form>
-      <div className="h-[20px]">
-        {syncStatus && (
-          <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
-            <Progress
-              className="w-full"
-              value={
-                syncStatus.total > 0
-                  ? (100 * syncStatus.current) / syncStatus.total
-                  : 0
-              }
-            />
-            <div className="text-sm text-muted-foreground">
-              {syncStatus.total > 0
-                ? `${syncStatus.current} / ${syncStatus.total} `
-                : ''}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

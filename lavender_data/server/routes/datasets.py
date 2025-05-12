@@ -30,7 +30,7 @@ from lavender_data.server.reader import (
     ShardInfo,
     MainShardInfo,
 )
-from lavender_data.server.background_worker import CurrentBackgroundWorker
+from lavender_data.server.background_worker import CurrentBackgroundWorker, TaskStatus
 from lavender_data.server.shardset import (
     get_main_shardset,
     span,
@@ -548,12 +548,9 @@ def get_sync_status(
     dataset_id: str,
     shardset_id: str,
     background_worker: CurrentBackgroundWorker,
-):
+) -> Optional[TaskStatus]:
     task_uid = _sync_shardset_status_key(shardset_id)
-    try:
-        status = background_worker.memory().get_task_status(task_uid)
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Sync status not found")
+    status = background_worker.memory().get_task_status(task_uid)
     return status
 
 
