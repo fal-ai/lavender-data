@@ -23,6 +23,10 @@ from lavender_data.server.db.models import (
     IterationCollater,
     IterationShardsetLink,
 )
+from lavender_data.server.background_worker import (
+    CurrentBackgroundWorker,
+    CurrentBackgroundWorkerMemory,
+)
 from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.iteration import (
     IterationState,
@@ -30,7 +34,7 @@ from lavender_data.server.iteration import (
     Progress,
     ProcessNextSamplesException,
     process_next_samples,
-    process_next_samples_and_cache,
+    process_next_samples_task,
     set_cluster_sync,
     get_iteration_hash,
     set_iteration_hash,
@@ -294,7 +298,7 @@ def get_iteration(iteration_id: str, session: DbSession) -> GetIterationResponse
 @router.get("/{iteration_id}/next")
 def get_next(
     iteration_id: str,
-    cache: CacheClient,
+    memory: CurrentBackgroundWorkerMemory,
     settings: AppSettings,
     state: CurrentIterationState,
     rank: int = 0,
@@ -313,15 +317,15 @@ def get_next(
     """
 
     cache_ttl = settings.lavender_data_batch_cache_ttl
-    if cache.exists(cache_key) and not no_cache:
-        cache.expire(cache_key, cache_ttl)
-        content = cache.get(cache_key)
+    if memory.exists(cache_key) and not no_cache:
+        memory.expire(cache_key, cache_ttl)
+        content = memory.get(cache_key)
     else:
         try:
             content = process_next_samples(params, max_retry_count)
         except ProcessNextSamplesException as e:
             raise e.to_http_exception()
-        cache.set(cache_key, content, ex=cache_ttl)
+        memory.set(cache_key, content, ex=cache_ttl)
 
     return Response(content=content, media_type="application/octet-stream")
 
@@ -333,9 +337,9 @@ class SubmitNextResponse(BaseModel):
 @router.post("/{iteration_id}/next")
 def submit_next(
     iteration_id: str,
-    cache: CacheClient,
     settings: AppSettings,
-    background_tasks: BackgroundTasks,
+    background_worker: CurrentBackgroundWorker,
+    memory: CurrentBackgroundWorkerMemory,
     state: CurrentIterationState,
     rank: int = 0,
     no_cache: bool = False,
@@ -345,19 +349,19 @@ def submit_next(
         raise HTTPException(status_code=400, detail="max_retry_count must be >= 0")
 
     cache_key, params = state.get_next_samples(rank)
-
     cache_ttl = settings.lavender_data_batch_cache_ttl
-    if cache.exists(cache_key) and not no_cache:
-        cache.expire(cache_key, cache_ttl)
+
+    if memory.exists(cache_key) and not no_cache:
+        memory.expire(cache_key, cache_ttl)
     else:
-        cache.set(cache_key, "pending", ex=cache_ttl)
-        background_tasks.add_task(
-            process_next_samples_and_cache,
+        task_uid = cache_key
+        background_worker.submit(
+            process_next_samples_task,
             params=params,
             max_retry_count=max_retry_count,
             cache_key=cache_key,
             cache_ttl=cache_ttl,
-            cache=cache,
+            task_uid=task_uid,
         )
 
     return SubmitNextResponse(cache_key=cache_key)
@@ -365,18 +369,24 @@ def submit_next(
 
 @router.get("/{iteration_id}/next/{cache_key}")
 def get_submitted_result(
-    iteration_id: str, cache_key: str, cache: CacheClient
+    iteration_id: str,
+    cache_key: str,
+    memory: CurrentBackgroundWorkerMemory,
 ) -> bytes:
-    content = cache.get(cache_key)
-    if content is None:
+    task_uid = cache_key
+    status = memory.get_task_status(task_uid)
+    if status is None:
         raise HTTPException(status_code=404, detail="Cache key not found")
-    if content == b"pending":
+    elif status.status != "completed":
         raise HTTPException(status_code=202, detail="Data is still being processed")
+
+    content = memory.get(cache_key)
     if content.startswith(b"processing_error:"):
         e = ProcessNextSamplesException.from_json(content[17:])
         raise e.to_http_exception()
     if content.startswith(b"error:"):
         raise HTTPException(status_code=500, detail=content[6:].decode("utf-8"))
+
     return Response(content=content, media_type="application/octet-stream")
 
 

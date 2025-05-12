@@ -292,7 +292,7 @@ class AsyncLavenderDataLoader:
         self.executor: Optional[ThreadPoolExecutor] = None  # to be serializable
         self.futures: list[Future] = []
         self.arrived: list[tuple[int, dict]] = []
-        self.current = 0
+        self.current = -1
         self.stopped = False
 
     def _get_submitted_result(self, cache_key: str):
@@ -333,6 +333,8 @@ class AsyncLavenderDataLoader:
             self._submit_next()
 
         self.dl._complete_last_indices()
+
+        data = None
         next_index = self.current + 1
         while True:
             # check if the data has already arrived during the previous iteration
@@ -343,17 +345,18 @@ class AsyncLavenderDataLoader:
             )
             if len(already_arrived) > 0:
                 data = already_arrived[0]
-                self.current = next_index
                 self.arrived = [a for a in self.arrived if a[0] != next_index]
+                self.current = next_index
+                next_index = self.current + 1
                 if data is not None:
-                    self.dl._set_last_indices(data)
-                    return data
+                    break
+                else:
+                    continue
 
             # if the iteration is stopped and there are no more futures to be waited, stop iteration
             if self.stopped and len(self.futures) == 0:
                 raise StopIteration
 
-            data = None
             try:
                 # wait for the data to arrive
                 future = next(as_completed(self.futures))
@@ -379,12 +382,12 @@ class AsyncLavenderDataLoader:
                 self.current = next_index
                 next_index = self.current + 1
                 if data is not None:
-                    self.dl._set_last_indices(data)
                     break
             else:
                 # if arrived index is not the next index, add the data to the list
                 self.arrived.append((arrived_index, data))
 
+        self.dl._set_last_indices(data)
         return data
 
     def __iter__(self):

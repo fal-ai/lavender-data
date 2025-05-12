@@ -1,10 +1,14 @@
 from .span import span, get_main_shardset
-from .sync import inspect_shardset_location, sync_shardset_location, SyncShardsetStatus
+from .sync import (
+    inspect_shardset_location,
+    sync_shardset_location,
+    sync_shardset_location_task,
+)
 
 __all__ = [
     "span",
     "get_main_shardset",
     "inspect_shardset_location",
     "sync_shardset_location",
-    "SyncShardsetStatus",
+    "sync_shardset_location_task",
 ]

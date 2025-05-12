@@ -103,7 +103,7 @@ class TestIterationAsync(unittest.TestCase):
                 ),
             ],
         )
-        time.sleep(1)
+        time.sleep(3)
         self.shardset_id = response.id
 
     def tearDown(self):
@@ -117,9 +117,10 @@ class TestIterationAsync(unittest.TestCase):
             enumerate(
                 LavenderDataLoader(
                     dataset_id=self.dataset_id, shardsets=[self.shardset_id]
-                ).to_async(prefetch_factor=2)
+                ).to_async(prefetch_factor=4)
             ),
             total=self.total_samples,
+            desc="test_iteration",
         ):
             self.assertEqual(
                 sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
@@ -137,7 +138,7 @@ class TestIterationAsync(unittest.TestCase):
                     shardsets=[self.shardset_id],
                     preprocessors=["fail_once_in_two_samples"],
                     max_retry_count=0,
-                ).to_async(prefetch_factor=2)
+                ).to_async(prefetch_factor=4)
             ),
         )
 
@@ -149,9 +150,10 @@ class TestIterationAsync(unittest.TestCase):
                     shardsets=[self.shardset_id],
                     preprocessors=["fail_25_percent_samples"],
                     max_retry_count=8,
-                ).to_async(prefetch_factor=2)
+                ).to_async(prefetch_factor=4)
             ),
             total=self.total_samples,
+            desc="test_iteration_with_max_retry_count",
         ):
             self.assertEqual(
                 sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
@@ -169,7 +171,7 @@ class TestIterationAsync(unittest.TestCase):
                     shardsets=[self.shardset_id],
                     preprocessors=["fail_even_samples"],
                     skip_on_failure=False,
-                ).to_async(prefetch_factor=2)
+                ).to_async(prefetch_factor=4)
             ),
         )
 
@@ -181,9 +183,10 @@ class TestIterationAsync(unittest.TestCase):
                     shardsets=[self.shardset_id],
                     preprocessors=["fail_even_samples"],
                     skip_on_failure=True,
-                ).to_async(prefetch_factor=2)
+                ).to_async(prefetch_factor=4)
             ),
             total=self.total_samples,
+            desc="test_iteration_with_skip_on_failure",
         ):
             read_samples += 1
         self.assertEqual(read_samples, self.total_samples // 2)

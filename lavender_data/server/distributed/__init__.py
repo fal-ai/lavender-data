@@ -8,11 +8,15 @@ cluster = None
 
 
 def setup_cluster(
+    enabled: bool,
     head_url: str,
     node_url: str,
     secret: str,
     disable_auth: bool = False,
 ) -> Cluster:
+    if not enabled:
+        return None
+
     global cluster
     if secret == "" and not disable_auth:
         raise ValueError("LAVENDER_DATA_CLUSTER_SECRET is not set")

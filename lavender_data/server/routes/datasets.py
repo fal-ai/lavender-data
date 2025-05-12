@@ -1,8 +1,9 @@
 import os
 import json
 from typing import Optional, Any
+from concurrent.futures import Future
 
-from fastapi import HTTPException, APIRouter, BackgroundTasks, Depends
+from fastapi import HTTPException, APIRouter, Depends
 from sqlmodel import select, delete
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
@@ -29,11 +30,11 @@ from lavender_data.server.reader import (
     ShardInfo,
     MainShardInfo,
 )
+from lavender_data.server.background_worker import CurrentBackgroundWorker, TaskStatus
 from lavender_data.server.shardset import (
     get_main_shardset,
     span,
-    sync_shardset_location,
-    SyncShardsetStatus,
+    sync_shardset_location_task,
 )
 from lavender_data.server.auth import AppAuth
 from lavender_data.storage import list_files
@@ -324,8 +325,7 @@ def create_shardset(
     dataset_id: str,
     params: CreateShardsetParams,
     session: DbSession,
-    cache: CacheClient,
-    background_tasks: BackgroundTasks,
+    background_worker: CurrentBackgroundWorker,
     cluster: CurrentCluster,
 ) -> CreateShardsetResponse:
     logger = get_logger(__name__)
@@ -407,25 +407,13 @@ def create_shardset(
         cluster.sync_changes([shardset, *columns])
 
     if len(shard_basenames) > 0:
-        cache.hset(
-            _shardset_lock_key(shardset.id),
-            mapping=SyncShardsetStatus(
-                status="pending",
-                done_count=0,
-                shard_count=0,
-                shards=[],
-            ).model_dump(),
-        )
-        background_tasks.add_task(
-            sync_shardset_location,
+        sync_shardset(
+            dataset_id=dataset_id,
             shardset_id=shardset.id,
-            shardset_location=shardset.location,
-            shardset_shard_samples=[s.samples for s in shardset.shards],
-            shardset_shard_locations=[s.location for s in shardset.shards],
-            dataset_id=dataset.id,
-            num_workers=10,
-            overwrite=False,
-            cache_key=_shardset_lock_key(shardset.id),
+            params=SyncShardsetParams(overwrite=True),
+            session=session,
+            background_worker=background_worker,
+            cluster=cluster,
         )
 
     return shardset
@@ -484,8 +472,26 @@ class SyncShardsetParams(BaseModel):
     overwrite: bool = False
 
 
-def _shardset_lock_key(shardset_id: str) -> str:
-    return f"shardset:{shardset_id}:lock"
+def _sync_shardset_status_key(shardset_id: str) -> str:
+    return f"sync-{shardset_id}"
+
+
+def _sync_shardset_callback(cluster: CurrentCluster):
+    def callback(future: Future):
+        shardset: Shardset
+        shards: list[Shard]
+        shardset, shards = future
+        logger = get_logger(__name__)
+        if cluster is not None and cluster.is_head:
+            try:
+                logger.debug(
+                    f"Syncing shardset {shardset.id} to cluster nodes ({len(shards)} shards)"
+                )
+                cluster.sync_changes([shardset, *shards])
+            except Exception as e:
+                logger.exception(e)
+
+    return callback
 
 
 @router.post("/{dataset_id}/shardsets/{shardset_id}/sync")
@@ -494,8 +500,8 @@ def sync_shardset(
     shardset_id: str,
     params: SyncShardsetParams,
     session: DbSession,
-    cache: CacheClient,
-    background_tasks: BackgroundTasks,
+    background_worker: CurrentBackgroundWorker,
+    cluster: CurrentCluster,
 ) -> GetShardsetResponse:
     try:
         shardset = session.exec(
@@ -507,34 +513,25 @@ def sync_shardset(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Shardset not found")
 
-    existing = cache.hgetall(_shardset_lock_key(shardset_id))
-    if existing:
-        if existing[b"status"] != b"done":
-            raise HTTPException(
-                status_code=400,
-                detail="Shardset is already being synced. Please wait for the sync to complete.",
-            )
-    else:
-        cache.hset(
-            _shardset_lock_key(shardset.id),
-            mapping=SyncShardsetStatus(
-                status="pending",
-                done_count=0,
-                shard_count=0,
-                shards=[],
-            ).model_dump(),
+    task_uid = _sync_shardset_status_key(shardset.id)
+
+    existing = background_worker.memory().get_task_status(task_uid)
+    if existing and existing.status != "done":
+        raise HTTPException(
+            status_code=400,
+            detail="Shardset is already being synced. Please wait for the sync to complete.",
         )
 
-    background_tasks.add_task(
-        sync_shardset_location,
+    background_worker.submit(
+        sync_shardset_location_task,
+        on_complete=_sync_shardset_callback(cluster),
         shardset_id=shardset.id,
         shardset_location=shardset.location,
         shardset_shard_samples=[s.samples for s in shardset.shards],
         shardset_shard_locations=[s.location for s in shardset.shards],
-        dataset_id=dataset_id,
         num_workers=10,
         overwrite=params.overwrite,
-        cache_key=_shardset_lock_key(shardset.id),
+        task_uid=task_uid,
     )
     return shardset
 
@@ -543,18 +540,15 @@ def sync_shardset(
 def get_sync_status(
     dataset_id: str,
     shardset_id: str,
-    cache: CacheClient,
-) -> SyncShardsetStatus:
-    cache_key = _shardset_lock_key(shardset_id)
-    raw_status = cache.hgetall(cache_key)
-    if raw_status is None or len(raw_status) == 0:
-        raise HTTPException(status_code=404, detail="Sync status not found")
-    return SyncShardsetStatus(
-        status=raw_status[b"status"].decode("utf-8"),
-        done_count=int(raw_status[b"done_count"]),
-        shard_count=int(raw_status[b"shard_count"]),
-        shards=json.loads(raw_status[b"shards"].decode("utf-8")),
-    )
+    background_worker: CurrentBackgroundWorker,
+) -> Optional[TaskStatus]:
+    task_uid = _sync_shardset_status_key(shardset_id)
+    status = background_worker.memory().get_task_status(task_uid)
+    return status
+
+
+def _shardset_lock_key(shardset_id: str) -> str:
+    return f"shardset:{shardset_id}:lock"
 
 
 @router.delete("/{dataset_id}/shardsets/{shardset_id}")

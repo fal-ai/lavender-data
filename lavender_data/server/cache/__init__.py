@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Any
 
 from fastapi import Depends
 
@@ -15,11 +15,10 @@ def setup_cache(redis_url: Optional[str] = None):
     global cache_client
 
     if redis_url:
-        cache_client = RedisCache(redis_url)
+        get_logger(__name__).debug("Using redis cache")
+        cache_client = RedisCache(redis_url=redis_url)
     else:
-        get_logger(__name__).debug(
-            "LAVENDER_DATA_REDIS_URL is not set, using in memory cache"
-        )
+        get_logger(__name__).debug("Using inmemory cache")
         cache_client = InMemoryCache()
 
 
@@ -31,12 +30,3 @@ def get_cache():
 
 
 CacheClient = Annotated[CacheInterface, Depends(get_cache)]
-
-
-def register_worker():
-    rank = cache_client.incr("lavender_data_worker_rank", 1) - 1
-    return rank
-
-
-def deregister_worker():
-    cache_client.decr("lavender_data_worker_rank", 1)

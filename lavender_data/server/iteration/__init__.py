@@ -9,7 +9,7 @@ from .process_next_samples import (
     ProcessNextSamplesParams,
     ProcessNextSamplesException,
     process_next_samples,
-    process_next_samples_and_cache,
+    process_next_samples_task,
 )
 from .hash import (
     get_iteration_hash,
@@ -32,7 +32,7 @@ __all__ = [
     "ProcessNextSamplesParams",
     "ProcessNextSamplesException",
     "process_next_samples",
-    "process_next_samples_and_cache",
+    "process_next_samples_task",
     "get_iteration_hash",
     "set_iteration_hash",
     "get_iteration_id_from_hash",

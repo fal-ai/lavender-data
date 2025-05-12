@@ -44,21 +44,17 @@ iteration = lavender.LavenderDataLoader(
 The behavior depends on whether the shard files are identical across all nodes or differ per node.
 Here's a breakdown of the different scenarios:
 
-| `cluster_sync` | Shard Files                                      | Processing Behavior                                                                        |
-| -------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `False`<br/>(default if cluster is not enabled)        | **Same** on all nodes<br/>(e.g., S3, shared FS)    | 😕 **Potentially inefficient**<br/> Each shard may be processed multiple times.    |
-| `False`<br/>(default if cluster is not enabled)        | **Different** on each node<br/>(e.g., local files) | ✅ **Recommended**<br/> Each shard processed exactly once per node.   |
-| `True` <br/>(default if cluster is enabled)        | **Same** on all nodes<br/>(e.g., S3, shared FS)    | ✅ **Recommended**<br/> Each shard processed exactly once cluster-wide. |
-| `True` <br/>(default if cluster is enabled)         | **Different** on each node<br/>(e.g., local files) | 🚨 **Potentially fails**<br/> Workers may try to access non-local files dictated by head. |
+| `cluster_sync`                                     | Use multiple server nodes?  | Processing Behavior                                                    |
+| -------------------------------------------------- | --------------------------- | ---------------------------------------------------------------------- |
+| `False`<br/>(default if cluster is not enabled)    | Yes                         | 😕 **Inefficient**<br/> Each shard may be processed multiple times.     |
+| `False`<br/>(default if cluster is not enabled)    | No                          | ✅ **Recommended**<br/> Each shard processed exactly once per node.     |
+| `True` <br/>(default if cluster is enabled)        | Yes                         | ✅ **Recommended**<br/> Each shard processed exactly once cluster-wide. |
+| `True` <br/>(default if cluster is enabled)        | No                          | 😕 **Inefficient**<br/> Unnecessary synchronization.                    |
 
 **In summary:**
 
-- Use `cluster_sync=False` when each node has its own distinct set of data shards.
-- Use `cluster_sync=True` when all nodes share the exact same set of data shards (e.g., via S3 or a shared network filesystem) to ensure efficient, exactly-once processing across the cluster.
-
-<Aside type="caution" title="Potential Failure">
-Setting `cluster_sync=True` when nodes have different local shard files will lead to runtime errors as nodes attempt to access files dictated by the head node but not present locally.
-</Aside>
+- Use `cluster_sync=False` when you use a single server node for the iteration
+- Use `cluster_sync=True` when you use multiple server nodes for the iteration
 
 If `cluster_sync=True`, the head node becomes responsible for iteration state management.
 Thus, to start iteration with `cluster_sync=True`, you must include the head node in the iteration.

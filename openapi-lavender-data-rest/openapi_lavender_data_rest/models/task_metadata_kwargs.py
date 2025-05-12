@@ -4,14 +4,14 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="OrphanShardInfoColumns")
+T = TypeVar("T", bound="TaskMetadataKwargs")
 
 
 @_attrs_define
-class OrphanShardInfoColumns:
+class TaskMetadataKwargs:
     """ """
 
-    additional_properties: dict[str, str] = _attrs_field(init=False, factory=dict)
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         field_dict: dict[str, Any] = {}
@@ -22,19 +22,19 @@ class OrphanShardInfoColumns:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        orphan_shard_info_columns = cls()
+        task_metadata_kwargs = cls()
 
-        orphan_shard_info_columns.additional_properties = d
-        return orphan_shard_info_columns
+        task_metadata_kwargs.additional_properties = d
+        return task_metadata_kwargs
 
     @property
     def additional_keys(self) -> list[str]:
         return list(self.additional_properties.keys())
 
-    def __getitem__(self, key: str) -> str:
+    def __getitem__(self, key: str) -> Any:
         return self.additional_properties[key]
 
-    def __setitem__(self, key: str, value: str) -> None:
+    def __setitem__(self, key: str, value: Any) -> None:
         self.additional_properties[key] = value
 
     def __delitem__(self, key: str) -> None:

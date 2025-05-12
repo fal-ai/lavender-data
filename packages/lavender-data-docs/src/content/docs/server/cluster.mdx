@@ -111,22 +111,21 @@ When you create a dataset or add shardsets via any node, this information is syn
 
 ### Shard Discovery
 
-Each node will inspect the shardset location and discover the shards in it
+Head node will inspect the shardset location and discover the shards in it
 when a shardset is created or being synced.
 
-Alternatively, you can also trigger shardset sync with CLI.
+You can trigger shardset sync with CLI.
 
 ```bash
 lavender-data client --api-url <any-node-url> \
   shardsets sync --dataset-id <dataset-id> --shardset-id <shardset-id>
 ```
 
-If you have different shards accessible in each node, 
-Each node will have the shards in its own.
-This usually happens when you have sharded files, 
-and each node has different files.
+If you have different shard files in each node, 
+iteration will fail in the middle as some nodes cannot find some shard files.
 
-Let's say you have shard files in two different nodes like this.
+For example, if you have shard files in two different nodes like below,
+`node_1` will not be able to find `shard.03.csv`, `shard.04.csv`, and `shard.05.csv`.
 
 <FileTree>
 - node_1: /path/to/the/shardset/
@@ -140,15 +139,25 @@ Let's say you have shard files in two different nodes like this.
   - shard.05.csv
 </FileTree>
 
-Nodes will discover the shards like this.
+Therefore, all nodes must have the same shard files.
 
-![local-disk](/cluster/local-disk.png)
+<FileTree>
+- node_1: /path/to/the/shardset/
+  - shard.00.csv
+  - shard.01.csv
+  - shard.02.csv
+  - shard.03.csv
+  - shard.04.csv
+  - shard.05.csv
 
-If the shards in shardset location are the same regardless of the node
-(e.g. the shards are stored in cloud storage like S3, nodes are using the shared fs, etc.),
-All nodes will use the same shards.
-
-![non-local-disk](/cluster/non-local-disk.png)
+- node_2: /path/to/the/shardset/
+  - shard.00.csv
+  - shard.01.csv
+  - shard.02.csv
+  - shard.03.csv
+  - shard.04.csv
+  - shard.05.csv
+</FileTree>
 
 
 ## Client Interaction
@@ -168,42 +177,3 @@ iteration = Iteration.from_dataset(
     api_url=api_url, # you can also specify the api_url directly here
 )
 ```
-
-### `cluster_sync` Option
-
-The `cluster_sync` parameter in `Iteration.from_dataset` controls 
-how iteration state is managed across the cluster nodes.
-Iteration state includes the index of the sample that is being processed, 
-which rank the sample should be processed,
-and the shuffled order of the samples, etc.
-
-Default value is `True` if cluster is enabled, and `False` otherwise.
-
-```python
-iteration = Iteration.from_dataset(
-    dataset_name="my-dataset",
-    cluster_sync=True, # or False
-)
-```
-
-The behavior depends on whether the shard files are identical across all nodes or differ per node.
-Here's a breakdown of the different scenarios:
-
-| `cluster_sync` | Shard Files                                      | Processing Behavior                                                                        |
-| -------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `False`<br/>(default if cluster is not enabled)        | **Same** on all nodes<br/>(e.g., S3, shared FS)    | 😕 **Potentially inefficient**<br/> Each shard may be processed multiple times.    |
-| `False`<br/>(default if cluster is not enabled)        | **Different** on each node<br/>(e.g., local files) | ✅ **Recommended**<br/> Each shard processed exactly once per node.   |
-| `True` <br/>(default if cluster is enabled)        | **Same** on all nodes<br/>(e.g., S3, shared FS)    | ✅ **Recommended**<br/> Each shard processed exactly once cluster-wide. |
-| `True` <br/>(default if cluster is enabled)         | **Different** on each node<br/>(e.g., local files) | 🚨 **Potentially fails**<br/> Workers may try to access non-local files dictated by head. |
-
-**In summary:**
-
-- Use `cluster_sync=False` when each node has its own distinct set of data shards.
-- Use `cluster_sync=True` when all nodes share the exact same set of data shards (e.g., via S3 or a shared network filesystem) to ensure efficient, exactly-once processing across the cluster.
-
-<Aside type="caution" title="Potential Failure">
-Setting `cluster_sync=True` when nodes have different local shard files will lead to runtime errors as nodes attempt to access files dictated by the head node but not present locally.
-</Aside>
-
-If `cluster_sync=True`, the head node becomes responsible for iteration state management.
-Thus, to start iteration with `cluster_sync=True`, you must include the head node in the iteration.
