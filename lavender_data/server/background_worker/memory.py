@@ -3,8 +3,15 @@ from typing import Union, Optional
 import time
 import threading
 import hashlib
-
+import json
+from pydantic import BaseModel
 from lavender_data.logging import get_logger
+
+
+class TaskStatus(BaseModel):
+    status: str
+    current: int
+    total: int
 
 
 class Memory:
@@ -89,3 +96,42 @@ class Memory:
         self._logger.debug(f"Clearing memory: {len(self._expiry)} keys")
         for name in self._expiry.keys():
             self.delete(name)
+
+    def get_task_status(self, task_uid: str) -> Optional[TaskStatus]:
+        status = self.get(f"task:{task_uid}")
+        if status is None:
+            return None
+
+        try:
+            status = json.loads(status)
+        except Exception:
+            return None
+
+        return TaskStatus.model_validate(status)
+
+    def set_task_status(
+        self,
+        task_uid: str,
+        status: Optional[str] = None,
+        current: Optional[int] = None,
+        total: Optional[int] = None,
+        ex: Optional[int] = None,
+    ):
+        _status = self.get_task_status(task_uid)
+        if _status is None:
+            _status = TaskStatus(status="", current=0, total=0)
+
+        self.set(
+            f"task:{task_uid}",
+            json.dumps(
+                {
+                    "status": status if status is not None else _status.status,
+                    "current": current if current is not None else _status.current,
+                    "total": total if total is not None else _status.total,
+                }
+            ),
+            ex=ex,
+        )
+
+    def delete_task_status(self, task_uid: str):
+        self.delete(f"task:{task_uid}")

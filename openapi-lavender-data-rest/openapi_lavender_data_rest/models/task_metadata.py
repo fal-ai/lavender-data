@@ -1,6 +1,6 @@
 import datetime
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -8,6 +8,7 @@ from dateutil.parser import isoparse
 
 if TYPE_CHECKING:
     from ..models.task_metadata_kwargs import TaskMetadataKwargs
+    from ..models.task_status import TaskStatus
 
 
 T = TypeVar("T", bound="TaskMetadata")
@@ -21,15 +22,19 @@ class TaskMetadata:
         name (str):
         start_time (datetime.datetime):
         kwargs (TaskMetadataKwargs):
+        status (Union['TaskStatus', None]):
     """
 
     uid: str
     name: str
     start_time: datetime.datetime
     kwargs: "TaskMetadataKwargs"
+    status: Union["TaskStatus", None]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.task_status import TaskStatus
+
         uid = self.uid
 
         name = self.name
@@ -37,6 +42,12 @@ class TaskMetadata:
         start_time = self.start_time.isoformat()
 
         kwargs = self.kwargs.to_dict()
+
+        status: Union[None, dict[str, Any]]
+        if isinstance(self.status, TaskStatus):
+            status = self.status.to_dict()
+        else:
+            status = self.status
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -46,6 +57,7 @@ class TaskMetadata:
                 "name": name,
                 "start_time": start_time,
                 "kwargs": kwargs,
+                "status": status,
             }
         )
 
@@ -54,6 +66,7 @@ class TaskMetadata:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.task_metadata_kwargs import TaskMetadataKwargs
+        from ..models.task_status import TaskStatus
 
         d = dict(src_dict)
         uid = d.pop("uid")
@@ -64,11 +77,27 @@ class TaskMetadata:
 
         kwargs = TaskMetadataKwargs.from_dict(d.pop("kwargs"))
 
+        def _parse_status(data: object) -> Union["TaskStatus", None]:
+            if data is None:
+                return data
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                status_type_0 = TaskStatus.from_dict(data)
+
+                return status_type_0
+            except:  # noqa: E722
+                pass
+            return cast(Union["TaskStatus", None], data)
+
+        status = _parse_status(d.pop("status"))
+
         task_metadata = cls(
             uid=uid,
             name=name,
             start_time=start_time,
             kwargs=kwargs,
+            status=status,
         )
 
         task_metadata.additional_properties = d

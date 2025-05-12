@@ -4,37 +4,37 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="SyncShardsetStatus")
+T = TypeVar("T", bound="TaskStatus")
 
 
 @_attrs_define
-class SyncShardsetStatus:
+class TaskStatus:
     """
     Attributes:
         status (str):
-        done_count (int):
-        shard_count (int):
+        current (int):
+        total (int):
     """
 
     status: str
-    done_count: int
-    shard_count: int
+    current: int
+    total: int
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         status = self.status
 
-        done_count = self.done_count
+        current = self.current
 
-        shard_count = self.shard_count
+        total = self.total
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
                 "status": status,
-                "done_count": done_count,
-                "shard_count": shard_count,
+                "current": current,
+                "total": total,
             }
         )
 
@@ -45,18 +45,18 @@ class SyncShardsetStatus:
         d = dict(src_dict)
         status = d.pop("status")
 
-        done_count = d.pop("done_count")
+        current = d.pop("current")
 
-        shard_count = d.pop("shard_count")
+        total = d.pop("total")
 
-        sync_shardset_status = cls(
+        task_status = cls(
             status=status,
-            done_count=done_count,
-            shard_count=shard_count,
+            current=current,
+            total=total,
         )
 
-        sync_shardset_status.additional_properties = d
-        return sync_shardset_status
+        task_status.additional_properties = d
+        return task_status
 
     @property
     def additional_keys(self) -> list[str]:

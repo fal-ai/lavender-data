@@ -152,6 +152,7 @@ def process_next_samples_task(
     cache_ttl: int,
     *,
     memory: Memory,
+    task_uid: str,
 ):
     logger = get_logger(__name__)
     try:

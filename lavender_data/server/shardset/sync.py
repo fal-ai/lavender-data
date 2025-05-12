@@ -1,22 +1,15 @@
 import os
 from typing import Generator
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pydantic import BaseModel
 
 from sqlmodel import update, insert, select
 
-from lavender_data.server.background_worker.memory import Memory
+from lavender_data.server.background_worker.memory import Memory, TaskStatus
 from lavender_data.logging import get_logger
 from lavender_data.storage import list_files
 from lavender_data.shard.inspect import OrphanShardInfo, inspect_shard
 from lavender_data.shard.readers.exceptions import ReaderException
 from lavender_data.server.db import Shardset, Shard, get_session
-
-
-class SyncShardsetStatus(BaseModel):
-    status: str
-    done_count: int
-    shard_count: int
 
 
 def inspect_shardset_location(
@@ -65,12 +58,12 @@ def sync_shardset_location(
     shardset_shard_locations: list[str],
     num_workers: int = 10,
     overwrite: bool = False,
-) -> Generator[SyncShardsetStatus, None, None]:
+) -> Generator[TaskStatus, None, None]:
     # TODO di?
     logger = get_logger(__name__)
     session = next(get_session())
 
-    yield SyncShardsetStatus(status="list", done_count=0, shard_count=0)
+    yield TaskStatus(status="list", current=0, total=0)
 
     done_count = 0
     shard_and_index: list[tuple[OrphanShardInfo, int]] = []
@@ -81,9 +74,7 @@ def sync_shardset_location(
     ):
         done_count += 1
         shard_and_index.append((orphan_shard, current_shard_index))
-        yield SyncShardsetStatus(
-            status="inspect", done_count=done_count, shard_count=shard_count
-        )
+        yield TaskStatus(status="inspect", current=done_count, total=shard_count)
 
     shard_and_index.sort(key=lambda x: x[1])
     shard_infos = [x[0] for x in shard_and_index]
@@ -95,9 +86,7 @@ def sync_shardset_location(
         shard_index = len(shardset_shard_samples)
         total_samples = sum(shardset_shard_samples)
 
-    yield SyncShardsetStatus(
-        status="reflect", done_count=done_count, shard_count=shard_count
-    )
+    yield TaskStatus(status="reflect", current=done_count, total=shard_count)
 
     current_shard_index = shard_index
     for orphan_shard in shard_infos:
@@ -148,9 +137,7 @@ def sync_shardset_location(
     )
     session.commit()
 
-    yield SyncShardsetStatus(
-        status="done", done_count=done_count, shard_count=shard_count
-    )
+    yield TaskStatus(status="done", current=done_count, total=shard_count)
 
 
 def sync_shardset_location_task(
@@ -160,12 +147,13 @@ def sync_shardset_location_task(
     shardset_shard_locations: list[str],
     num_workers: int,
     overwrite: bool,
-    cache_key: str,
     *,
     memory: Memory,
+    task_uid: str,
 ):
     logger = get_logger(__name__)
     try:
+        memory.set_task_status(task_uid, status="", current=0, total=0)
         for status in sync_shardset_location(
             shardset_id,
             shardset_location,
@@ -174,18 +162,16 @@ def sync_shardset_location_task(
             num_workers,
             overwrite,
         ):
-            memory.set(cache_key, status.model_dump_json())
-        memory.set(cache_key, status.model_dump_json(), ex=10)
+            memory.set_task_status(
+                task_uid,
+                status=status.status,
+                current=status.current,
+                total=status.total,
+            )
     except Exception as e:
         logger.exception(e)
-        memory.set(
-            cache_key,
-            SyncShardsetStatus(
-                status=f"error:{e}", done_count=0, shard_count=0
-            ).model_dump_json(),
-            ex=10,
-        )
 
+    memory.delete_task_status(task_uid)
     session = next(get_session())
     shardset = session.exec(select(Shardset).where(Shardset.id == shardset_id)).one()
     return shardset, shardset.shards

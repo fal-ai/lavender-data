@@ -37,9 +37,9 @@ from .shardset_with_shards import ShardsetWithShards
 from .submit_next_response import SubmitNextResponse
 from .sync_params import SyncParams
 from .sync_shardset_params import SyncShardsetParams
-from .sync_shardset_status import SyncShardsetStatus
 from .task_metadata import TaskMetadata
 from .task_metadata_kwargs import TaskMetadataKwargs
+from .task_status import TaskStatus
 from .validation_error import ValidationError
 from .version_response import VersionResponse
 
@@ -79,9 +79,9 @@ __all__ = (
     "SubmitNextResponse",
     "SyncParams",
     "SyncShardsetParams",
-    "SyncShardsetStatus",
     "TaskMetadata",
     "TaskMetadataKwargs",
+    "TaskStatus",
     "ValidationError",
     "VersionResponse",
 )

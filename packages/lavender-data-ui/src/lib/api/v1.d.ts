@@ -952,15 +952,6 @@ export interface components {
              */
             overwrite: boolean;
         };
-        /** SyncShardsetStatus */
-        SyncShardsetStatus: {
-            /** Status */
-            status: string;
-            /** Done Count */
-            done_count: number;
-            /** Shard Count */
-            shard_count: number;
-        };
         /** TaskMetadata */
         TaskMetadata: {
             /** Uid */
@@ -976,6 +967,16 @@ export interface components {
             kwargs: {
                 [key: string]: unknown;
             };
+            status: components["schemas"]["TaskStatus"] | null;
+        };
+        /** TaskStatus */
+        TaskStatus: {
+            /** Status */
+            status: string;
+            /** Current */
+            current: number;
+            /** Total */
+            total: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -1297,7 +1298,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SyncShardsetStatus"];
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

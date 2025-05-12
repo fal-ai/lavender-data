@@ -34,7 +34,6 @@ from lavender_data.server.background_worker import CurrentBackgroundWorker
 from lavender_data.server.shardset import (
     get_main_shardset,
     span,
-    SyncShardsetStatus,
     sync_shardset_location_task,
 )
 from lavender_data.server.auth import AppAuth
@@ -481,7 +480,7 @@ def _sync_shardset_callback(cluster: CurrentCluster):
     def callback(future: Future):
         shardset: Shardset
         shards: list[Shard]
-        shardset, shards = future.result()
+        shardset, shards = future
         logger = get_logger(__name__)
         if cluster is not None and cluster.is_head:
             try:
@@ -514,24 +513,20 @@ def sync_shardset(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Shardset not found")
 
-    cache_key = _sync_shardset_status_key(shardset.id)
+    task_uid = _sync_shardset_status_key(shardset.id)
 
-    existing = background_worker.memory().get(cache_key)
-    if existing:
-        existing = json.loads(existing)
-        if existing["status"] != "done":
-            raise HTTPException(
-                status_code=400,
-                detail="Shardset is already being synced. Please wait for the sync to complete.",
-            )
+    existing = background_worker.memory().get_task_status(task_uid)
+    if existing and existing.status != "done":
+        raise HTTPException(
+            status_code=400,
+            detail="Shardset is already being synced. Please wait for the sync to complete.",
+        )
     else:
-        background_worker.memory().set(
-            cache_key,
-            SyncShardsetStatus(
-                status="pending",
-                done_count=0,
-                shard_count=0,
-            ).model_dump_json(),
+        background_worker.memory().set_task_status(
+            task_uid,
+            status="pending",
+            current=0,
+            total=0,
         )
 
     background_worker.submit(
@@ -543,7 +538,7 @@ def sync_shardset(
         shardset_shard_locations=[s.location for s in shardset.shards],
         num_workers=10,
         overwrite=params.overwrite,
-        cache_key=cache_key,
+        task_uid=task_uid,
     )
     return shardset
 
@@ -553,17 +548,13 @@ def get_sync_status(
     dataset_id: str,
     shardset_id: str,
     background_worker: CurrentBackgroundWorker,
-) -> SyncShardsetStatus:
-    cache_key = _sync_shardset_status_key(shardset_id)
-    raw_status_str = background_worker.memory().get(cache_key)
-    if raw_status_str is None or len(raw_status_str) == 0:
+):
+    task_uid = _sync_shardset_status_key(shardset_id)
+    try:
+        status = background_worker.memory().get_task_status(task_uid)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Sync status not found")
-    raw_status = json.loads(raw_status_str)
-    return SyncShardsetStatus(
-        status=raw_status["status"],
-        done_count=int(raw_status["done_count"]),
-        shard_count=int(raw_status["shard_count"]),
-    )
+    return status
 
 
 def _shardset_lock_key(shardset_id: str) -> str:

@@ -5,12 +5,13 @@ import signal
 import threading
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, Future
+from concurrent.futures.process import BrokenProcessPool
 from datetime import datetime, UTC
 from typing import Callable, Optional, Any
 
 from pydantic import BaseModel
 
-from lavender_data.server.background_worker.memory import Memory
+from lavender_data.server.background_worker.memory import Memory, TaskStatus
 from lavender_data.server.settings import get_settings, Settings
 from lavender_data.server.db import setup_db
 from lavender_data.server.cache import setup_cache
@@ -23,6 +24,7 @@ class TaskMetadata(BaseModel):
     name: str
     start_time: datetime
     kwargs: dict
+    status: Optional[TaskStatus] = None
 
 
 class BackgroundWorker:
@@ -70,28 +72,41 @@ class BackgroundWorker:
     def running_tasks(self) -> list[TaskMetadata]:
         self._cleanup_tasks()
         with self._tasks_lock:
-            return [t[0] for t in self._tasks]
+            tasks = [t[0] for t in self._tasks]
+            tasks.sort(key=lambda t: t.start_time)
+            for task in tasks:
+                task.status = self._memory.get_task_status(task.uid)
+            return tasks
 
     def submit(
         self,
         func,
+        task_uid: Optional[str] = None,
         task_name: Optional[str] = None,
         on_complete: Optional[Callable[[Any], None]] = None,
         on_error: Optional[Callable[[Any], None]] = None,
         **kwargs,
     ):
-        task_uid = str(uuid.uuid4())
+        task_uid = task_uid or str(uuid.uuid4())
         future = self._executor.submit(
             func,
             **kwargs,
             memory=self._memory,
+            task_uid=task_uid,
         )
 
         def on_done(future: Future):
-            if on_complete is not None:
-                on_complete(future.result())
-            elif on_error is not None:
-                on_error(future.exception())
+            try:
+                if on_complete is not None:
+                    on_complete(future.result(timeout=0.1))
+                elif on_error is not None:
+                    on_error(future.exception(timeout=0.1))
+            except BrokenProcessPool:
+                if self._kill_switch.is_set():
+                    # The process pool was killed, so we don't need to do anything
+                    pass
+                else:
+                    raise
 
         future.add_done_callback(on_done)
 
@@ -108,7 +123,7 @@ class BackgroundWorker:
                 )
             )
 
-        return future
+        return task_uid
 
     def cancel(self, task_uid: str):
         with self._tasks_lock:

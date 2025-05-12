@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { useRouter } from 'next/navigation';
 import { getSyncShardsetStatus } from '@/lib/client-side-api';
 
-type SyncShardsetStatus = components['schemas']['SyncShardsetStatus'];
+type TaskStatus = components['schemas']['TaskStatus'];
 
 export function SyncShardsetButton({
   dataset_id,
@@ -18,7 +18,7 @@ export function SyncShardsetButton({
   dataset_id: string;
   shardset_id: string;
 }) {
-  const [syncStatus, setSyncStatus] = useState<SyncShardsetStatus | null>(null);
+  const [syncStatus, setSyncStatus] = useState<TaskStatus | null>(null);
   const [intervalRef, setIntervalRef] = useState<NodeJS.Timeout | null>(null);
   const router = useRouter();
 
@@ -80,16 +80,15 @@ export function SyncShardsetButton({
             <Progress
               className="w-full"
               value={
-                syncStatus.shard_count > 0
-                  ? (100 * syncStatus.done_count) / syncStatus.shard_count
+                syncStatus.total > 0
+                  ? (100 * syncStatus.current) / syncStatus.total
                   : 0
               }
             />
             <div className="text-sm text-muted-foreground">
-              {syncStatus.shard_count > 0
-                ? `${syncStatus.done_count} / ${syncStatus.shard_count} `
+              {syncStatus.total > 0
+                ? `${syncStatus.current} / ${syncStatus.total} `
                 : ''}
-              {syncStatus.status}
             </div>
           </div>
         )}
