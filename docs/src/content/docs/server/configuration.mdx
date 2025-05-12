@@ -24,12 +24,29 @@ lavender-data server restart
 |----------------------|-------------|---------|
 | `LAVENDER_DATA_PORT` | The port number to listen on for API requests | `8000` |
 | `LAVENDER_DATA_HOST` | The host address to bind the server to | `0.0.0.0` |
-| `LAVENDER_DATA_UI_PORT` | The port number to listen on for Web UI requests | `3000` |
-| `LAVENDER_DATA_DISABLE_UI` | Disable the Web UI | `false` |
-| `LAVENDER_DATA_DISABLE_AUTH` | Disable authentication | `false` |
 | `LAVENDER_DATA_DB_URL` | The database URL. Uses local sqlite db if not set. | `""` |
 | `LAVENDER_DATA_REDIS_URL` | The Redis URL. Uses memory if not set. | `""` |
-| `LAVENDER_DATA_NUM_WORKERS` | The number of workers to use for the background worker (0 for auto) | `0` |
+| `LAVENDER_DATA_NUM_WORKERS` | The number of workers to use for the background worker. (0 for auto) | `0` |
+| `LAVENDER_DATA_DISABLE_AUTH` | Disable authentication | `false` |
+
+
+If you want to use a different database or cache, you need to install the corresponding dependencies.
+
+```bash
+# Postgres
+pip install lavender-data[pgsql]
+
+# Redis
+pip install lavender-data[redis]
+```
+
+### Web UI
+
+| Environment Variable | Description | Default |
+|----------------------|-------------|---------|
+| `LAVENDER_DATA_UI_PORT` | The port number to listen on for Web UI requests | `3000` |
+| `LAVENDER_DATA_DISABLE_UI` | Disable the Web UI | `false` |
+
 
 ### Logging
 

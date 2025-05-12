@@ -169,6 +169,10 @@ export default defineConfig({
               slug: "server/configuration",
             },
             {
+              label: "Cloud Storage",
+              slug: "server/cloud-storage",
+            },
+            {
               label: "Pipeline",
               slug: "server/pipeline",
             },

@@ -4,3 +4,5 @@ shardsets
 collater
 collaters
 pushback
+huggingface
+pgsql

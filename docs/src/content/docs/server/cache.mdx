@@ -60,9 +60,11 @@ Cache is stored in the memory of the server by default.
 To support prefetching from the client side, caching can not be disabled.
 If you want to scale out the server to multiple machines or processes, you can use Redis as a cache backend.
 
-Set `LAVENDER_DATA_REDIS_URL` environment variable to the desired Redis URL to use Redis as a cache backend.
+Install the `redis` extra and set `LAVENDER_DATA_REDIS_URL` environment variable to the desired Redis URL.
 
 ```bash
+pip install lavender-data[redis]
+
 export LAVENDER_DATA_REDIS_URL=redis://localhost:6379/0
 ```
 
