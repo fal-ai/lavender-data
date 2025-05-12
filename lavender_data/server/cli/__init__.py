@@ -4,6 +4,8 @@ from typing import Optional
 from .run import run
 from .create_api_key import create_api_key
 from .daemon import start, stop, restart, logs
+from .migrate import migrate
+from .makemigrations import makemigrations
 
 
 class ServerCLI:
@@ -38,6 +40,14 @@ class ServerCLI:
         self.logs_parser.add_argument("-f", action="store_true")
         self.logs_parser.add_argument("-n", type=int, default=10)
 
+        # db
+        self.makemigrations_parser = subparsers.add_parser("makemigrations")
+        self.makemigrations_parser.add_argument("--env-file", type=str, default=".env")
+        self.makemigrations_parser.add_argument("--message", type=str, default="")
+
+        self.migrate_parser = subparsers.add_parser("migrate")
+        self.migrate_parser.add_argument("--env-file", type=str, default=".env")
+
     def get_parser(self):
         return self.parser
 
@@ -67,6 +77,12 @@ class ServerCLI:
 
         elif args.command == "logs":
             logs(f_flag=args.f, n_lines=args.n)
+
+        elif args.command == "makemigrations":
+            makemigrations(env_file=args.env_file, message=args.message)
+
+        elif args.command == "migrate":
+            migrate(env_file=args.env_file)
 
         else:
             self.parser.print_help()
