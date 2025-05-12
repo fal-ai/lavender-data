@@ -3,6 +3,18 @@ title: Release Notes
 description: Release notes for Lavender Data
 ---
 
+
+## 0.0.13 (2025-05-12)
+
+### Added
+
+#### Background worker
+
+Heavy tasks like shardset synchronization and sample processing are now running in background workers not to disturb the main process.
+
+Added `LAVENDER_DATA_NUM_WORKERS` env to control the number of workers for the background worker.
+
+
 ## 0.0.10 (2025-05-08)
 
 ### Added
