@@ -262,7 +262,9 @@ class InMemoryCache(CacheInterface):
 
             return len(self._list_data[_name])
 
-    def lpop(self, name: str, count: Optional[int] = None) -> Optional[bytes]:
+    def lpop(
+        self, name: str, count: Optional[int] = None
+    ) -> Optional[Union[bytes, list[bytes]]]:
         """Remove and return the first item of the list name"""
         with self._lock:
             _name = self._ensure_bytes(name)

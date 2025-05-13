@@ -8,6 +8,7 @@ import os
 from lavender_data.server import (
     Preprocessor,
     Filter,
+    Categorizer,
 )
 from lavender_data.client.api import (
     init,
@@ -44,6 +45,11 @@ class FailOnceInTwoSamples(Preprocessor, name="fail_once_in_two_samples"):
         else:
             self.failed = False
             return sample
+
+
+class AspectRatioCategorizer(Categorizer, name="aspect_ratio_categorizer"):
+    def categorize(self, sample: dict) -> str:
+        return f"{sample['width']}x{sample['height']}"
 
 
 class TestIteration(unittest.TestCase):
@@ -94,6 +100,16 @@ class TestIteration(unittest.TestCase):
                     name="caption",
                     description="A caption for the image",
                     type_="text",
+                ),
+                DatasetColumnOptions(
+                    name="width",
+                    description="The width of the image",
+                    type_="int",
+                ),
+                DatasetColumnOptions(
+                    name="height",
+                    description="The height of the image",
+                    type_="int",
                 ),
             ],
         )
@@ -268,12 +284,31 @@ class TestIteration(unittest.TestCase):
                     filters=[("test_filter", {})],
                 )
             ),
-            total=self.total_samples // 2,
+            total=self.total_samples,
             desc="test_iteration_with_filter",
         ):
             self.assertEqual(sample["id"] % 2, 0)
             read_samples += 1
         self.assertEqual(read_samples, self.total_samples // 2)
+
+    def test_iteration_with_categorizer(self):
+        for batch in tqdm.tqdm(
+            LavenderDataLoader(
+                self.dataset_id,
+                shardsets=[self.shardset_id],
+                categorizer="aspect_ratio_categorizer",
+                batch_size=10,
+            ),
+            total=self.total_samples // 10,
+            desc="test_iteration_with_categorizer",
+        ):
+            self.assertEqual(len(batch["width"]), 10)
+            self.assertEqual(len(batch["height"]), 10)
+            width = batch["width"][0]
+            height = batch["height"][0]
+            for i in range(10):
+                self.assertEqual(batch["width"][i], width)
+                self.assertEqual(batch["height"][i], height)
 
     def test_iteration_with_preprocessor(self):
         read_samples = 0

@@ -11,6 +11,7 @@ from lavender_data.client.api import (
     IterationFilter,
     IterationPreprocessor,
     IterationCollater,
+    IterationCategorizer,
 )
 
 __all__ = ["LavenderDataLoader"]
@@ -21,7 +22,7 @@ def noop_collate_fn(x):
 
 
 def _parse_registry_params(
-    registry_name: Literal["filter", "preprocessor", "collater"],
+    registry_name: Literal["filter", "preprocessor", "collater", "categorizer"],
     param: Union[tuple[str, dict], str],
 ):
     if isinstance(param, str):
@@ -38,10 +39,12 @@ def _parse_registry_params(
     d = {"name": name, "params": params}
     if registry_name == "filter":
         return IterationFilter.from_dict(d)
-    elif registry_name == "preprocessor":
-        return IterationPreprocessor.from_dict(d)
+    elif registry_name == "categorizer":
+        return IterationCategorizer.from_dict(d)
     elif registry_name == "collater":
         return IterationCollater.from_dict(d)
+    elif registry_name == "preprocessor":
+        return IterationPreprocessor.from_dict(d)
     else:
         raise ValueError(f"Invalid registry name: {registry_name}")
 
@@ -60,8 +63,9 @@ class LavenderDataLoader:
         dataset_name: Optional[str] = None,
         shardsets: Optional[list[str]] = None,
         filters: Optional[list[Union[tuple[str, dict], str]]] = None,
-        preprocessors: Optional[list[Union[tuple[str, dict], str]]] = None,
+        categorizer: Optional[Union[tuple[str, dict], str]] = None,
         collater: Optional[Union[tuple[str, dict], str]] = None,
+        preprocessors: Optional[list[Union[tuple[str, dict], str]]] = None,
         max_retry_count: int = 0,
         skip_on_failure: bool = False,
         shuffle: Optional[bool] = None,
@@ -94,14 +98,19 @@ class LavenderDataLoader:
                     if filters is not None
                     else None
                 ),
-                preprocessors=(
-                    [_parse_registry_params("preprocessor", f) for f in preprocessors]
-                    if preprocessors is not None
+                categorizer=(
+                    _parse_registry_params("categorizer", categorizer)
+                    if categorizer is not None
                     else None
                 ),
                 collater=(
                     _parse_registry_params("collater", collater)
                     if collater is not None
+                    else None
+                ),
+                preprocessors=(
+                    [_parse_registry_params("preprocessor", f) for f in preprocessors]
+                    if preprocessors is not None
                     else None
                 ),
                 shuffle=shuffle,

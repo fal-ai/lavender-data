@@ -72,7 +72,9 @@ class RedisCache(CacheInterface):
     def rpush(self, name: str, *values: str) -> int:
         return self.redis.rpush(name, *values)
 
-    def lpop(self, name: str, count: Optional[int] = None) -> Optional[bytes]:
+    def lpop(
+        self, name: str, count: Optional[int] = None
+    ) -> Optional[Union[bytes, list[bytes]]]:
         return self.redis.lpop(name, count)
 
     def rpop(self, name: str) -> Optional[bytes]:

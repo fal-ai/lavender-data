@@ -128,8 +128,12 @@ export default defineConfig({
                   slug: "dataloader/filters",
                 },
                 {
-                  label: "Collaters",
-                  slug: "dataloader/collaters",
+                  label: "Categorizer",
+                  slug: "dataloader/categorizer",
+                },
+                {
+                  label: "Collater",
+                  slug: "dataloader/collater",
                 },
                 {
                   label: "Preprocessors",

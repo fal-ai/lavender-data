@@ -1,0 +1,39 @@
+---
+title: LavenderDataLoader - Categorizer
+description: Learn about LavenderDataLoader features
+---
+
+Categorizers how samples are grouped into batches.
+
+For example, if you have a dataset of images with different aspect ratios,
+you can use a categorizer to group them into batches of the same aspect ratios.
+
+On the server side, you can define a categorizer like this:
+
+```python
+from lavender_data.server import Categorizer
+
+class AspectRatioCategorizer(Categorizer, name="aspect_ratio"):
+    def categorize(self, sample: dict) -> str:
+        return f"{sample['width']}x{sample['height']}"
+```
+
+On the client side, you can use the categorizer like this:
+
+```python
+dataloader = LavenderDataLoader(
+    dataset_id=dataset.id,
+    shardsets=[shardset.id],
+    categorizer="aspect_ratio",
+    batch_size=10,
+)
+
+batch_1 = next(dataloader)
+# batch_1["width"] == [1280, 1280, 1280, ...]
+# batch_1["height"] == [720, 720, 720, ...]
+
+batch_2 = next(dataloader)
+# batch_2["width"] == [1920, 1920, 1920, ...]
+# batch_2["height"] == [1080, 1080, 1080, ...]
+```
+

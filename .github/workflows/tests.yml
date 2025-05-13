@@ -20,6 +20,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container: python:3.12-slim-bookworm
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v3

@@ -18,6 +18,8 @@ from .get_shardset_response import GetShardsetResponse
 from .heartbeat_params import HeartbeatParams
 from .http_validation_error import HTTPValidationError
 from .in_progress_index import InProgressIndex
+from .iteration_categorizer import IterationCategorizer
+from .iteration_categorizer_params import IterationCategorizerParams
 from .iteration_collater import IterationCollater
 from .iteration_collater_params import IterationCollaterParams
 from .iteration_filter import IterationFilter
@@ -60,6 +62,8 @@ __all__ = (
     "HeartbeatParams",
     "HTTPValidationError",
     "InProgressIndex",
+    "IterationCategorizer",
+    "IterationCategorizerParams",
     "IterationCollater",
     "IterationCollaterParams",
     "IterationFilter",

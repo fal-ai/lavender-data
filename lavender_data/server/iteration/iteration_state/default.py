@@ -15,6 +15,7 @@ from lavender_data.server.db.models import (
     IterationPreprocessor,
     IterationFilter,
     IterationCollater,
+    IterationCategorizer,
 )
 from lavender_data.server.reader import (
     get_reader_instance,
@@ -24,10 +25,12 @@ from lavender_data.server.reader import (
 )
 from lavender_data.server.registries import (
     FilterRegistry,
+    CategorizerRegistry,
 )
 from lavender_data.server.shardset import get_main_shardset, span
 from lavender_data.server.iteration.process_next_samples import ProcessNextSamplesParams
 from lavender_data.server.iteration.hash import _hash, get_iteration_hash
+from lavender_data.serialize import serialize_sample, deserialize_sample
 
 from .abc import IterationStateOps, Progress, InProgressIndex, IterationStateException
 
@@ -89,16 +92,19 @@ class IterationState(IterationStateOps):
                     self._key("replication_pg"), json.dumps(iteration.replication_pg)
                 )
 
+            if iteration.filters is not None:
+                pipe.set(self._key("filters"), json.dumps(iteration.filters))
+
+            if iteration.categorizer is not None:
+                pipe.set(self._key("categorizer"), json.dumps(iteration.categorizer))
+
+            if iteration.collater is not None:
+                pipe.set(self._key("collater"), json.dumps(iteration.collater))
+
             if iteration.preprocessors is not None:
                 pipe.set(
                     self._key("preprocessors"), json.dumps(iteration.preprocessors)
                 )
-
-            if iteration.filters is not None:
-                pipe.set(self._key("filters"), json.dumps(iteration.filters))
-
-            if iteration.collater is not None:
-                pipe.set(self._key("collater"), json.dumps(iteration.collater))
 
             pipe.set(self._key("iteration_hash"), get_iteration_hash(iteration))
             pipe.execute()
@@ -124,6 +130,12 @@ class IterationState(IterationStateOps):
 
     def _filters(self) -> Optional[list[IterationFilter]]:
         v = self.cache.get(self._key("filters"))
+        if v is None:
+            return None
+        return json.loads(v)
+
+    def _categorizer(self) -> Optional[IterationCategorizer]:
+        v = self.cache.get(self._key("categorizer"))
         if v is None:
             return None
         return json.loads(v)
@@ -455,6 +467,7 @@ class IterationState(IterationStateOps):
 
         batch_size = self._batch_size()
         filters = self._filters()
+        categorizer = self._categorizer()
 
         global_sample_indices = []
         samples = []
@@ -464,7 +477,6 @@ class IterationState(IterationStateOps):
             try:
                 sample = reader.get_sample(next_item)
             except Exception as e:
-                # TODO fault tolerance
                 self.failed(next_item.index)
                 msg = f"Failed to read sample {next_item.index} (sample {next_item.main_shard.sample_index} of shard {next_item.main_shard.index}): {e.__class__.__name__}({str(e)})"
                 logger.exception(msg)
@@ -483,8 +495,37 @@ class IterationState(IterationStateOps):
                 self.filtered(next_item.index)
                 continue
 
-            global_sample_indices.append(next_item)
-            samples.append(sample)
+            if categorizer is not None:
+                bucket = CategorizerRegistry.get(categorizer["name"]).categorize(
+                    sample, **categorizer["params"]
+                )
+                if not isinstance(bucket, str):
+                    msg = f"Categorizer {categorizer['name']} returned {type(bucket)} instead of str"
+                    logger.error(msg)
+                    raise HTTPException(status_code=400, detail=msg)
+
+                bucket_key = self._key(f"buckets:{bucket}")
+                bucket_samples_key = self._key(f"bucket-samples:{bucket}")
+                bucket_size = self.cache.llen(bucket_key)
+                if bucket_size >= batch_size:
+                    global_sample_indices.extend(
+                        [
+                            GlobalSampleIndex(**json.loads(i))
+                            for i in self.cache.lpop(bucket_key, batch_size)
+                        ]
+                    )
+                    samples.extend(
+                        [
+                            deserialize_sample(s)
+                            for s in self.cache.lpop(bucket_samples_key, batch_size)
+                        ]
+                    )
+                else:
+                    self.cache.rpush(bucket_key, next_item.model_dump_json())
+                    self.cache.rpush(bucket_samples_key, serialize_sample(sample))
+            else:
+                global_sample_indices.append(next_item)
+                samples.append(sample)
 
         cache_key = self._cache_key([i.index for i in global_sample_indices])
         current = int(self.cache.incr(self._key("batch_count"), 1)) - 1

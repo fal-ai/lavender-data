@@ -9,9 +9,10 @@ Lavender Data's pipeline consists of several components that process your data f
 
 ![Pipeline Overview](/overview.png)
 
-There are three main components:
+There are four main components:
 
 - **Filters**: Determine which samples to include/exclude during iteration
+- **Categorizers**: Group samples into batches based on a specific criterion
 - **Collaters**: Control how individual samples are combined into batches
 - **Preprocessors**: Transform batches before they're returned to your application
 
@@ -70,6 +71,37 @@ Filters determine which samples to include or exclude during iteration. To creat
                 bool: True if the sample should be included, False otherwise
             """
             return sample["uid"] % mod == 0
+    ```
+</Steps>
+
+
+### Categorizers
+
+Categorizers group samples into batches based on a specific criterion. To create a categorizer:
+
+<Steps>
+1. Create a new Python file in your modules directory.
+2. Define a class that inherits from `Categorizer` with a unique name.
+3. Implement the `categorize` method that takes a sample and returns a string.
+
+    For example, to create a categorizer that groups samples by aspect ratio:
+
+    ```python
+    # modules/categorizer.py
+    from lavender_data.server import Categorizer
+
+    class AspectRatioCategorizer(Categorizer, name="aspect_ratio"):
+        """
+        Categorize samples by aspect ratio
+
+        Args:
+            sample: The sample to categorize
+
+        Returns:
+            str: The bucket key
+        """
+        def categorize(self, sample: dict) -> str:
+            return f"{sample['width']}x{sample['height']}"
     ```
 </Steps>
 
