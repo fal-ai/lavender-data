@@ -1,13 +1,15 @@
 from .app import app
 from .registries import (
-    Preprocessor,
     Filter,
+    Categorizer,
     Collater,
+    Preprocessor,
 )
 
 __all__ = [
     "app",
-    "Preprocessor",
     "Filter",
+    "Categorizer",
     "Collater",
+    "Preprocessor",
 ]
