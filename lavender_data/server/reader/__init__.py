@@ -30,11 +30,11 @@ class GlobalSampleIndex(BaseModel):
 
 
 class ServerSideReader:
-    dirname: str = ".cache"
     reader_cache: dict[str, Reader] = {}
 
-    def __init__(self, disk_cache_size: int):
+    def __init__(self, disk_cache_size: int, dirname: str = ".cache"):
         self.disk_cache_size = disk_cache_size
+        self.dirname = dirname
 
         if not os.path.exists(self.dirname):
             os.makedirs(self.dirname, exist_ok=True)
@@ -83,8 +83,10 @@ class ServerSideReader:
             os.remove(oldest_file)
             all_files.remove(oldest_file)
 
-    def get_reader(self, shard: ShardInfo, uid_column_name: str, uid_column_type: str):
-        cache_key = f"{shard.shardset_id}-{shard.index}"
+    def get_reader(
+        self, shard: ShardInfo, uid_column_name: str, uid_column_type: str
+    ) -> Reader:
+        cache_key = f"{shard.shardset_id}-{shard.location}-{shard.index}"
         if cache_key not in self.reader_cache:
             self.reader_cache[cache_key] = self._get_reader(
                 shard, uid_column_name, uid_column_type
@@ -114,6 +116,7 @@ class ServerSideReader:
             except KeyError:
                 msg = f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({index.main_shard.sample_index} of {index.main_shard.location})'
                 columns = {k: None for k in feature_shard.columns.keys()}
+            columns.pop(index.uid_column_name)
             sample.update(columns)
 
         return sample
