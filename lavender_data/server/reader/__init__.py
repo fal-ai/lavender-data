@@ -112,9 +112,8 @@ class ServerSideReader:
             try:
                 columns = reader.get_item_by_uid(sample_uid)
             except KeyError:
-                raise KeyError(
-                    f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({index.main_shard.sample_index} of {index.main_shard.location}) '
-                )
+                msg = f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({index.main_shard.sample_index} of {index.main_shard.location})'
+                columns = {k: None for k in feature_shard.columns.keys()}
             sample.update(columns)
 
         return sample

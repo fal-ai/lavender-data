@@ -21,6 +21,7 @@ class TestSerializeSample(unittest.TestCase):
             "bytes": b"\x00\x01\x02\x03\x04",
             "ndarray": np.array([[1, 2, 3], [4, 5, 6]]),
             "tensor": torch.tensor([[1, 2, 3], [4, 5, 6]]),
+            "none": None,
         }
         serialized = serialize_sample(sample)
 

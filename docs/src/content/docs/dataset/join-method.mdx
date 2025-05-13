@@ -1,0 +1,77 @@
+---
+title: Dataset - Join Method
+description: Understanding how lavender data joins shardsets
+---
+
+import { Tabs, TabItem, Aside, FileTree, Steps } from "@astrojs/starlight/components";
+
+
+Lavender Data uses a flexible and efficient approach to join data across multiple shardsets. 
+The system is designed to handle large datasets by breaking them into smaller,
+manageable pieces called shards, while maintaining the ability to combine data from different sources.
+
+### Main Shard and Feature Shards
+
+The joining mechanism in Lavender Data is based on a two-level architecture:
+
+<Steps>
+1. **Main Shard**: This is the primary data source that contains the core information and serves as the reference point for joining. 
+    The shardset with the most samples is chosen as the main shard. If there are multiple shardsets with the same number of samples,
+    the one with the oldest creation date is chosen as the main shard.
+2. **Feature Shards**: These are additional data sources that contain supplementary information that can be joined with the main shard.
+</Steps>
+
+### How Joining Works
+
+The joining process follows these steps:
+
+<Steps>
+1. **Sample Selection**: A sample is first retrieved from the main shard using its index.
+2. **UID-based Joining**: Each sample has a unique identifier (UID) that is used to join data from feature shards.
+3. **Column Merging**: Data from feature shards is merged with the main shard's data based on matching UIDs.
+4. **Outer Join**: If a sample does not have a matching UID in a feature shard, the sample is padded with `None` values for that feature.
+</Steps>
+
+You can think it as a SQL outer join operation.
+
+```SQL
+SELECT * FROM main_shard ms
+LEFT OUTER JOIN feature_shard_1 fs_1 ON ms.uid = fs_1.uid
+LEFT OUTER JOIN feature_shard_2 fs_2 ON ms.uid = fs_2.uid
+LIMIT 1
+OFFSET 0;
+```
+
+### Example
+
+Let's say you have three shardsets:
+
+<Steps>
+1. `shardset_1`
+    | uid | image_url    |
+    | --- | ------------ |
+    |  1  | /image-1.jpg |
+    |  2  | /image-2.jpg |
+    |  3  | /image-3.jpg |
+
+2. `shardset_2`
+    | uid | caption   |
+    | --- | --------- |
+    |  1  | caption-1 |
+    |  3  | caption-3 |
+
+3. `shardset_3`
+    | uid | aesthetic_score |
+    | --- | --------------- |
+    |  2  | 0.8             |
+    |  3  | 0.7             |
+</Steps>
+
+
+The samples will be joined as follows:
+
+| uid | image_url    | caption   | aesthetic_score |
+| --- | ------------ | --------- | --------------- |
+|  1  | /image-1.jpg | caption-1 | `None`          |
+|  2  | /image-2.jpg | `None`    | 0.8             |
+|  3  | /image-3.jpg | caption-3 | 0.7             |
