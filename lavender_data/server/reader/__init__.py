@@ -29,6 +29,21 @@ class GlobalSampleIndex(BaseModel):
     feature_shards: list[ShardInfo]
 
 
+def _default_null_type(t: str) -> str:
+    if t.startswith("int"):
+        return -1
+    elif t.startswith("float"):
+        return -1.0
+    elif t.startswith("str"):
+        return ""
+    elif t.startswith("text"):
+        return ""
+    elif t.startswith("bool"):
+        return None
+    else:
+        return None
+
+
 class ServerSideReader:
     reader_cache: dict[str, Reader] = {}
 
@@ -115,7 +130,9 @@ class ServerSideReader:
                 columns = reader.get_item_by_uid(sample_uid)
             except KeyError:
                 msg = f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({index.main_shard.sample_index} of {index.main_shard.location})'
-                columns = {k: None for k in feature_shard.columns.keys()}
+                columns = {
+                    k: _default_null_type(t) for k, t in feature_shard.columns.items()
+                }
             columns.pop(index.uid_column_name)
             sample.update(columns)
 

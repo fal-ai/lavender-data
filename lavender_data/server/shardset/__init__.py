@@ -4,6 +4,7 @@ from .sync import (
     sync_shardset_location,
     sync_shardset_location_task,
 )
+from .generate import generate_shardset, generate_shardset_task
 
 __all__ = [
     "span",
@@ -11,4 +12,6 @@ __all__ = [
     "inspect_shardset_location",
     "sync_shardset_location",
     "sync_shardset_location_task",
+    "generate_shardset",
+    "generate_shardset_task",
 ]

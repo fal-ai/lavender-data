@@ -21,6 +21,7 @@ from lavender_data.server.db.models import (
     ShardPublic,
     DatasetColumnPublic,
     Iteration,
+    IterationPreprocessor,
 )
 from lavender_data.server.cache import CacheClient
 from lavender_data.server.distributed import CurrentCluster
@@ -35,6 +36,7 @@ from lavender_data.server.shardset import (
     get_main_shardset,
     span,
     sync_shardset_location_task,
+    generate_shardset_task,
 )
 from lavender_data.server.auth import AppAuth
 from lavender_data.storage import list_files
@@ -612,3 +614,51 @@ def delete_shardset(
             )
 
     return shardset
+
+
+class GenerateShardsetParams(BaseModel):
+    shardset_location: str
+    source_shardset_ids: Optional[list[str]] = None
+    preprocessors: list[IterationPreprocessor]
+    export_columns: list[str]
+    batch_size: int
+    overwrite: bool = False
+
+
+class GenerateShardsetResponse(BaseModel):
+    task_uid: str
+
+
+@router.post("/{dataset_id}/generate-shardset")
+def generate_shardset(
+    dataset_id: str,
+    params: GenerateShardsetParams,
+    session: DbSession,
+    background_worker: CurrentBackgroundWorker,
+) -> GenerateShardsetResponse:
+    try:
+        dataset = session.get_one(Dataset, dataset_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    uid_column = next(
+        (c for c in dataset.columns if c.name == dataset.uid_column_name), None
+    )
+    if uid_column is None:
+        raise HTTPException(status_code=400, detail="Dataset has no uid column")
+
+    source_shardset_ids = params.source_shardset_ids or [
+        s.id for s in dataset.shardsets
+    ]
+    task_uid = background_worker.submit(
+        generate_shardset_task,
+        shardset_location=params.shardset_location,
+        source_shardset_ids=source_shardset_ids,
+        uid_column_name=uid_column.name,
+        uid_column_type=uid_column.type,
+        preprocessors=params.preprocessors,
+        export_columns=params.export_columns,
+        batch_size=params.batch_size,
+        overwrite=params.overwrite,
+    )
+    return GenerateShardsetResponse(task_uid=task_uid)

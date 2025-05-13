@@ -20,6 +20,7 @@ from openapi_lavender_data_rest.api.datasets import (
     delete_shardset_datasets_dataset_id_shardsets_shardset_id_delete,
     sync_shardset_datasets_dataset_id_shardsets_shardset_id_sync_post,
     get_sync_status_datasets_dataset_id_shardsets_shardset_id_sync_get,
+    generate_shardset_datasets_dataset_id_generate_shardset_post,
 )
 from openapi_lavender_data_rest.api.iterations import (
     create_iteration_iterations_post,
@@ -34,6 +35,9 @@ from openapi_lavender_data_rest.api.iterations import (
 )
 from openapi_lavender_data_rest.api.cluster import (
     get_nodes_cluster_nodes_get,
+)
+from openapi_lavender_data_rest.api.background_tasks import (
+    get_tasks_background_tasks_get,
 )
 
 # models
@@ -63,6 +67,9 @@ from openapi_lavender_data_rest.models.iteration_categorizer import IterationCat
 from openapi_lavender_data_rest.models.iteration_collater import IterationCollater
 from openapi_lavender_data_rest.models.iteration_preprocessor import (
     IterationPreprocessor,
+)
+from openapi_lavender_data_rest.models.generate_shardset_params import (
+    GenerateShardsetParams,
 )
 
 
@@ -251,6 +258,31 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
+    def generate_shardset(
+        self,
+        dataset_id: str,
+        shardset_location: str,
+        source_shardset_ids: Optional[list[str]] = None,
+        preprocessors: Optional[list[IterationPreprocessor]] = None,
+        export_columns: Optional[list[str]] = None,
+        batch_size: Optional[int] = None,
+        overwrite: bool = False,
+    ):
+        with self._get_client() as client:
+            response = generate_shardset_datasets_dataset_id_generate_shardset_post.sync_detailed(
+                client=client,
+                dataset_id=dataset_id,
+                body=GenerateShardsetParams(
+                    shardset_location=shardset_location,
+                    source_shardset_ids=source_shardset_ids,
+                    preprocessors=preprocessors,
+                    export_columns=export_columns,
+                    batch_size=batch_size,
+                    overwrite=overwrite,
+                ),
+            )
+        return self._check_response(response)
+
     def create_iteration(
         self,
         dataset_id: str,
@@ -401,6 +433,13 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
+    def get_tasks(self):
+        with self._get_client() as client:
+            response = get_tasks_background_tasks_get.sync_detailed(
+                client=client,
+            )
+        return self._check_response(response)
+
 
 _client_instance = None
 
@@ -498,6 +537,27 @@ def sync_shardset(dataset_id: str, shardset_id: str, overwrite: bool = False):
 def get_sync_shardset_status(dataset_id: str, shardset_id: str):
     return _client_instance.get_sync_shardset_status(
         dataset_id=dataset_id, shardset_id=shardset_id
+    )
+
+
+@ensure_client()
+def generate_shardset(
+    dataset_id: str,
+    shardset_location: str,
+    source_shardset_ids: Optional[list[str]] = None,
+    preprocessors: Optional[list[IterationPreprocessor]] = None,
+    export_columns: Optional[list[str]] = None,
+    batch_size: Optional[int] = None,
+    overwrite: bool = False,
+):
+    return _client_instance.generate_shardset(
+        dataset_id=dataset_id,
+        shardset_location=shardset_location,
+        source_shardset_ids=source_shardset_ids,
+        preprocessors=preprocessors,
+        export_columns=export_columns,
+        batch_size=batch_size,
+        overwrite=overwrite,
     )
 
 
@@ -607,3 +667,8 @@ def get_progress(iteration_id: str):
 @ensure_client()
 def get_node_statuses():
     return _client_instance.get_node_statuses()
+
+
+@ensure_client()
+def get_tasks():
+    return _client_instance.get_tasks()

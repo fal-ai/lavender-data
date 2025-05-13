@@ -12,6 +12,8 @@ from .dataset_column_options import DatasetColumnOptions
 from .dataset_column_public import DatasetColumnPublic
 from .dataset_public import DatasetPublic
 from .deregister_params import DeregisterParams
+from .generate_shardset_params import GenerateShardsetParams
+from .generate_shardset_response import GenerateShardsetResponse
 from .get_dataset_response import GetDatasetResponse
 from .get_iteration_response import GetIterationResponse
 from .get_shardset_response import GetShardsetResponse
@@ -56,6 +58,8 @@ __all__ = (
     "DatasetColumnPublic",
     "DatasetPublic",
     "DeregisterParams",
+    "GenerateShardsetParams",
+    "GenerateShardsetResponse",
     "GetDatasetResponse",
     "GetIterationResponse",
     "GetShardsetResponse",
