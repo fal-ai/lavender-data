@@ -79,9 +79,7 @@ class ProcessNextSamplesException(Exception):
         )
 
 
-def _process_next_samples(
-    params: ProcessNextSamplesParams,
-) -> bytes:
+def _process_next_samples(params: ProcessNextSamplesParams) -> dict:
     reader = get_reader_instance()
 
     current = params.current
@@ -119,13 +117,13 @@ def _process_next_samples(
     batch["_lavender_data_indices"] = [i.index for i in global_sample_indices]
     batch["_lavender_data_current"] = current
 
-    return serialize_sample(batch)
+    return batch
 
 
 def process_next_samples(
     params: ProcessNextSamplesParams,
     max_retry_count: int,
-) -> bytes:
+) -> dict:
     logger = get_logger(__name__)
 
     for i in range(max_retry_count + 1):
@@ -155,7 +153,8 @@ def process_next_samples_task(
     task_uid: str,
 ):
     try:
-        content = process_next_samples(params, max_retry_count)
+        batch = process_next_samples(params, max_retry_count)
+        content = serialize_sample(batch)
         memory.set(cache_key, content, ex=cache_ttl)
     except ProcessNextSamplesException as e:
         memory.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)

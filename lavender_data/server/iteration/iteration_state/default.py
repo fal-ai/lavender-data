@@ -28,7 +28,7 @@ from lavender_data.server.registries import (
     CategorizerRegistry,
 )
 from lavender_data.server.shardset import get_main_shardset, span
-from lavender_data.server.iteration.process_next_samples import ProcessNextSamplesParams
+from lavender_data.server.iteration.process import ProcessNextSamplesParams
 from lavender_data.server.iteration.hash import _hash, get_iteration_hash
 from lavender_data.serialize import serialize_sample, deserialize_sample
 

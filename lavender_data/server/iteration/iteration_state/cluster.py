@@ -7,7 +7,7 @@ from lavender_data.server.reader import (
     GlobalSampleIndex,
 )
 
-from lavender_data.server.iteration.process_next_samples import ProcessNextSamplesParams
+from lavender_data.server.iteration import ProcessNextSamplesParams
 
 from .abc import IterationStateOps, Progress, IterationStateException
 
