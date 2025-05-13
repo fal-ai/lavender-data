@@ -10,6 +10,8 @@ from lavender_data.server.registries import (
     FilterRegistry,
     Collater,
     CollaterRegistry,
+    Categorizer,
+    CategorizerRegistry,
 )
 
 
@@ -70,6 +72,12 @@ class ModFilter(Filter, name="mod"):
         return sample["value"] % mod == 0
 
 
+# Test categorizers
+class AspectRatioCategorizer(Categorizer, name="aspect_ratio"):
+    def categorize(self, sample: dict) -> str:
+        return f"{sample['width']}x{sample['height']}"
+
+
 # Test collaters
 class CountCollater(Collater, name="count"):
     def collate(self, samples: list[dict]) -> dict:
@@ -81,6 +89,7 @@ class RegistriesTest(unittest.TestCase):
         TestRegistry.initialize()
         PreprocessorRegistry.initialize()
         FilterRegistry.initialize()
+        CategorizerRegistry.initialize()
         CollaterRegistry.initialize()
 
     def test_base_registry(self):
@@ -128,6 +137,21 @@ class RegistriesTest(unittest.TestCase):
                 self.assertTrue(filter1.filter(sample, mod=2))
             else:
                 self.assertFalse(filter1.filter(sample, mod=2))
+
+    def test_categorizer_registry(self):
+        # Test registration
+        self.assertIn("aspect_ratio", CategorizerRegistry.list())
+
+        # Test getting categorizers
+        categorizer1 = CategorizerRegistry.get("aspect_ratio")
+        self.assertIsInstance(categorizer1, AspectRatioCategorizer)
+
+        self.assertEqual(
+            categorizer1.categorize({"width": 1280, "height": 720}), "1280x720"
+        )
+        self.assertEqual(
+            categorizer1.categorize({"width": 1920, "height": 1080}), "1920x1080"
+        )
 
     def test_collater_registry(self):
         # Test registration
