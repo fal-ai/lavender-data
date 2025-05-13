@@ -70,6 +70,10 @@ export default defineConfig({
               slug: "dataset/shardset-constraints",
             },
             {
+              label: "Join Method",
+              slug: "dataset/join-method",
+            },
+            {
               label: "Migrate from Sources",
               slug: "dataset/converter",
             },
