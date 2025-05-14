@@ -16,7 +16,13 @@ import {
 import { deleteDataset } from './delete-dataset-action';
 import { useRouter } from 'next/navigation';
 
-export function DeleteDatasetDialog({ datasetId }: { datasetId: string }) {
+export function DeleteDatasetDialog({
+  datasetId,
+  children,
+}: {
+  datasetId: string;
+  children: React.ReactNode;
+}) {
   const router = useRouter();
 
   const clientAction = async () => {
@@ -32,9 +38,7 @@ export function DeleteDatasetDialog({ datasetId }: { datasetId: string }) {
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button variant="destructive">Delete this dataset</Button>
-      </AlertDialogTrigger>
+      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>

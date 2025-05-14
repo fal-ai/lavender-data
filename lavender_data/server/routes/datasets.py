@@ -636,6 +636,9 @@ def generate_shardset(
     session: DbSession,
     background_worker: CurrentBackgroundWorker,
 ) -> GenerateShardsetResponse:
+    if params.batch_size <= 0:
+        raise HTTPException(status_code=400, detail="Batch size must be greater than 0")
+
     try:
         dataset = session.get_one(Dataset, dataset_id)
     except NoResultFound:
@@ -647,18 +650,23 @@ def generate_shardset(
     if uid_column is None:
         raise HTTPException(status_code=400, detail="Dataset has no uid column")
 
+    shardset_location = params.shardset_location
+    preprocessors = params.preprocessors
     source_shardset_ids = params.source_shardset_ids or [
         s.id for s in dataset.shardsets
     ]
-    task_uid = background_worker.submit(
+
+    task_uid = f'{dataset.id}-{"-".join([p["name"] for p in preprocessors])}-{shardset_location}'
+    background_worker.submit(
         generate_shardset_task,
-        shardset_location=params.shardset_location,
+        shardset_location=shardset_location,
         source_shardset_ids=source_shardset_ids,
         uid_column_name=uid_column.name,
         uid_column_type=uid_column.type,
-        preprocessors=params.preprocessors,
+        preprocessors=preprocessors,
         export_columns=params.export_columns,
         batch_size=params.batch_size,
         overwrite=params.overwrite,
+        task_uid=task_uid,
     )
     return GenerateShardsetResponse(task_uid=task_uid)
