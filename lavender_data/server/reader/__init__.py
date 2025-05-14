@@ -1,6 +1,7 @@
 import os
 from typing import Annotated
 
+import numpy as np
 from fastapi import Depends
 from pydantic import BaseModel
 
@@ -31,15 +32,17 @@ class GlobalSampleIndex(BaseModel):
 
 def _default_null_type(t: str) -> str:
     if t.startswith("int"):
-        return -1
-    elif t.startswith("float"):
-        return -1.0
+        return np.nan
+    elif t.startswith("float") or t.startswith("double"):
+        return np.nan
     elif t.startswith("str"):
         return ""
-    elif t.startswith("text"):
+    elif t.startswith("text") or t.startswith("string"):
         return ""
+    elif t.startswith("binary"):
+        return b""
     elif t.startswith("bool"):
-        return None
+        return np.nan
     else:
         return None
 

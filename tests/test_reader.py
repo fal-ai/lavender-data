@@ -2,6 +2,8 @@ import unittest
 import shutil
 import os
 
+import numpy as np
+
 from lavender_data.server.reader import (
     ServerSideReader,
     GlobalSampleIndex,
@@ -133,6 +135,6 @@ class TestReader(unittest.TestCase):
         self.assertEqual(sample["id"], 0)
         self.assertEqual(sample["image_url"], "https://example.com/image-0.jpg")
         self.assertEqual(sample["caption"], "Caption for image 0")
-        self.assertEqual(sample["score"], None)
+        self.assertTrue(np.isnan(sample["score"]))
 
     # TODO cache size test
