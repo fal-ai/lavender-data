@@ -4,6 +4,8 @@ import subprocess
 import threading
 import time
 import httpx
+import socket
+import random
 
 _threads = {}
 
@@ -18,6 +20,19 @@ def _flush_logs(server_process: subprocess.Popen):
 
     server_process.stdout.close()
     server_process.stderr.close()
+
+
+def get_free_port(min_port=1024, max_port=65535):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    while True:
+        try:
+            port = random.randint(min_port, max_port)
+            sock.bind(("", port))
+            sock.close()
+            return port
+        except OSError:
+            port += 1
+    raise IOError("no free ports")
 
 
 def start_server(port: int, env: dict):

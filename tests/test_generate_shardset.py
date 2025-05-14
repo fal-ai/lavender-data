@@ -1,9 +1,7 @@
-import random
 import time
 import unittest
 import os
 import shutil
-import pyarrow as pa
 import pyarrow.parquet as pq
 
 from lavender_data.server.registries import Preprocessor
@@ -18,7 +16,12 @@ from lavender_data.client.api import (
 )
 
 from tests.utils.shards import create_test_shard
-from tests.utils.start_server import start_server, stop_server, wait_server_ready
+from tests.utils.start_server import (
+    get_free_port,
+    start_server,
+    stop_server,
+    wait_server_ready,
+)
 
 
 class ConcatPreprocessor(Preprocessor, name="concat"):
@@ -29,7 +32,7 @@ class ConcatPreprocessor(Preprocessor, name="concat"):
 
 class TestGenerateShardset(unittest.TestCase):
     def setUp(self):
-        self.port = random.randint(10000, 40000)
+        self.port = get_free_port()
         self.db = f"database-{self.port}.db"
 
         self.server = start_server(

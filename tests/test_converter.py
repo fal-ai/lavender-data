@@ -1,11 +1,15 @@
 import unittest
 import tempfile
 import tqdm
-import random
 import os
 
 import lavender_data.client as lavender
-from tests.utils.start_server import start_server, wait_server_ready, stop_server
+from tests.utils.start_server import (
+    get_free_port,
+    start_server,
+    wait_server_ready,
+    stop_server,
+)
 
 
 """TODO
@@ -16,7 +20,7 @@ Needs to be fixed and un-skipped.
 
 class TestConverter(unittest.SkipTest):
     def setUp(self):
-        self.port = random.randint(10000, 40000)
+        self.port = get_free_port()
         self.db = f"database-{self.port}.db"
 
         self.server = start_server(
