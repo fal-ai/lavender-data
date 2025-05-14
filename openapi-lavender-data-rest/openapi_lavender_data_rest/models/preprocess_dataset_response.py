@@ -4,11 +4,11 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="GenerateShardsetResponse")
+T = TypeVar("T", bound="PreprocessDatasetResponse")
 
 
 @_attrs_define
-class GenerateShardsetResponse:
+class PreprocessDatasetResponse:
     """
     Attributes:
         task_uid (str):
@@ -35,12 +35,12 @@ class GenerateShardsetResponse:
         d = dict(src_dict)
         task_uid = d.pop("task_uid")
 
-        generate_shardset_response = cls(
+        preprocess_dataset_response = cls(
             task_uid=task_uid,
         )
 
-        generate_shardset_response.additional_properties = d
-        return generate_shardset_response
+        preprocess_dataset_response.additional_properties = d
+        return preprocess_dataset_response
 
     @property
     def additional_keys(self) -> list[str]:

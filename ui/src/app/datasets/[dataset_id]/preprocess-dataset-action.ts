@@ -2,7 +2,7 @@
 
 import { getClient } from '@/lib/api';
 
-export async function generateShardset(
+export async function preprocessDataset(
   datasetId: string,
   shardsetLocation: string,
   sourceShardsetIds: string[],
@@ -30,7 +30,7 @@ export async function generateShardset(
   try {
     const response = await (
       await getClient()
-    ).POST('/datasets/{dataset_id}/generate-shardset', {
+    ).POST('/datasets/{dataset_id}/preprocess', {
       params: { path: { dataset_id: datasetId } },
       body: {
         shardset_location: shardsetLocation,

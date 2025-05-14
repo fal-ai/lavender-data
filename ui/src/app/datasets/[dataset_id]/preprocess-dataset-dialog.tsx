@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { generateShardset } from './generate-shardset-action';
+import { preprocessDataset } from './preprocess-dataset-action';
 
 type Shardset = {
   id: string;
@@ -111,7 +111,7 @@ function PreprocessorInputs({
   );
 }
 
-export function PreprocessDialog({
+export function PreprocessDatasetDialog({
   datasetId,
   shardsets,
   preprocessors,
@@ -156,7 +156,7 @@ export function PreprocessDialog({
       return;
     }
 
-    const result = await generateShardset(
+    const result = await preprocessDataset(
       datasetId,
       location,
       sourceShardsets,

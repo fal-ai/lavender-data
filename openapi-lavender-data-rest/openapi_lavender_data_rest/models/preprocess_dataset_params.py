@@ -10,11 +10,11 @@ if TYPE_CHECKING:
     from ..models.iteration_preprocessor import IterationPreprocessor
 
 
-T = TypeVar("T", bound="GenerateShardsetParams")
+T = TypeVar("T", bound="PreprocessDatasetParams")
 
 
 @_attrs_define
-class GenerateShardsetParams:
+class PreprocessDatasetParams:
     """
     Attributes:
         shardset_location (str):
@@ -110,7 +110,7 @@ class GenerateShardsetParams:
 
         overwrite = d.pop("overwrite", UNSET)
 
-        generate_shardset_params = cls(
+        preprocess_dataset_params = cls(
             shardset_location=shardset_location,
             preprocessors=preprocessors,
             export_columns=export_columns,
@@ -119,8 +119,8 @@ class GenerateShardsetParams:
             overwrite=overwrite,
         )
 
-        generate_shardset_params.additional_properties = d
-        return generate_shardset_params
+        preprocess_dataset_params.additional_properties = d
+        return preprocess_dataset_params
 
     @property
     def additional_keys(self) -> list[str]:

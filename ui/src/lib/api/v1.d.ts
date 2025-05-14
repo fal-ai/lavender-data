@@ -127,7 +127,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/datasets/{dataset_id}/generate-shardset": {
+    "/datasets/{dataset_id}/preprocess": {
         parameters: {
             query?: never;
             header?: never;
@@ -136,8 +136,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Generate Shardset */
-        post: operations["generate_shardset_datasets__dataset_id__generate_shardset_post"];
+        /** Preprocess Dataset */
+        post: operations["preprocess_dataset_datasets__dataset_id__preprocess_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -652,29 +652,6 @@ export interface components {
             /** Node Url */
             node_url: string;
         };
-        /** GenerateShardsetParams */
-        GenerateShardsetParams: {
-            /** Shardset Location */
-            shardset_location: string;
-            /** Source Shardset Ids */
-            source_shardset_ids?: string[] | null;
-            /** Preprocessors */
-            preprocessors: components["schemas"]["IterationPreprocessor"][];
-            /** Export Columns */
-            export_columns: string[];
-            /** Batch Size */
-            batch_size: number;
-            /**
-             * Overwrite
-             * @default false
-             */
-            overwrite: boolean;
-        };
-        /** GenerateShardsetResponse */
-        GenerateShardsetResponse: {
-            /** Task Uid */
-            task_uid: string;
-        };
         /** GetDatasetResponse */
         GetDatasetResponse: {
             /** Id */
@@ -875,6 +852,29 @@ export interface components {
             node_url: string;
             /** Last Heartbeat */
             last_heartbeat: number | null;
+        };
+        /** PreprocessDatasetParams */
+        PreprocessDatasetParams: {
+            /** Shardset Location */
+            shardset_location: string;
+            /** Source Shardset Ids */
+            source_shardset_ids?: string[] | null;
+            /** Preprocessors */
+            preprocessors: components["schemas"]["IterationPreprocessor"][];
+            /** Export Columns */
+            export_columns: string[];
+            /** Batch Size */
+            batch_size: number;
+            /**
+             * Overwrite
+             * @default false
+             */
+            overwrite: boolean;
+        };
+        /** PreprocessDatasetResponse */
+        PreprocessDatasetResponse: {
+            /** Task Uid */
+            task_uid: string;
         };
         /** PreviewDatasetResponse */
         PreviewDatasetResponse: {
@@ -1417,7 +1417,7 @@ export interface operations {
             };
         };
     };
-    generate_shardset_datasets__dataset_id__generate_shardset_post: {
+    preprocess_dataset_datasets__dataset_id__preprocess_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1428,7 +1428,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GenerateShardsetParams"];
+                "application/json": components["schemas"]["PreprocessDatasetParams"];
             };
         };
         responses: {
@@ -1438,7 +1438,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GenerateShardsetResponse"];
+                    "application/json": components["schemas"]["PreprocessDatasetResponse"];
                 };
             };
             /** @description Validation Error */

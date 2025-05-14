@@ -56,7 +56,7 @@ def _export_shard(
         upload_file(f.name, location)
 
 
-def generate_shardset(
+def _generate_shardset(
     shardset_location: str,
     source_shardset_ids: list[str],
     uid_column_name: str,
@@ -200,7 +200,7 @@ def generate_shardset(
     logger.info("Export complete")
 
 
-def generate_shardset_task(
+def preprocess_dataset_task(
     shardset_location: str,
     source_shardset_ids: list[str],
     uid_column_name: str,
@@ -213,7 +213,7 @@ def generate_shardset_task(
     memory: Memory,
     task_uid: str,
 ):
-    for status in generate_shardset(
+    for status in _generate_shardset(
         shardset_location,
         source_shardset_ids,
         uid_column_name,

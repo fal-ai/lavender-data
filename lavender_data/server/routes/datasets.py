@@ -36,7 +36,7 @@ from lavender_data.server.shardset import (
     get_main_shardset,
     span,
     sync_shardset_location_task,
-    generate_shardset_task,
+    preprocess_dataset_task,
 )
 from lavender_data.server.auth import AppAuth
 from lavender_data.storage import list_files
@@ -616,7 +616,7 @@ def delete_shardset(
     return shardset
 
 
-class GenerateShardsetParams(BaseModel):
+class PreprocessDatasetParams(BaseModel):
     shardset_location: str
     source_shardset_ids: Optional[list[str]] = None
     preprocessors: list[IterationPreprocessor]
@@ -625,17 +625,17 @@ class GenerateShardsetParams(BaseModel):
     overwrite: bool = False
 
 
-class GenerateShardsetResponse(BaseModel):
+class PreprocessDatasetResponse(BaseModel):
     task_uid: str
 
 
-@router.post("/{dataset_id}/generate-shardset")
-def generate_shardset(
+@router.post("/{dataset_id}/preprocess")
+def preprocess_dataset(
     dataset_id: str,
-    params: GenerateShardsetParams,
+    params: PreprocessDatasetParams,
     session: DbSession,
     background_worker: CurrentBackgroundWorker,
-) -> GenerateShardsetResponse:
+) -> PreprocessDatasetResponse:
     if params.batch_size <= 0:
         raise HTTPException(status_code=400, detail="Batch size must be greater than 0")
 
@@ -658,7 +658,7 @@ def generate_shardset(
 
     task_uid = f'{dataset.id}-{"-".join([p["name"] for p in preprocessors])}-{shardset_location}'
     background_worker.submit(
-        generate_shardset_task,
+        preprocess_dataset_task,
         shardset_location=shardset_location,
         source_shardset_ids=source_shardset_ids,
         uid_column_name=uid_column.name,
@@ -669,4 +669,4 @@ def generate_shardset(
         overwrite=params.overwrite,
         task_uid=task_uid,
     )
-    return GenerateShardsetResponse(task_uid=task_uid)
+    return PreprocessDatasetResponse(task_uid=task_uid)

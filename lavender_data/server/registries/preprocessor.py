@@ -72,3 +72,8 @@ class Preprocessor(ABC):
     @abstractmethod
     def process(self, batch: dict, **kwargs) -> dict:
         raise NotImplementedError
+
+
+class AnyPreprocessor(Preprocessor):
+    def process(self, batch: dict, **kwargs) -> dict:
+        return batch

@@ -34,7 +34,7 @@ import { TabsContent } from '@/components/ui/tabs';
 import { Tabs, TabsTrigger } from '@/components/ui/tabs';
 import { TabsList } from '@/components/ui/tabs';
 import { DeleteDatasetDialog } from './delete-dataset-dialog';
-import { PreprocessDialog } from './generate-shardset-dialog';
+import { PreprocessDatasetDialog } from './preprocess-dataset-dialog';
 
 function ShardSetInfo({ shardset }: { shardset: any }) {
   if (!shardset) {
@@ -410,7 +410,7 @@ export default async function DatasetDetailPage({
                     Generate a new shardset by preprocessing the dataset.
                   </div>
                 </div>
-                <PreprocessDialog
+                <PreprocessDatasetDialog
                   datasetId={dataset_id}
                   shardsets={
                     dataset.shardsets as {
@@ -421,7 +421,7 @@ export default async function DatasetDetailPage({
                   preprocessors={preprocessorsResponse.data}
                 >
                   <Button variant="default">Preprocess</Button>
-                </PreprocessDialog>
+                </PreprocessDatasetDialog>
               </div>
               <div className="grid grid-cols-[1fr_200px] gap-2">
                 <div>

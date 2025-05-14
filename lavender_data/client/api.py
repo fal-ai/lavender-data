@@ -20,7 +20,7 @@ from openapi_lavender_data_rest.api.datasets import (
     delete_shardset_datasets_dataset_id_shardsets_shardset_id_delete,
     sync_shardset_datasets_dataset_id_shardsets_shardset_id_sync_post,
     get_sync_status_datasets_dataset_id_shardsets_shardset_id_sync_get,
-    generate_shardset_datasets_dataset_id_generate_shardset_post,
+    preprocess_dataset_datasets_dataset_id_preprocess_post,
 )
 from openapi_lavender_data_rest.api.iterations import (
     create_iteration_iterations_post,
@@ -68,8 +68,8 @@ from openapi_lavender_data_rest.models.iteration_collater import IterationCollat
 from openapi_lavender_data_rest.models.iteration_preprocessor import (
     IterationPreprocessor,
 )
-from openapi_lavender_data_rest.models.generate_shardset_params import (
-    GenerateShardsetParams,
+from openapi_lavender_data_rest.models.preprocess_dataset_params import (
+    PreprocessDatasetParams,
 )
 
 
@@ -258,7 +258,7 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
-    def generate_shardset(
+    def preprocess_dataset(
         self,
         dataset_id: str,
         shardset_location: str,
@@ -269,17 +269,19 @@ class LavenderDataClient:
         overwrite: bool = False,
     ):
         with self._get_client() as client:
-            response = generate_shardset_datasets_dataset_id_generate_shardset_post.sync_detailed(
-                client=client,
-                dataset_id=dataset_id,
-                body=GenerateShardsetParams(
-                    shardset_location=shardset_location,
-                    source_shardset_ids=source_shardset_ids,
-                    preprocessors=preprocessors,
-                    export_columns=export_columns,
-                    batch_size=batch_size,
-                    overwrite=overwrite,
-                ),
+            response = (
+                preprocess_dataset_datasets_dataset_id_preprocess_post.sync_detailed(
+                    client=client,
+                    dataset_id=dataset_id,
+                    body=PreprocessDatasetParams(
+                        shardset_location=shardset_location,
+                        source_shardset_ids=source_shardset_ids,
+                        preprocessors=preprocessors,
+                        export_columns=export_columns,
+                        batch_size=batch_size,
+                        overwrite=overwrite,
+                    ),
+                )
             )
         return self._check_response(response)
 
@@ -541,7 +543,7 @@ def get_sync_shardset_status(dataset_id: str, shardset_id: str):
 
 
 @ensure_client()
-def generate_shardset(
+def preprocess_dataset(
     dataset_id: str,
     shardset_location: str,
     source_shardset_ids: Optional[list[str]] = None,
@@ -550,7 +552,7 @@ def generate_shardset(
     batch_size: Optional[int] = None,
     overwrite: bool = False,
 ):
-    return _client_instance.generate_shardset(
+    return _client_instance.preprocess_dataset(
         dataset_id=dataset_id,
         shardset_location=shardset_location,
         source_shardset_ids=source_shardset_ids,

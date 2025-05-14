@@ -104,35 +104,3 @@ Even in this case, the sample-shard mapping must be consistent like below.
 | 101 | 1                           | 1                           |
 | ... | ...                         | ...                         |
 
-
-### Main Shardset
-
-At this point, you may wonder how to iterate over the samples if some samples do not exist in all shardsets.
-What happens if we iterate over the 90-99 samples in `shardset_1`?
-
-During the iteration, we want all samples to have the same columns.
-If not, we are going to see tons of problems like batch collation failure, crash in preprocessing logic, and more.
-
-To solve this, we introduced the concept of **"main shardset"**.
-The main shardset becomes the leftmost table, and the other shardsets are merged into it.
-
-Before starting the iteration, lavender data checks the shardsets and picks the main shardset.
-We use a shardset with the least samples as the main shardset to avoid
-reading unprocessable samples, and to predict the number of total samples
-as accurately as possible. Still, there is a chance of encountering a sample
-that lacks some columns. In this case, we simply skip the sample.
-
-<Aside>
-
-The one with the least samples becomes the main shardset.
-If there are multiple shardsets with the least number of samples, the the oldest one is picked as the main shardset.
-
-</Aside>
-
-
-
-In above example, `shardset_1` has 100 samples and `shardset_2` has 90 samples.
-Therefore, `shardset_2` becomes the main shardset. Sample 90-99 are missing in `shardset_2`,
-those are not included in the iteration.
-
-

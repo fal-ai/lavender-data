@@ -10,7 +10,7 @@ from lavender_data.client.api import (
     create_dataset,
     create_shardset,
     DatasetColumnOptions,
-    generate_shardset,
+    preprocess_dataset,
     IterationPreprocessor,
     get_tasks,
 )
@@ -30,7 +30,7 @@ class ConcatPreprocessor(Preprocessor, name="concat"):
         return batch
 
 
-class TestGenerateShardset(unittest.TestCase):
+class TestPreprocessDataset(unittest.TestCase):
     def setUp(self):
         self.port = get_free_port()
         self.db = f"database-{self.port}.db"
@@ -115,11 +115,11 @@ class TestGenerateShardset(unittest.TestCase):
         stop_server(self.server)
         os.remove(self.db)
 
-    def test_generate_shardset(self):
+    def test_preprocess_dataset(self):
         output_dir = f"{self.test_dir}/output"
         os.makedirs(output_dir, exist_ok=True)
 
-        response = generate_shardset(
+        response = preprocess_dataset(
             dataset_id=self.dataset_id,
             shardset_location=f"file://{output_dir}",
             source_shardset_ids=[self.image_url_shardset_id, self.caption_shardset_id],

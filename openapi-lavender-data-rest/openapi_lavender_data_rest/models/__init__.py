@@ -12,8 +12,6 @@ from .dataset_column_options import DatasetColumnOptions
 from .dataset_column_public import DatasetColumnPublic
 from .dataset_public import DatasetPublic
 from .deregister_params import DeregisterParams
-from .generate_shardset_params import GenerateShardsetParams
-from .generate_shardset_response import GenerateShardsetResponse
 from .get_dataset_response import GetDatasetResponse
 from .get_iteration_response import GetIterationResponse
 from .get_shardset_response import GetShardsetResponse
@@ -31,6 +29,8 @@ from .iteration_preprocessor_params import IterationPreprocessorParams
 from .iteration_public import IterationPublic
 from .iteration_shardset_link import IterationShardsetLink
 from .node_status import NodeStatus
+from .preprocess_dataset_params import PreprocessDatasetParams
+from .preprocess_dataset_response import PreprocessDatasetResponse
 from .preview_dataset_response import PreviewDatasetResponse
 from .preview_dataset_response_samples_item import PreviewDatasetResponseSamplesItem
 from .progress import Progress
@@ -58,8 +58,6 @@ __all__ = (
     "DatasetColumnPublic",
     "DatasetPublic",
     "DeregisterParams",
-    "GenerateShardsetParams",
-    "GenerateShardsetResponse",
     "GetDatasetResponse",
     "GetIterationResponse",
     "GetShardsetResponse",
@@ -77,6 +75,8 @@ __all__ = (
     "IterationPublic",
     "IterationShardsetLink",
     "NodeStatus",
+    "PreprocessDatasetParams",
+    "PreprocessDatasetResponse",
     "PreviewDatasetResponse",
     "PreviewDatasetResponseSamplesItem",
     "Progress",
