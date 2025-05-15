@@ -136,7 +136,8 @@ class ServerSideReader:
                 columns = {
                     k: _default_null_type(t) for k, t in feature_shard.columns.items()
                 }
-            columns.pop(index.uid_column_name)
+            if index.uid_column_name in columns:
+                columns.pop(index.uid_column_name)
             sample.update(columns)
 
         return sample
