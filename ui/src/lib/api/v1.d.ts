@@ -127,6 +127,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasets/{dataset_id}/preprocess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preprocess Dataset */
+        post: operations["preprocess_dataset_datasets__dataset_id__preprocess_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/iterations/": {
         parameters: {
             query?: never;
@@ -299,23 +316,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/registries/preprocessors": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Preprocessors */
-        get: operations["get_preprocessors_registries_preprocessors_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/registries/filters": {
         parameters: {
             query?: never;
@@ -333,6 +333,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/registries/categorizers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Categorizers */
+        get: operations["get_categorizers_registries_categorizers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/registries/collaters": {
         parameters: {
             query?: never;
@@ -342,6 +359,23 @@ export interface paths {
         };
         /** Get Collaters */
         get: operations["get_collaters_registries_collaters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/registries/preprocessors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Preprocessors */
+        get: operations["get_preprocessors_registries_preprocessors_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -511,9 +545,10 @@ export interface components {
             shardsets?: string[] | null;
             /** Filters */
             filters?: components["schemas"]["IterationFilter"][] | null;
+            categorizer?: components["schemas"]["IterationCategorizer"] | null;
+            collater?: components["schemas"]["IterationCollater"] | null;
             /** Preprocessors */
             preprocessors?: components["schemas"]["IterationPreprocessor"][] | null;
-            collater?: components["schemas"]["IterationCollater"] | null;
             /** Shuffle */
             shuffle?: boolean | null;
             /** Shuffle Seed */
@@ -651,9 +686,10 @@ export interface components {
             total: number;
             /** Filters */
             filters?: components["schemas"]["IterationFilter"][] | null;
+            categorizer?: components["schemas"]["IterationCategorizer"] | null;
+            collater?: components["schemas"]["IterationCollater"] | null;
             /** Preprocessors */
             preprocessors?: components["schemas"]["IterationPreprocessor"][] | null;
-            collater?: components["schemas"]["IterationCollater"] | null;
             /**
              * Shuffle
              * @default false
@@ -726,6 +762,15 @@ export interface components {
             /** Started At */
             started_at: number;
         };
+        /** IterationCategorizer */
+        IterationCategorizer: {
+            /** Name */
+            name: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+        };
         /** IterationCollater */
         IterationCollater: {
             /** Name */
@@ -766,9 +811,10 @@ export interface components {
             total: number;
             /** Filters */
             filters?: components["schemas"]["IterationFilter"][] | null;
+            categorizer?: components["schemas"]["IterationCategorizer"] | null;
+            collater?: components["schemas"]["IterationCollater"] | null;
             /** Preprocessors */
             preprocessors?: components["schemas"]["IterationPreprocessor"][] | null;
-            collater?: components["schemas"]["IterationCollater"] | null;
             /**
              * Shuffle
              * @default false
@@ -806,6 +852,29 @@ export interface components {
             node_url: string;
             /** Last Heartbeat */
             last_heartbeat: number | null;
+        };
+        /** PreprocessDatasetParams */
+        PreprocessDatasetParams: {
+            /** Shardset Location */
+            shardset_location: string;
+            /** Source Shardset Ids */
+            source_shardset_ids?: string[] | null;
+            /** Preprocessors */
+            preprocessors: components["schemas"]["IterationPreprocessor"][];
+            /** Export Columns */
+            export_columns: string[];
+            /** Batch Size */
+            batch_size: number;
+            /**
+             * Overwrite
+             * @default false
+             */
+            overwrite: boolean;
+        };
+        /** PreprocessDatasetResponse */
+        PreprocessDatasetResponse: {
+            /** Task Uid */
+            task_uid: string;
         };
         /** PreviewDatasetResponse */
         PreviewDatasetResponse: {
@@ -1348,6 +1417,41 @@ export interface operations {
             };
         };
     };
+    preprocess_dataset_datasets__dataset_id__preprocess_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreprocessDatasetParams"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreprocessDatasetResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_iterations_iterations__get: {
         parameters: {
             query?: {
@@ -1739,26 +1843,6 @@ export interface operations {
             };
         };
     };
-    get_preprocessors_registries_preprocessors_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string[];
-                };
-            };
-        };
-    };
     get_filters_registries_filters_get: {
         parameters: {
             query?: never;
@@ -1779,7 +1863,47 @@ export interface operations {
             };
         };
     };
+    get_categorizers_registries_categorizers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+        };
+    };
     get_collaters_registries_collaters_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+        };
+    };
+    get_preprocessors_registries_preprocessors_get: {
         parameters: {
             query?: never;
             header?: never;

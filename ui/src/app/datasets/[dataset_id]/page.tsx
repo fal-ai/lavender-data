@@ -34,6 +34,7 @@ import { TabsContent } from '@/components/ui/tabs';
 import { Tabs, TabsTrigger } from '@/components/ui/tabs';
 import { TabsList } from '@/components/ui/tabs';
 import { DeleteDatasetDialog } from './delete-dataset-dialog';
+import { PreprocessDatasetDialog } from './preprocess-dataset-dialog';
 
 function ShardSetInfo({ shardset }: { shardset: any }) {
   if (!shardset) {
@@ -175,6 +176,10 @@ export default async function DatasetDetailPage({
   const iterationsResponse = await client.GET('/iterations/', {
     params: { query: { dataset_id } },
   });
+  const preprocessorsResponse = await client.GET(
+    '/registries/preprocessors',
+    {}
+  );
 
   if (datasetResponse.error) {
     return <ErrorCard error={datasetResponse.error.detail} />;
@@ -182,6 +187,10 @@ export default async function DatasetDetailPage({
 
   if (iterationsResponse.error) {
     return <ErrorCard error={iterationsResponse.error.detail} />;
+  }
+
+  if (!preprocessorsResponse.data) {
+    return <ErrorCard error={preprocessorsResponse.error} />;
   }
 
   const dataset = datasetResponse.data;
@@ -393,7 +402,27 @@ export default async function DatasetDetailPage({
           className="w-full max-w-[720px] flex flex-col gap-2 items-start"
         >
           <Card className="w-full">
-            <CardContent>
+            <CardContent className="flex flex-col gap-2">
+              <div className="grid grid-cols-[1fr_200px] gap-2">
+                <div>
+                  <div className="text-md">Preprocess</div>
+                  <div className="text-xs text-muted-foreground">
+                    Generate a new shardset by preprocessing the dataset.
+                  </div>
+                </div>
+                <PreprocessDatasetDialog
+                  datasetId={dataset_id}
+                  shardsets={
+                    dataset.shardsets as {
+                      id: string;
+                      location: string;
+                    }[]
+                  }
+                  preprocessors={preprocessorsResponse.data}
+                >
+                  <Button variant="default">Preprocess</Button>
+                </PreprocessDatasetDialog>
+              </div>
               <div className="grid grid-cols-[1fr_200px] gap-2">
                 <div>
                   <div className="text-md">Delete this dataset</div>
@@ -401,7 +430,9 @@ export default async function DatasetDetailPage({
                     This action is irreversible.
                   </div>
                 </div>
-                <DeleteDatasetDialog datasetId={dataset_id} />
+                <DeleteDatasetDialog datasetId={dataset_id}>
+                  <Button variant="destructive">Delete this dataset</Button>
+                </DeleteDatasetDialog>
               </div>
             </CardContent>
           </Card>

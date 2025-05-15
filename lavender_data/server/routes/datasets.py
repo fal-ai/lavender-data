@@ -21,6 +21,7 @@ from lavender_data.server.db.models import (
     ShardPublic,
     DatasetColumnPublic,
     Iteration,
+    IterationPreprocessor,
 )
 from lavender_data.server.cache import CacheClient
 from lavender_data.server.distributed import CurrentCluster
@@ -35,6 +36,7 @@ from lavender_data.server.shardset import (
     get_main_shardset,
     span,
     sync_shardset_location_task,
+    preprocess_dataset_task,
 )
 from lavender_data.server.auth import AppAuth
 from lavender_data.storage import list_files
@@ -612,3 +614,59 @@ def delete_shardset(
             )
 
     return shardset
+
+
+class PreprocessDatasetParams(BaseModel):
+    shardset_location: str
+    source_shardset_ids: Optional[list[str]] = None
+    preprocessors: list[IterationPreprocessor]
+    export_columns: list[str]
+    batch_size: int
+    overwrite: bool = False
+
+
+class PreprocessDatasetResponse(BaseModel):
+    task_uid: str
+
+
+@router.post("/{dataset_id}/preprocess")
+def preprocess_dataset(
+    dataset_id: str,
+    params: PreprocessDatasetParams,
+    session: DbSession,
+    background_worker: CurrentBackgroundWorker,
+) -> PreprocessDatasetResponse:
+    if params.batch_size <= 0:
+        raise HTTPException(status_code=400, detail="Batch size must be greater than 0")
+
+    try:
+        dataset = session.get_one(Dataset, dataset_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    uid_column = next(
+        (c for c in dataset.columns if c.name == dataset.uid_column_name), None
+    )
+    if uid_column is None:
+        raise HTTPException(status_code=400, detail="Dataset has no uid column")
+
+    shardset_location = params.shardset_location
+    preprocessors = params.preprocessors
+    source_shardset_ids = params.source_shardset_ids or [
+        s.id for s in dataset.shardsets
+    ]
+
+    task_uid = f'{dataset.id}-{"-".join([p["name"] for p in preprocessors])}-{shardset_location}'
+    background_worker.submit(
+        preprocess_dataset_task,
+        shardset_location=shardset_location,
+        source_shardset_ids=source_shardset_ids,
+        uid_column_name=uid_column.name,
+        uid_column_type=uid_column.type,
+        preprocessors=preprocessors,
+        export_columns=params.export_columns,
+        batch_size=params.batch_size,
+        overwrite=params.overwrite,
+        task_uid=task_uid,
+    )
+    return PreprocessDatasetResponse(task_uid=task_uid)

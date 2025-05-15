@@ -1,6 +1,5 @@
 import unittest
 import time
-import random
 import shutil
 import tqdm
 import os
@@ -20,7 +19,12 @@ from lavender_data.client import LavenderDataLoader
 from lavender_data.client.api import LavenderDataApiError
 
 from tests.utils.shards import create_test_shards
-from tests.utils.start_server import start_server, stop_server, wait_server_ready
+from tests.utils.start_server import (
+    get_free_port,
+    start_server,
+    stop_server,
+    wait_server_ready,
+)
 
 
 class TestFilter(Filter, name="test_filter"):
@@ -54,7 +58,7 @@ class AspectRatioCategorizer(Categorizer, name="aspect_ratio_categorizer"):
 
 class TestIteration(unittest.TestCase):
     def setUp(self):
-        self.port = random.randint(10000, 40000)
+        self.port = get_free_port()
         self.db = f"database-{self.port}.db"
 
         self.server = start_server(

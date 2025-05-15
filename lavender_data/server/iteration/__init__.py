@@ -5,9 +5,10 @@ from fastapi import HTTPException, Depends
 from lavender_data.server.cache import CacheClient
 from lavender_data.server.distributed import CurrentCluster
 
-from .process_next_samples import (
+from .process import (
     ProcessNextSamplesParams,
     ProcessNextSamplesException,
+    process_next_samples,
     process_next_samples_task,
 )
 from .hash import (
@@ -30,6 +31,7 @@ from .iteration_state import (
 __all__ = [
     "ProcessNextSamplesParams",
     "ProcessNextSamplesException",
+    "process_next_samples",
     "process_next_samples_task",
     "get_iteration_hash",
     "set_iteration_hash",

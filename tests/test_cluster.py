@@ -7,13 +7,18 @@ import tqdm
 from lavender_data.client import api, LavenderDataLoader
 
 from tests.utils.shards import create_test_shards
-from tests.utils.start_server import start_server, stop_server, wait_server_ready
+from tests.utils.start_server import (
+    get_free_port,
+    start_server,
+    stop_server,
+    wait_server_ready,
+)
 
 
 class TestCluster(unittest.TestCase):
     def setUp(self):
-        head_port = random.randint(10000, 40000)
-        node_ports = [random.randint(10000, 40000) for _ in range(3)]
+        head_port = get_free_port()
+        node_ports = [head_port + i for i in [1, 2, 3]]
 
         self.head_url = f"http://localhost:{head_port}"
         self.node_urls = [f"http://localhost:{port}" for port in node_ports]

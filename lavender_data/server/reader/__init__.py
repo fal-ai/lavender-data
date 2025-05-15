@@ -1,6 +1,7 @@
 import os
 from typing import Annotated
 
+import numpy as np
 from fastapi import Depends
 from pydantic import BaseModel
 
@@ -27,6 +28,23 @@ class GlobalSampleIndex(BaseModel):
     uid_column_type: str
     main_shard: MainShardInfo
     feature_shards: list[ShardInfo]
+
+
+def _default_null_type(t: str) -> str:
+    if t.startswith("int"):
+        return np.nan
+    elif t.startswith("float") or t.startswith("double"):
+        return np.nan
+    elif t.startswith("str"):
+        return ""
+    elif t.startswith("text") or t.startswith("string"):
+        return ""
+    elif t.startswith("binary"):
+        return b""
+    elif t.startswith("bool"):
+        return np.nan
+    else:
+        return None
 
 
 class ServerSideReader:
@@ -115,7 +133,9 @@ class ServerSideReader:
                 columns = reader.get_item_by_uid(sample_uid)
             except KeyError:
                 msg = f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({index.main_shard.sample_index} of {index.main_shard.location})'
-                columns = {k: None for k in feature_shard.columns.keys()}
+                columns = {
+                    k: _default_null_type(t) for k, t in feature_shard.columns.items()
+                }
             columns.pop(index.uid_column_name)
             sample.update(columns)
 

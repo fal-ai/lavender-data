@@ -4,6 +4,7 @@ from .sync import (
     sync_shardset_location,
     sync_shardset_location_task,
 )
+from .preprocess import preprocess_dataset_task
 
 __all__ = [
     "span",
@@ -11,4 +12,5 @@ __all__ = [
     "inspect_shardset_location",
     "sync_shardset_location",
     "sync_shardset_location_task",
+    "preprocess_dataset_task",
 ]
