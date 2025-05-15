@@ -33,7 +33,11 @@ export async function SyncShardsetButton({
   return (
     <div className="w-full flex flex-col gap-1">
       <form action={syncAction}>
-        <Button type="submit" className="w-full" disabled={!!syncStatus}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={!!syncStatus && syncStatus.status !== 'completed'}
+        >
           <RefreshCcw className="w-4 h-4" />
           Sync
         </Button>

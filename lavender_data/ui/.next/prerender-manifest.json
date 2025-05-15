@@ -1,6 +1,30 @@
 {
   "version": 4,
   "routes": {
+    "/background-tasks": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/background-tasks",
+      "dataRoute": "/background-tasks.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/": {
       "experimentalBypassFor": [
         {
@@ -48,37 +72,13 @@
         "x-next-revalidated-tags",
         "x-next-revalidate-tag-token"
       ]
-    },
-    "/background-tasks": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/background-tasks",
-      "dataRoute": "/background-tasks.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
     }
   },
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "5cf9fa1e49724fb5ce2f39d54b3ab95f",
-    "previewModeSigningKey": "d6c0af6aca76e98c24c660fe7fcbc2630a23bec6991f149ea798afa2e8d0f78f",
-    "previewModeEncryptionKey": "21f3e953c7d003d233ac8ce08e693a69c322dd65db28e4348651d6d936a0eca5"
+    "previewModeId": "529ae667162a385ca5ae141ff4120520",
+    "previewModeSigningKey": "754515babf09440e7b7b00041e9b489f311ac585cfc716cf4e8dc2e26487eb7d",
+    "previewModeEncryptionKey": "8f3ef6ab06893d5aa7bd58219910c0ae74dca9ef049c8f0627022d8bbfa49a63"
   }
 }

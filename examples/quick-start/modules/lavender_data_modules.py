@@ -1,6 +1,7 @@
 from lavender_data.server import (
     Preprocessor,
     Filter,
+    Categorizer,
     Collater,
 )
 
@@ -16,6 +17,11 @@ class PyListCollater(Collater, name="pylist"):
             "uid": [sample["uid"] for sample in samples],
             "text": [sample["text"] for sample in samples],
         }
+
+
+class EvenOddCategorizer(Categorizer, name="even_odd_categorizer"):
+    def categorize(self, sample: dict) -> str:
+        return "even" if sample["uid"] % 2 == 0 else "odd"
 
 
 class AppendNewColumn(Preprocessor, name="append_new_column"):

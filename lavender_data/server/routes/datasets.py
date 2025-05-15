@@ -518,7 +518,7 @@ def sync_shardset(
     task_uid = _sync_shardset_status_key(shardset.id)
 
     existing = background_worker.memory().get_task_status(task_uid)
-    if existing and existing.status != "done":
+    if existing and existing.status != "completed":
         raise HTTPException(
             status_code=400,
             detail="Shardset is already being synced. Please wait for the sync to complete.",

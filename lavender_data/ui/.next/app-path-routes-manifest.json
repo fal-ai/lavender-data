@@ -1,14 +1,14 @@
 {
-  "/api/background-tasks/route": "/api/background-tasks",
-  "/api/version/route": "/api/version",
-  "/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync/route": "/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync",
   "/_not-found/page": "/_not-found",
+  "/api/version/route": "/api/version",
+  "/api/background-tasks/route": "/api/background-tasks",
+  "/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync/route": "/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync",
+  "/datasets/[dataset_id]/page": "/datasets/[dataset_id]",
   "/background-tasks/page": "/background-tasks",
-  "/datasets/page": "/datasets",
-  "/datasets/[dataset_id]/shardsets/[shardset_id]/page": "/datasets/[dataset_id]/shardsets/[shardset_id]",
-  "/iterations/[iteration_id]/page": "/iterations/[iteration_id]",
   "/iterations/page": "/iterations",
+  "/iterations/[iteration_id]/page": "/iterations/[iteration_id]",
   "/page": "/",
   "/set-api-key/page": "/set-api-key",
-  "/datasets/[dataset_id]/page": "/datasets/[dataset_id]"
+  "/datasets/page": "/datasets",
+  "/datasets/[dataset_id]/shardsets/[shardset_id]/page": "/datasets/[dataset_id]/shardsets/[shardset_id]"
 }
