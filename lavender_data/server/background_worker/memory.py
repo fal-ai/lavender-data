@@ -72,7 +72,11 @@ class Memory:
         if self.exists(name):
             self._get_shared_memory(name).unlink()
 
-        memory = self._create_shared_memory(name, len(_value))
+        try:
+            memory = self._create_shared_memory(name, len(_value))
+        except FileExistsError:
+            memory = self._get_shared_memory(name)
+
         memory.buf[: len(_value)] = _value
 
         if ex is not None:
