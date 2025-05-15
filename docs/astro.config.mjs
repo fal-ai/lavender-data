@@ -55,6 +55,10 @@ export default defineConfig({
           slug: "quick-start",
         },
         {
+          label: "Core Concepts",
+          slug: "core-concepts",
+        },
+        {
           label: "Dataset Guides",
           items: [
             {
@@ -80,7 +84,7 @@ export default defineConfig({
           ],
         },
         {
-          label: "LavenderDataLoader",
+          label: "Data Loader Guide",
           items: [
             {
               label: "Introduction",
@@ -170,8 +174,12 @@ export default defineConfig({
           ],
         },
         {
-          label: "LavenderDataServer",
+          label: "Server Guide",
           items: [
+            {
+              label: "Introduction",
+              slug: "server/introduction",
+            },
             {
               label: "Configuration",
               slug: "server/configuration",
@@ -191,6 +199,10 @@ export default defineConfig({
             {
               label: "Cache",
               slug: "server/cache",
+            },
+            {
+              label: "Background Preprocess",
+              slug: "server/background-preprocess",
             },
           ],
         },

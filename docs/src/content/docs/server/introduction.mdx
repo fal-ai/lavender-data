@@ -1,0 +1,48 @@
+---
+title: Server - Introduction
+description: Learn about the lavender data server
+---
+
+import { Steps } from "@astrojs/starlight/components";
+
+Lavender data introduces a client-server architecture to offload data preprocessing from your training pipeline.
+
+<img src="/client-server.png" alt="Client-Server" className="w-[600px]" />
+
+The server is responsible for:
+
+<Steps>
+1. Manage datasets & shardsets metadata
+2. Manage iterations, determine which samples to load
+3. Preprocess and cache data
+4. Serve preprocessed data to trainer nodes
+</Steps>
+
+You can manage the server daemon with `lavender-data server start, stop, restart, logs` command.
+
+```bash
+lavender-data server start --init
+```
+
+```
+lavender-data is running on 0.0.0.0:8000
+UI is running on http://localhost:3000
+API key created: la-...
+```
+
+```bash
+# Stop the server
+lavender-data server stop
+```
+
+```bash
+# Restart the server
+lavender-data server restart
+```
+
+```bash
+# Show logs from the server
+lavender-data server logs
+```
+
+Alternatively, you can start the server in foreground with `lavender-data server run` command.

@@ -1,0 +1,59 @@
+---
+title: Server - Background Preprocess
+description: Learn about the background preprocessing
+---
+
+import { Tabs, TabItem, Steps } from "@astrojs/starlight/components";
+
+Start background preprocessing with `preprocess_dataset` API.
+Preprocessed results are saved as a new shardset.
+
+These are the parameters you need to specify:
+
+<Steps>
+1. **Dataset ID**
+2. **Source shardset IDs**: List of shardsets to preprocess
+3. **Preprocessors**: List of preprocessors to apply
+4. **Batch size**: Number of samples to process in each batch
+5. **Export columns**: List of columns to export
+6. **Destination shardset location**: Location to save the preprocessed shardset
+</Steps>
+
+<Tabs syncKey="ui-or-py">
+  <TabItem value="web-ui" label="Web UI">
+
+Click the "Preprocess" button in the dataset settings page.
+
+<img src="/web-ui/web-ui-dataset-settings.png" alt="Dataset settings" className="w-[600px]"/>
+
+<img src="/web-ui/web-ui-dataset-preprocess.png" alt="Preprocess dataset" className="w-[600px]"/>
+
+The preprocess job will be enqueued and executed in the background.
+
+  </TabItem>
+  <TabItem value="python" label="Python">
+
+```python
+import lavender_data.client as lavender
+
+lavender.api.preprocess_dataset(
+    # source dataset id
+    dataset_id="dataset-id",
+    # source shardset ids
+    source_shardset_ids=["shardset-id-1", "shardset-id-2"],
+    # preprocessors
+    preprocessors=[
+        lavender.api.IterationPreprocessor(
+            name="umt5-encode",
+            params={"model_name": "google/umt5-small"},
+        )
+    ],
+    batch_size=8,
+    export_columns=["text_embedding"],
+    # destination shardset location
+    shardset_location="file:///path/to/output/shardset",
+)
+```
+
+  </TabItem>
+</Tabs>

@@ -1,0 +1,66 @@
+---
+title: Core Concepts
+description: Learn about the core concepts of lavender data
+---
+
+import { Steps, LinkCard } from "@astrojs/starlight/components";
+
+
+### Dataset Server
+
+You might need to preprocess your data on the training nodes which takes a lot of time and resources.
+
+<img src="/client-server-before.png" alt="Client-Server before" className="w-[400px]" />
+
+Lavender data introduces a client-server architecture to offload data preprocessing from your training pipeline.
+
+<img src="/client-server.png" alt="Client-Server" className="w-[600px]" />
+
+The server is responsible for:
+
+<Steps>
+1. Manage datasets & shardsets metadata
+2. Manage iterations, determine which samples to load
+3. Preprocess and cache data
+4. Serve preprocessed data to trainer nodes
+</Steps>
+
+<LinkCard title="Learn more about Server" href="/server/introduction" />
+
+
+
+### Shardset
+
+Normally, a dataset is a single file containing all the data, or multiple files (a.k.a. shards) with the same schema.
+
+<img src="/shardset-before.png" alt="Shardset before" className="w-[600px]" />
+
+This might be problematic when you want to add a new feature, or you don't want to load a certain large column.
+
+<Steps>
+1. **I just want to add this tiny feature**
+   
+   What if you want to add a 10MB column but the parquet files are 100GB?
+
+2. **I don't need that column**
+   
+   What if you don't need to load `caption_embeddings` and it consumes 99% of the file size?
+</Steps>
+
+
+Lavender data introduces a `shardset` layer to solve this problem.
+A Shardset represents a collection of related columns (features) stored as Shards (files).
+
+<img src="/shardset-after.png" alt="Shardset after" className="w-[600px]" />
+
+<Steps>
+1. **I just want to add this tiny feature**
+   
+   Add a new shardset!
+
+2. **I don't need that column**
+   
+   Use only desired shardsets during the training!
+</Steps>
+
+<LinkCard title="Learn more about Shardset" href="/dataset/shardsets" />
