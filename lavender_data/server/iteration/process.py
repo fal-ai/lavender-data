@@ -149,13 +149,13 @@ def process_next_samples_task(
     cache_key: str,
     cache_ttl: int,
     *,
-    memory: SharedMemory,
+    shared_memory: SharedMemory,
 ):
     try:
         batch = process_next_samples(params, max_retry_count)
         content = serialize_sample(batch)
-        memory.set(cache_key, content, ex=cache_ttl)
+        shared_memory.set(cache_key, content, ex=cache_ttl)
     except ProcessNextSamplesException as e:
-        memory.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)
+        shared_memory.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)
     except Exception as e:
-        memory.set(cache_key, f"error:{e}", ex=cache_ttl)
+        shared_memory.set(cache_key, f"error:{e}", ex=cache_ttl)

@@ -24,7 +24,10 @@ from lavender_data.server.db.models import (
     IterationPreprocessor,
     IterationShardsetLink,
 )
-from lavender_data.server.background_worker import CurrentBackgroundWorker, SharedMemory
+from lavender_data.server.background_worker import (
+    CurrentBackgroundWorker,
+    CurrentSharedMemory,
+)
 from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.iteration import (
     IterationState,
@@ -304,20 +307,10 @@ def get_iteration(iteration_id: str, session: DbSession) -> GetIterationResponse
     return iteration
 
 
-def get_process_result(cache_key: str, memory: SharedMemory):
-    content = memory.get(cache_key)
-    if content.startswith(b"processing_error:"):
-        e = ProcessNextSamplesException.from_json(content[17:])
-        raise e.to_http_exception()
-    if content.startswith(b"error:"):
-        raise HTTPException(status_code=500, detail=content[6:].decode("utf-8"))
-    return content
-
-
 @router.get("/{iteration_id}/next")
 def get_next(
     iteration_id: str,
-    background_worker: CurrentBackgroundWorker,
+    shared_memory: CurrentSharedMemory,
     settings: AppSettings,
     state: CurrentIterationState,
     rank: int = 0,
@@ -336,23 +329,27 @@ def get_next(
     """
 
     cache_ttl = settings.lavender_data_batch_cache_ttl
-    memory = background_worker.memory()
 
     if no_cache:
-        memory.delete(cache_key)
+        shared_memory.delete(cache_key)
 
-    if memory.exists(cache_key):
-        memory.expire(cache_key, cache_ttl)
+    if shared_memory.exists(cache_key):
+        shared_memory.expire(cache_key, cache_ttl)
     else:
         process_next_samples_task(
             params=params,
             max_retry_count=max_retry_count,
             cache_key=cache_key,
             cache_ttl=cache_ttl,
-            memory=memory,
+            shared_memory=shared_memory,
         )
 
-    content = get_process_result(cache_key, memory)
+    content = shared_memory.get(cache_key)
+    if content.startswith(b"processing_error:"):
+        e = ProcessNextSamplesException.from_json(content[17:])
+        raise e.to_http_exception()
+    if content.startswith(b"error:"):
+        raise HTTPException(status_code=500, detail=content[6:].decode("utf-8"))
 
     return Response(content=content, media_type="application/octet-stream")
 
@@ -366,6 +363,7 @@ def submit_next(
     iteration_id: str,
     settings: AppSettings,
     background_worker: CurrentBackgroundWorker,
+    shared_memory: CurrentSharedMemory,
     state: CurrentIterationState,
     rank: int = 0,
     no_cache: bool = False,
@@ -377,22 +375,19 @@ def submit_next(
     cache_key, params = state.get_next_samples(rank)
     cache_ttl = settings.lavender_data_batch_cache_ttl
 
-    memory = background_worker.memory()
     if no_cache:
-        memory.delete(cache_key)
+        shared_memory.delete(cache_key)
 
-    if memory.exists(cache_key):
-        memory.expire(cache_key, cache_ttl)
+    if shared_memory.exists(cache_key):
+        shared_memory.expire(cache_key, cache_ttl)
     else:
-        task_id = cache_key
-        background_worker.submit(
+        background_worker.process_pool().submit(
             process_next_samples_task,
-            task_id=task_id,
             params=params,
             max_retry_count=max_retry_count,
             cache_key=cache_key,
             cache_ttl=cache_ttl,
-            memory=memory,
+            shared_memory=shared_memory,
         )
 
     return SubmitNextResponse(cache_key=cache_key)
@@ -402,16 +397,16 @@ def submit_next(
 def get_submitted_result(
     iteration_id: str,
     cache_key: str,
-    background_worker: CurrentBackgroundWorker,
+    shared_memory: CurrentSharedMemory,
 ) -> bytes:
-    task_id = cache_key
-    status = background_worker.get_task_status(task_id)
-    if status is None:
-        raise HTTPException(status_code=404, detail="Cache key not found")
-    elif status.status != "completed":
+    content = shared_memory.get(cache_key)
+    if content is None:
         raise HTTPException(status_code=202, detail="Data is still being processed")
-
-    content = get_process_result(cache_key, background_worker.memory())
+    if content.startswith(b"processing_error:"):
+        e = ProcessNextSamplesException.from_json(content[17:])
+        raise e.to_http_exception()
+    if content.startswith(b"error:"):
+        raise HTTPException(status_code=500, detail=content[6:].decode("utf-8"))
     return Response(content=content, media_type="application/octet-stream")
 
 

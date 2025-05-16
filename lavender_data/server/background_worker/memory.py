@@ -100,3 +100,26 @@ class SharedMemory:
         self._logger.debug(f"Clearing memory: {keys} keys")
         for name in keys:
             self.delete(name)
+
+
+# singleton
+_shared_memory: SharedMemory = None
+
+
+def setup_shared_memory():
+    global _shared_memory
+    _shared_memory = SharedMemory()
+
+
+def get_shared_memory():
+    global _shared_memory
+    if _shared_memory is None:
+        raise RuntimeError("Shared memory not initialized")
+    return _shared_memory
+
+
+def shutdown_shared_memory():
+    global _shared_memory
+    if _shared_memory is not None:
+        _shared_memory.clear()
+        _shared_memory = None

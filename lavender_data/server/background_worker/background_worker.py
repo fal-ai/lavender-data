@@ -11,7 +11,6 @@ from typing import Callable, Optional, NamedTuple
 from pydantic import BaseModel
 
 from lavender_data.server.cache import get_cache
-from lavender_data.server.background_worker.memory import SharedMemory
 from lavender_data.server.background_worker.process_pool import ProcessPool
 from lavender_data.logging import get_logger
 
@@ -113,7 +112,6 @@ class TaskItem(NamedTuple):
 class BackgroundWorker:
     def __init__(self, num_workers: int):
         self._logger = get_logger(__name__)
-        self._memory = SharedMemory()
         self._num_workers = num_workers if num_workers > 0 else (os.cpu_count() or 1)
 
         self._process_pool = ProcessPool(self._num_workers)
@@ -126,9 +124,6 @@ class BackgroundWorker:
         self._executor = ThreadPoolExecutor(self._num_workers)
 
         self._start_cleanup_thread()
-
-    def memory(self) -> SharedMemory:
-        return self._memory
 
     def process_pool(self) -> ProcessPool:
         return self._process_pool
@@ -214,7 +209,6 @@ class BackgroundWorker:
         self.abort_all()
         self._executor.shutdown(wait=False)
         self.process_pool().shutdown()
-        self.memory().clear()
         self._logger.debug("Shutdown complete")
 
 
