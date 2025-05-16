@@ -131,13 +131,14 @@ class TestPreprocessDataset(unittest.TestCase):
             export_columns=["concat"],
             batch_size=1,
         )
-        task_uid = response.task_uid
+        task_id = response.task_id
 
         timeout = 10
         start = time.time()
         while True:
             tasks = get_tasks()
-            if task_uid not in [t.uid for t in tasks]:
+            task = next(t for t in tasks if t.uid == task_id)
+            if task.status.status == "completed":
                 break
             time.sleep(1)
             if time.time() - start > timeout:

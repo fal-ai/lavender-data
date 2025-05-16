@@ -2,33 +2,41 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from .worker import BackgroundWorker, TaskMetadata, TaskStatus
-from .memory import Memory
+from .background_worker import (
+    TaskStatus,
+    TaskMetadata,
+    BackgroundWorker,
+    get_background_worker,
+    setup_background_worker,
+)
+from .memory import SharedMemory
+from .process_pool import ProcessPool
 
-
-background_worker: BackgroundWorker = None
-
-
-def setup_background_worker(num_workers: int):
-    global background_worker
-    background_worker = BackgroundWorker(num_workers)
-
-
-def get_background_worker():
-    global background_worker
-    if background_worker is None:
-        raise RuntimeError("Background worker not initialized")
-
-    return background_worker
-
-
-def get_background_worker_memory():
-    return get_background_worker().memory()
+__all__ = [
+    "TaskStatus",
+    "TaskMetadata",
+    "BackgroundWorker",
+    "get_background_worker",
+    "setup_background_worker",
+    "shutdown_background_worker",
+    "CurrentBackgroundWorker",
+    "SharedMemory",
+    "get_shared_memory",
+    "ProcessPool",
+    "get_process_pool",
+]
 
 
 def shutdown_background_worker():
     get_background_worker().shutdown()
 
 
+def get_shared_memory():
+    return get_background_worker().memory()
+
+
+def get_process_pool():
+    return get_background_worker().process_pool()
+
+
 CurrentBackgroundWorker = Annotated[BackgroundWorker, Depends(get_background_worker)]
-CurrentBackgroundWorkerMemory = Annotated[Memory, Depends(get_background_worker_memory)]

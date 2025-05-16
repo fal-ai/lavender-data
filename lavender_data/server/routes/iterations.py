@@ -24,10 +24,7 @@ from lavender_data.server.db.models import (
     IterationPreprocessor,
     IterationShardsetLink,
 )
-from lavender_data.server.background_worker import (
-    CurrentBackgroundWorker,
-    CurrentBackgroundWorkerMemory,
-)
+from lavender_data.server.background_worker import CurrentBackgroundWorker, SharedMemory
 from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.iteration import (
     IterationState,
@@ -307,7 +304,7 @@ def get_iteration(iteration_id: str, session: DbSession) -> GetIterationResponse
     return iteration
 
 
-def get_process_result(cache_key: str, memory: CurrentBackgroundWorkerMemory):
+def get_process_result(cache_key: str, memory: SharedMemory):
     content = memory.get(cache_key)
     if content.startswith(b"processing_error:"):
         e = ProcessNextSamplesException.from_json(content[17:])
@@ -321,7 +318,6 @@ def get_process_result(cache_key: str, memory: CurrentBackgroundWorkerMemory):
 def get_next(
     iteration_id: str,
     background_worker: CurrentBackgroundWorker,
-    memory: CurrentBackgroundWorkerMemory,
     settings: AppSettings,
     state: CurrentIterationState,
     rank: int = 0,
@@ -340,6 +336,7 @@ def get_next(
     """
 
     cache_ttl = settings.lavender_data_batch_cache_ttl
+    memory = background_worker.memory()
 
     if no_cache:
         memory.delete(cache_key)
@@ -348,6 +345,7 @@ def get_next(
         memory.expire(cache_key, cache_ttl)
     else:
         task_uid = cache_key
+        # TODO no background worker
         background_worker.submit(
             process_next_samples_task,
             params=params,
@@ -372,7 +370,6 @@ def submit_next(
     iteration_id: str,
     settings: AppSettings,
     background_worker: CurrentBackgroundWorker,
-    memory: CurrentBackgroundWorkerMemory,
     state: CurrentIterationState,
     rank: int = 0,
     no_cache: bool = False,
@@ -384,6 +381,7 @@ def submit_next(
     cache_key, params = state.get_next_samples(rank)
     cache_ttl = settings.lavender_data_batch_cache_ttl
 
+    memory = background_worker.memory()
     if no_cache:
         memory.delete(cache_key)
 
@@ -407,16 +405,16 @@ def submit_next(
 def get_submitted_result(
     iteration_id: str,
     cache_key: str,
-    memory: CurrentBackgroundWorkerMemory,
+    background_worker: CurrentBackgroundWorker,
 ) -> bytes:
     task_uid = cache_key
-    status = memory.get_task_status(task_uid)
+    status = background_worker.get_task_status(task_uid)
     if status is None:
         raise HTTPException(status_code=404, detail="Cache key not found")
     elif status.status != "completed":
         raise HTTPException(status_code=202, detail="Data is still being processed")
 
-    content = get_process_result(cache_key, memory)
+    content = get_process_result(cache_key, background_worker.memory())
     return Response(content=content, media_type="application/octet-stream")
 
 
