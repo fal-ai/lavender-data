@@ -150,7 +150,6 @@ def process_next_samples_task(
     cache_ttl: int,
     *,
     memory: SharedMemory,
-    task_id: str,
 ):
     try:
         batch = process_next_samples(params, max_retry_count)

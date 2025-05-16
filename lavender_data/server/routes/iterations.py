@@ -344,17 +344,13 @@ def get_next(
     if memory.exists(cache_key):
         memory.expire(cache_key, cache_ttl)
     else:
-        task_uid = cache_key
-        # TODO no background worker
-        background_worker.submit(
-            process_next_samples_task,
+        process_next_samples_task(
             params=params,
             max_retry_count=max_retry_count,
             cache_key=cache_key,
             cache_ttl=cache_ttl,
-            task_uid=task_uid,
+            memory=memory,
         )
-        background_worker.wait(task_uid)
 
     content = get_process_result(cache_key, memory)
 
@@ -388,14 +384,15 @@ def submit_next(
     if memory.exists(cache_key):
         memory.expire(cache_key, cache_ttl)
     else:
-        task_uid = cache_key
+        task_id = cache_key
         background_worker.submit(
             process_next_samples_task,
+            task_id=task_id,
             params=params,
             max_retry_count=max_retry_count,
             cache_key=cache_key,
             cache_ttl=cache_ttl,
-            task_uid=task_uid,
+            memory=memory,
         )
 
     return SubmitNextResponse(cache_key=cache_key)
@@ -407,8 +404,8 @@ def get_submitted_result(
     cache_key: str,
     background_worker: CurrentBackgroundWorker,
 ) -> bytes:
-    task_uid = cache_key
-    status = background_worker.get_task_status(task_uid)
+    task_id = cache_key
+    status = background_worker.get_task_status(task_id)
     if status is None:
         raise HTTPException(status_code=404, detail="Cache key not found")
     elif status.status != "completed":
