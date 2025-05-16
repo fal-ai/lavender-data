@@ -143,7 +143,7 @@ class Reader(ABC):
             else:
                 uid = i
             self.uids.append(uid)
-            self.cache[uid] = sample
+            self.cache[str(uid)] = sample
         self.loaded = True
 
     def get_item_by_index(self, idx: int) -> dict[str, Any]:
@@ -154,7 +154,7 @@ class Reader(ABC):
     def get_item_by_uid(self, uid: str) -> dict[str, Any]:
         if not self.loaded:
             self._load()
-        return self.cache[uid]
+        return self.cache[str(uid)]
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
         for i in range(len(self)):

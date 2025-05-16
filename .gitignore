@@ -197,3 +197,5 @@ dist
 
 !lavender_data/ui/.next
 lavender_data/ui/package-lock.json
+
+!docs/public/example-dataset/images/*.csv

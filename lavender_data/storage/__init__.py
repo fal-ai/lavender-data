@@ -7,12 +7,15 @@ from lavender_data.storage.abc import Storage
 from lavender_data.storage.s3 import S3Storage
 from lavender_data.storage.hf import HuggingfaceStorage
 from lavender_data.storage.file import LocalFileStorage
+from lavender_data.storage.http import HttpStorage, HttpsStorage
 
 __all__ = [
     "Storage",
     "S3Storage",
     "HuggingfaceStorage",
     "LocalFileStorage",
+    "HttpStorage",
+    "HttpsStorage",
     "download_file",
     "upload_file",
     "list_files",
