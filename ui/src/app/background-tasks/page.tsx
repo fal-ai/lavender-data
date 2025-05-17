@@ -24,6 +24,18 @@ import { components } from '@/lib/api/v1';
 import { utcToLocal } from '@/lib/date';
 import { Button } from '@/components/ui/button';
 import { RefreshCcw } from 'lucide-react';
+import { abortTask } from './abort-task-action';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogTitle,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 
 type TaskMetadata = components['schemas']['TaskMetadata'];
 
@@ -41,6 +53,13 @@ export default function BackgroundTasksPage() {
   useEffect(() => {
     refreshBackgroundTasks();
   }, []);
+
+  const abortTaskAction = async (taskId: string) => {
+    const response = await abortTask(taskId);
+    if (response.success) {
+      refreshBackgroundTasks();
+    }
+  };
 
   return (
     <main className="container flex w-full flex-1 flex-col items-center justify-center gap-8">
@@ -77,6 +96,7 @@ export default function BackgroundTasksPage() {
                     <TableHead className="min-w-[200px]">Name</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -111,6 +131,31 @@ export default function BackgroundTasksPage() {
                         ) : (
                           'Unknown'
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive">Abort</Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() =>
+                                  abortTaskAction(backgroundTask.uid)
+                                }
+                              >
+                                Continue
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   ))}

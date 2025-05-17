@@ -11,20 +11,20 @@ T = TypeVar("T", bound="PreprocessDatasetResponse")
 class PreprocessDatasetResponse:
     """
     Attributes:
-        task_uid (str):
+        task_id (str):
     """
 
-    task_uid: str
+    task_id: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        task_uid = self.task_uid
+        task_id = self.task_id
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "task_uid": task_uid,
+                "task_id": task_id,
             }
         )
 
@@ -33,10 +33,10 @@ class PreprocessDatasetResponse:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        task_uid = d.pop("task_uid")
+        task_id = d.pop("task_id")
 
         preprocess_dataset_response = cls(
-            task_uid=task_uid,
+            task_id=task_id,
         )
 
         preprocess_dataset_response.additional_properties = d

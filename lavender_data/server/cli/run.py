@@ -34,4 +34,7 @@ def run(env_file: str = ".env", init: bool = False):
     get_logger("uvicorn", clear_handlers=True)
     get_logger("uvicorn.access", clear_handlers=True)
 
-    server.run()
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        pass

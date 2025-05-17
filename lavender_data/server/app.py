@@ -12,7 +12,12 @@ from .db import setup_db
 from .cache import setup_cache
 from .distributed import setup_cluster, cleanup_cluster, get_cluster
 from .reader import setup_reader
-from .background_worker import setup_background_worker, shutdown_background_worker
+from .background_worker import (
+    setup_background_worker,
+    shutdown_background_worker,
+    setup_shared_memory,
+    shutdown_shared_memory,
+)
 from .routes import (
     datasets_router,
     iterations_router,
@@ -51,6 +56,8 @@ async def lifespan(app: FastAPI):
     if cluster is not None:
         cluster.start()
 
+    setup_shared_memory()
+
     setup_background_worker(settings.lavender_data_num_workers)
 
     if settings.lavender_data_disable_ui:
@@ -84,6 +91,11 @@ async def lifespan(app: FastAPI):
 
     try:
         shutdown_background_worker()
+    except Exception as e:
+        pass
+
+    try:
+        shutdown_shared_memory()
     except Exception as e:
         pass
 

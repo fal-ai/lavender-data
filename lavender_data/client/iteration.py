@@ -138,11 +138,9 @@ class LavenderDataLoader:
 
         self._api_url = api_url
         self._api_key = api_key
+        self._api = _api(self._api_url, self._api_key)
 
         self.id = self._iteration_id
-
-    def _api(self):
-        return _api(self._api_url, self._api_key)
 
     def torch(
         self,
@@ -194,10 +192,10 @@ class LavenderDataLoader:
         )
 
     def complete(self, index: int):
-        self._api().complete_index(self._iteration_id, index)
+        self._api.complete_index(self._iteration_id, index)
 
     def pushback(self):
-        self._api().pushback(self._iteration_id)
+        self._api.pushback(self._iteration_id)
 
     def __len__(self):
         return self._total
@@ -217,7 +215,7 @@ class LavenderDataLoader:
 
     def _get_next_item(self):
         try:
-            sample_or_batch = self._api().get_next_item(
+            sample_or_batch = self._api.get_next_item(
                 iteration_id=self._iteration_id,
                 rank=self._rank,
                 no_cache=self._no_cache,
@@ -232,21 +230,17 @@ class LavenderDataLoader:
         return sample_or_batch
 
     def _submit_next_item(self) -> str:
-        cache_key = (
-            self._api()
-            .submit_next_item(
-                iteration_id=self._iteration_id,
-                rank=self._rank,
-                no_cache=self._no_cache,
-                max_retry_count=self._max_retry_count,
-            )
-            .cache_key
-        )
+        cache_key = self._api.submit_next_item(
+            iteration_id=self._iteration_id,
+            rank=self._rank,
+            no_cache=self._no_cache,
+            max_retry_count=self._max_retry_count,
+        ).cache_key
         return cache_key
 
     def _get_submitted_result(self, cache_key: str):
         try:
-            return self._api().get_submitted_result(
+            return self._api.get_submitted_result(
                 iteration_id=self._iteration_id,
                 cache_key=cache_key,
             )

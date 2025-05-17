@@ -1,20 +1,12 @@
-from multiprocessing import shared_memory
+from multiprocessing import shared_memory as mp_shared_memory
 from typing import Union, Optional
 import time
 import threading
 import hashlib
-import json
-from pydantic import BaseModel
 from lavender_data.logging import get_logger
 
 
-class TaskStatus(BaseModel):
-    status: str
-    current: int
-    total: int
-
-
-class Memory:
+class SharedMemory:
     def __init__(self):
         self._expiry: dict[str, float] = {}
         self._logger = get_logger(__name__)
@@ -47,11 +39,14 @@ class Memory:
     def _refine_name(self, name: str) -> str:
         return hashlib.sha256(name.encode("utf-8")).hexdigest()[:16]
 
-    def _get_shared_memory(self, name: str) -> shared_memory.SharedMemory:
-        return shared_memory.SharedMemory(name=self._refine_name(name))
+    def _get_shared_memory(self, name: str) -> mp_shared_memory.SharedMemory:
+        return mp_shared_memory.SharedMemory(name=self._refine_name(name))
 
-    def _create_shared_memory(self, name: str, size: int) -> shared_memory.SharedMemory:
-        return shared_memory.SharedMemory(
+    def _create_shared_memory(
+        self, name: str, size: int
+    ) -> mp_shared_memory.SharedMemory:
+        self._logger.debug(f"Creating shared memory: {name} {size} bytes")
+        return mp_shared_memory.SharedMemory(
             name=self._refine_name(name), create=True, size=size
         )
 
@@ -68,9 +63,6 @@ class Memory:
     def set(self, name: str, value: Union[bytes, str], ex: Optional[int] = None):
         _value = self._ensure_bytes(value)
         _value = len(_value).to_bytes(length=8, byteorder="big", signed=False) + _value
-
-        if self.exists(name):
-            self._get_shared_memory(name).unlink()
 
         try:
             memory = self._create_shared_memory(name, len(_value))
@@ -98,47 +90,36 @@ class Memory:
             self._get_shared_memory(name).unlink()
         except FileNotFoundError:
             pass
+        try:
+            self._expiry.pop(name)
+        except KeyError:
+            pass
 
     def clear(self):
-        self._logger.debug(f"Clearing memory: {len(self._expiry)} keys")
-        for name in self._expiry.keys():
+        keys = list(self._expiry.keys())
+        self._logger.debug(f"Clearing memory: {keys} keys")
+        for name in keys:
             self.delete(name)
 
-    def get_task_status(self, task_uid: str) -> Optional[TaskStatus]:
-        status = self.get(f"task-{task_uid}")
-        if status is None:
-            return None
 
-        try:
-            status = json.loads(status)
-        except Exception:
-            return None
+# singleton
+_shared_memory: SharedMemory = None
 
-        return TaskStatus.model_validate(status)
 
-    def set_task_status(
-        self,
-        task_uid: str,
-        status: Optional[str] = None,
-        current: Optional[int] = None,
-        total: Optional[int] = None,
-        ex: Optional[int] = None,
-    ):
-        _status = self.get_task_status(task_uid)
-        if _status is None:
-            _status = TaskStatus(status="", current=0, total=0)
+def setup_shared_memory():
+    global _shared_memory
+    _shared_memory = SharedMemory()
 
-        self.set(
-            f"task-{task_uid}",
-            json.dumps(
-                {
-                    "status": status if status is not None else _status.status,
-                    "current": current if current is not None else _status.current,
-                    "total": total if total is not None else _status.total,
-                }
-            ),
-            ex=ex,
-        )
 
-    def delete_task_status(self, task_uid: str):
-        self.delete(f"task-{task_uid}")
+def get_shared_memory():
+    global _shared_memory
+    if _shared_memory is None:
+        raise RuntimeError("Shared memory not initialized")
+    return _shared_memory
+
+
+def shutdown_shared_memory():
+    global _shared_memory
+    if _shared_memory is not None:
+        _shared_memory.clear()
+        _shared_memory = None
