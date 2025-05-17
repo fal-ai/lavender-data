@@ -131,6 +131,7 @@ export function PreprocessDatasetDialog({
   const [exportColumns, setExportColumns] = useState<string[]>([]);
   const [batchSize, setBatchSize] = useState(1);
   const [overwrite, setOverwrite] = useState(false);
+  const [dropLast, setDropLast] = useState(false);
   const [open, setOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -165,7 +166,8 @@ export function PreprocessDatasetDialog({
       preprocessorsJson,
       exportColumns,
       batchSize,
-      overwrite
+      overwrite,
+      dropLast
     );
 
     if (result.success) {
@@ -332,6 +334,19 @@ export function PreprocessDatasetDialog({
                 checked={overwrite}
                 onCheckedChange={(checked) =>
                   setOverwrite(checked === 'indeterminate' ? false : checked)
+                }
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="location" className="text-right">
+                Drop Last
+              </Label>
+              <Checkbox
+                id="drop_last"
+                name="drop_last"
+                checked={dropLast}
+                onCheckedChange={(checked) =>
+                  setDropLast(checked === 'indeterminate' ? false : checked)
                 }
               />
             </div>

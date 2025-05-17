@@ -604,6 +604,7 @@ class PreprocessDatasetParams(BaseModel):
     export_columns: list[str]
     batch_size: int
     overwrite: bool = False
+    drop_last: bool = False
 
 
 class PreprocessDatasetResponse(BaseModel):
@@ -649,5 +650,6 @@ def preprocess_dataset(
         export_columns=params.export_columns,
         batch_size=params.batch_size,
         overwrite=params.overwrite,
+        drop_last=params.drop_last,
     )
     return PreprocessDatasetResponse(task_id=task_id)

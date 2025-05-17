@@ -67,6 +67,7 @@ def preprocess_shardset(
     batch_size: int,
     max_retry_count: int = 0,
     overwrite: bool = False,
+    drop_last: bool = False,
 ) -> Generator[TaskStatus, None, None]:
     logger = get_logger(__name__)
     session = next(get_session())
@@ -171,7 +172,8 @@ def preprocess_shardset(
                 )
                 current += 1
 
-                if len(indices) < batch_size:
+                is_last_batch = sample_index == main_shard.samples - 1
+                if len(indices) < batch_size and (not is_last_batch or drop_last):
                     continue
 
                 params = ProcessNextSamplesParams(

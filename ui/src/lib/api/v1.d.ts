@@ -887,6 +887,11 @@ export interface components {
              * @default false
              */
             overwrite: boolean;
+            /**
+             * Drop Last
+             * @default false
+             */
+            drop_last: boolean;
         };
         /** PreprocessDatasetResponse */
         PreprocessDatasetResponse: {

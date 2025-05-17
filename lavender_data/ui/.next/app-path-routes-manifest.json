@@ -1,14 +1,14 @@
 {
+  "/_not-found/page": "/_not-found",
   "/api/background-tasks/route": "/api/background-tasks",
   "/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync/route": "/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync",
   "/api/version/route": "/api/version",
-  "/_not-found/page": "/_not-found",
   "/datasets/[dataset_id]/page": "/datasets/[dataset_id]",
   "/datasets/page": "/datasets",
   "/iterations/[iteration_id]/page": "/iterations/[iteration_id]",
   "/background-tasks/page": "/background-tasks",
   "/datasets/[dataset_id]/shardsets/[shardset_id]/page": "/datasets/[dataset_id]/shardsets/[shardset_id]",
+  "/iterations/page": "/iterations",
   "/page": "/",
-  "/set-api-key/page": "/set-api-key",
-  "/iterations/page": "/iterations"
+  "/set-api-key/page": "/set-api-key"
 }

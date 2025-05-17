@@ -48,6 +48,7 @@ class ResultItem(BaseModel):
 def _worker_process(settings: Settings, kill_switch, call_queue, result_queue):
     _initializer(settings, kill_switch)
 
+    # TODO separate logger for each worker
     logger = get_logger(__name__)
 
     work_item = None
