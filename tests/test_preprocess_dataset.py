@@ -30,6 +30,11 @@ class ConcatPreprocessor(Preprocessor, name="concat"):
         return batch
 
 
+class ErrorPreprocessor(Preprocessor, name="error"):
+    def process(self, batch: dict) -> dict:
+        raise Exception("Error")
+
+
 class TestPreprocessDataset(unittest.TestCase):
     def setUp(self):
         self.port = get_free_port()
@@ -167,3 +172,26 @@ class TestPreprocessDataset(unittest.TestCase):
             samples_2["concat"],
             ["Caption for image 3!!!", "Caption for image 4!!!", "!!!"],
         )
+
+    def test_preprocess_dataset_with_error(self):
+        output_dir = f"{self.test_dir}/output-with-error"
+        os.makedirs(output_dir, exist_ok=True)
+
+        response = preprocess_dataset(
+            dataset_id=self.dataset_id,
+            shardset_location=f"file://{output_dir}",
+            source_shardset_ids=[self.image_url_shardset_id, self.caption_shardset_id],
+            preprocessors=[
+                IterationPreprocessor.from_dict(
+                    {"name": "concat", "params": {"concat": "!!!"}}
+                ),
+                IterationPreprocessor.from_dict({"name": "error", "params": {}}),
+            ],
+            export_columns=["concat"],
+            batch_size=1,
+        )
+        task_id = response.task_id
+
+        time.sleep(3)
+
+        # TODO

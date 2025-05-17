@@ -38,20 +38,27 @@ class ProcessNextSamplesParams(BaseModel):
 
 class ProcessNextSamplesException(Exception):
     msg: str
+    tb: str
     current: int
     global_sample_indices: list[GlobalSampleIndex]
 
     def __init__(
-        self, msg: str, current: int, global_sample_indices: list[GlobalSampleIndex]
+        self, e: Exception, current: int, global_sample_indices: list[GlobalSampleIndex]
     ):
-        self.msg = msg
+        self.msg = f"Error processing samples (current: {current}, global_sample_indices: {global_sample_indices})"
+        self.tb = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+        self.__traceback__ = e.__traceback__
         self.current = current
         self.global_sample_indices = global_sample_indices
+
+    def __str__(self):
+        return self.msg
 
     def json(self) -> dict:
         return json.dumps(
             {
                 "msg": self.msg,
+                "tb": self.tb,
                 "current": self.current,
                 "global_sample_indices": [
                     i.model_dump() for i in self.global_sample_indices
@@ -62,16 +69,19 @@ class ProcessNextSamplesException(Exception):
     @classmethod
     def from_json(cls, s: bytes) -> "ProcessNextSamplesException":
         json_content = json.loads(s)
-        return cls(
-            json_content["msg"],
+        e = cls(
+            Exception(),
             json_content["current"],
             [GlobalSampleIndex(**i) for i in json_content["global_sample_indices"]],
         )
+        e.msg = json_content["msg"]
+        e.tb = json_content["tb"]
+        return e
 
     def to_http_exception(self) -> HTTPException:
         return HTTPException(
             status_code=500,
-            detail=self.msg,
+            detail=self.msg + "\n" + self.tb,
             headers={
                 "X-Lavender-Data-Error": "SAMPLE_PROCESSING_ERROR",
                 "X-Lavender-Data-Sample-Current": str(self.current),
@@ -130,17 +140,16 @@ def process_next_samples(
         try:
             return _process_next_samples(params)
         except Exception as e:
-            tb = traceback.format_exc()
-            msg = f"Error processing samples (current: {params.current}, global_sample_indices: {params.global_sample_indices}): {str(e)}\n{tb}"
+            error = ProcessNextSamplesException(
+                e=e,
+                current=params.current,
+                global_sample_indices=params.global_sample_indices,
+            )
             if i < max_retry_count:
-                logger.warning(f"{msg}, retrying... ({i+1}/{max_retry_count})")
+                logger.warning(f"{str(error)}, retrying... ({i+1}/{max_retry_count})")
             else:
-                logger.error(msg)
-                raise ProcessNextSamplesException(
-                    msg=msg,
-                    current=params.current,
-                    global_sample_indices=params.global_sample_indices,
-                )
+                logger.error(str(error))
+                raise error
 
 
 def process_next_samples_task(

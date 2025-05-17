@@ -124,6 +124,9 @@ def preprocess_shardset(
 
                 processed_samples.extend(_decollate_batch(batch))
 
+            def on_error(e_msg: str, e_tb: str):
+                logger.error(e_msg + "\n" + e_tb)
+
             work_ids: list[str] = []
             for sample_index in range(main_shard.samples):
                 indices = []
@@ -165,9 +168,7 @@ def preprocess_shardset(
                     process_pool.submit(
                         process_next_samples,
                         on_complete=on_complete,
-                        on_error=lambda e: logger.exception(
-                            f"Error processing sample {sample_index} of shard {main_shard.index} of main shardset {main_shardset.id}: {e}"
-                        ),
+                        on_error=on_error,
                         params=params,
                         max_retry_count=max_retry_count,
                     )
@@ -180,6 +181,13 @@ def preprocess_shardset(
             location = os.path.join(
                 shardset_location, f"shard.{main_shard.index:05d}.parquet"
             )
+
+            if len(processed_samples) == 0:
+                logger.warning(
+                    f"No samples generated for shard {main_shard.index} of main shardset {main_shardset.id}"
+                )
+                continue
+
             logger.info(
                 f"Exporting generated shard {main_shard.index} to {location} ({len(processed_samples)} samples)"
             )

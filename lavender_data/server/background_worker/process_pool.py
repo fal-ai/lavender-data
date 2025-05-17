@@ -4,8 +4,8 @@ import os
 import signal
 import threading
 import multiprocessing as mp
-from traceback import format_exception
 from typing import Callable, Optional, Any
+import traceback
 
 from pydantic import BaseModel
 
@@ -32,32 +32,6 @@ def _initializer(settings: Settings, kill_switch):
     threading.Thread(target=_abort_on_kill_switch, daemon=True).start()
 
 
-class _RemoteTraceback(Exception):
-    def __init__(self, tb):
-        self.tb = tb
-
-    def __str__(self):
-        return self.tb
-
-
-class _ExceptionWithTraceback:
-    def __init__(self, exc):
-        tb = "".join(format_exception(type(exc), exc, exc.__traceback__))
-        self.exc = exc
-        # Traceback object needs to be garbage-collected as its frames
-        # contain references to all the objects in the exception scope
-        self.exc.__traceback__ = None
-        self.tb = '\n"""\n%s"""' % tb
-
-    def __reduce__(self):
-        return _rebuild_exc, (self.exc, self.tb)
-
-
-def _rebuild_exc(exc, tb):
-    exc.__cause__ = _RemoteTraceback(tb)
-    return exc
-
-
 class WorkItem(BaseModel):
     work_id: str
     func: Callable
@@ -67,7 +41,8 @@ class WorkItem(BaseModel):
 class ResultItem(BaseModel):
     work_id: str
     result: Optional[Any] = None
-    exception: Optional[Any] = None
+    exception_msg: Optional[str] = None
+    exception_traceback: Optional[str] = None
 
 
 def _worker_process(settings: Settings, kill_switch, call_queue, result_queue):
@@ -82,14 +57,18 @@ def _worker_process(settings: Settings, kill_switch, call_queue, result_queue):
 
             try:
                 result = work_item.func(**work_item.kwargs)
-                result_queue.put(ResultItem(work_id=work_item.work_id, result=result))
+                result_item = ResultItem(work_id=work_item.work_id, result=result)
             except Exception as e:
-                result_queue.put(
-                    ResultItem(
-                        work_id=work_item.work_id,
-                        exception=_ExceptionWithTraceback(e),
-                    )
+                result_item = ResultItem(
+                    work_id=work_item.work_id,
+                    exception_msg=str(e),
+                    exception_traceback="".join(
+                        traceback.format_exception(type(e), e, e.__traceback__)
+                    ),
                 )
+
+            result_queue.put(result_item)
+
     except KeyboardInterrupt:
         pass
 
@@ -97,7 +76,7 @@ def _worker_process(settings: Settings, kill_switch, call_queue, result_queue):
         result_queue.put(
             ResultItem(
                 work_id=work_item.work_id,
-                exception=_ExceptionWithTraceback(Exception("Aborted")),
+                exception="Aborted",
             )
         )
         logger.warning(f"work {work_item.work_id} aborted")
@@ -109,8 +88,8 @@ class ProcessPool:
 
         self._mp_ctx = mp.get_context("spawn")
         self._kill_switch = self._mp_ctx.Event()
-        self._call_queue = self._mp_ctx.Queue()
-        self._result_queue = self._mp_ctx.Queue()
+        self._call_queue = self._mp_ctx.SimpleQueue()
+        self._result_queue = self._mp_ctx.SimpleQueue()
 
         self._num_workers = num_workers
         self._logger.debug(
@@ -193,7 +172,7 @@ class ProcessPool:
         self,
         func,
         on_complete: Optional[Callable[[Any], None]] = None,
-        on_error: Optional[Callable[[Exception], None]] = None,
+        on_error: Optional[Callable[[str, str], None]] = None,
         **kwargs,
     ):
         work_id = str(uuid.uuid4())
@@ -201,11 +180,12 @@ class ProcessPool:
 
         def callback(result_item: ResultItem):
             r = result_item.result
-            e = result_item.exception
+            e_msg = result_item.exception_msg
+            e_tb = result_item.exception_traceback
             if on_complete is not None and r is not None:
                 on_complete(r)
-            if on_error is not None and e is not None:
-                on_error(e)
+            if on_error is not None and e_msg is not None and e_tb is not None:
+                on_error(e_msg, e_tb)
 
         with self._tasks_callbacks_lock:
             self._tasks_callbacks[work_item.work_id] = callback
