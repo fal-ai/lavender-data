@@ -148,10 +148,9 @@ def preprocess_shardset(
             def on_error(e_msg: str, e_tb: str):
                 logger.error(e_msg + "\n" + e_tb)
 
+            indices: list[GlobalSampleIndex] = []
             work_ids: list[str] = []
             for sample_index in range(main_shard.samples):
-                indices = []
-
                 indices.append(
                     GlobalSampleIndex(
                         index=current,
