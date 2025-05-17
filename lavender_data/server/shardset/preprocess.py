@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from sqlmodel import select
 
 from lavender_data.logging import get_logger
-from lavender_data.storage import upload_file
+from lavender_data.storage import list_files, upload_file
 from lavender_data.server.reader import GlobalSampleIndex, MainShardInfo, ShardInfo
 from lavender_data.server.iteration import (
     process_next_samples,
@@ -91,7 +91,28 @@ def preprocess_shardset(
     futures = []
     export_executor = ThreadPoolExecutor()
 
+    existing_shard_basenames = []
+    if not overwrite:
+        try:
+            existing_shard_basenames = [
+                basename
+                for basename in sorted(list_files(shardset_location))
+                if basename.endswith(".parquet") or basename.endswith(".csv")
+            ]
+        except Exception as e:
+            pass
+
     for main_shard in main_shardset.shards:
+        shard_basename = f"shard.{main_shard.index:05d}.parquet"
+        location = os.path.join(shardset_location, shard_basename)
+
+        if shard_basename in existing_shard_basenames:
+            logger.info(
+                f"{main_shard.index}th shard already exists at {location}, skipping"
+            )
+            current += main_shard.samples
+            continue
+
         try:
             processed_samples = []
 
@@ -177,10 +198,6 @@ def preprocess_shardset(
                 yield TaskStatus(status="processing", total=total, current=current)
 
             process_pool.wait(*work_ids)
-
-            location = os.path.join(
-                shardset_location, f"shard.{main_shard.index:05d}.parquet"
-            )
 
             if len(processed_samples) == 0:
                 logger.warning(
