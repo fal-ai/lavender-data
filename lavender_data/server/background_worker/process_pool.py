@@ -46,9 +46,10 @@ class ResultItem(BaseModel):
 
 
 def _worker_process(settings: Settings, kill_switch, call_queue, result_queue):
+    os.environ["LAVENDER_DATA_IS_WORKER"] = "true"
+
     _initializer(settings, kill_switch)
 
-    # TODO separate logger for each worker
     logger = get_logger(__name__)
 
     work_item = None
@@ -118,6 +119,7 @@ class ProcessPool:
                 self._call_queue,
                 self._result_queue,
             ),
+            daemon=True,
         )
         p.start()
         self._processes.append(p)
@@ -143,7 +145,11 @@ class ProcessPool:
     def _start_manager_thread(self):
         def _manager_thread():
             while not self._kill_switch.is_set():
-                result = self._result_queue.get()
+                try:
+                    result = self._result_queue.get()
+                except EOFError:
+                    self._logger.debug("Result queue closed, exiting manager thread")
+                    break
 
                 with self._tasks_callbacks_lock:
                     callback = self._tasks_callbacks.get(result.work_id)
