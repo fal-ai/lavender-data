@@ -33,3 +33,29 @@ export const getBackgroundTasks = async (): Promise<TaskMetadata[]> => {
   }
   return response.json();
 };
+
+type DatasetPreviewResponse = components['schemas']['PreviewDatasetResponse'];
+
+export const getDatasetPreview = async (
+  datasetId: string,
+  page: number,
+  limit: number
+): Promise<DatasetPreviewResponse> => {
+  const response = await fetch(
+    `/api/datasets/${datasetId}/preview?page=${page}&limit=${limit}`
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch dataset preview: ${response.status}`);
+  }
+  return response.json();
+};
+
+type FileType = components['schemas']['FileType'];
+
+export const getFileType = async (fileUrl: string): Promise<FileType> => {
+  const response = await fetch(`/api/files/type?file_url=${fileUrl}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch file: ${response.status}`);
+  }
+  return response.json();
+};

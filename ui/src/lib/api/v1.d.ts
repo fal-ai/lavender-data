@@ -520,6 +520,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/files/type": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get File Type */
+        get: operations["get_file_type_files_type_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/files/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get File */
+        get: operations["get_file_files__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -668,6 +702,13 @@ export interface components {
         DeregisterParams: {
             /** Node Url */
             node_url: string;
+        };
+        /** FileType */
+        FileType: {
+            /** Video */
+            video: boolean;
+            /** Image */
+            image: boolean;
         };
         /** GetDatasetResponse */
         GetDatasetResponse: {
@@ -876,6 +917,9 @@ export interface components {
             shardset_location: string;
             /** Source Shardset Ids */
             source_shardset_ids?: string[] | null;
+            /** Source Columns */
+            source_columns?: string[] | null;
+            collater?: components["schemas"]["IterationCollater"] | null;
             /** Preprocessors */
             preprocessors: components["schemas"]["IterationPreprocessor"][];
             /** Export Columns */
@@ -2159,6 +2203,68 @@ export interface operations {
             path: {
                 task_uid: string;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_file_type_files_type_get: {
+        parameters: {
+            query: {
+                file_url: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileType"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_file_files__get: {
+        parameters: {
+            query: {
+                file_url: string;
+            };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;

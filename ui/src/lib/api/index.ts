@@ -5,6 +5,21 @@ import type { paths } from './v1';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
+export const getDirect = async (path: string) => {
+  const baseUrl = process.env.API_URL || 'http://localhost:8000';
+  const cookieStore = await cookies();
+  const apiKey = cookieStore.get('lavender-data-api-key')?.value;
+  const url = new URL(path, baseUrl);
+  return fetch(url, {
+    headers: apiKey
+      ? {
+          Authorization: `Basic ${apiKey}`,
+        }
+      : {},
+    cache: 'no-store',
+  });
+};
+
 export const getClient = async () => {
   const baseUrl = process.env.API_URL || 'http://localhost:8000';
   const cookieStore = await cookies();
