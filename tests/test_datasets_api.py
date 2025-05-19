@@ -139,7 +139,9 @@ class TestIterationAsync(unittest.TestCase):
         self.assertEqual(response.name, dataset_name)
         self.assertEqual(len(response.columns), 3)
         for column in response.columns:
-            self.assertIn(column.name, ["id", "image_url", "caption"])
+            self.assertIn(
+                column.name, ["id", "image_url", "caption", "width", "height"]
+            )
 
         # Get shardset
         shardset_id = response.shardsets[0].id
@@ -150,9 +152,11 @@ class TestIterationAsync(unittest.TestCase):
         self.assertEqual(response.shard_count, shard_count)
         self.assertEqual(response.total_samples, shard_count * samples_per_shard)
 
-        self.assertEqual(len(response.columns), 3)
+        self.assertEqual(len(response.columns), 5)
         for column in response.columns:
-            self.assertIn(column.name, ["id", "image_url", "caption"])
+            self.assertIn(
+                column.name, ["id", "image_url", "caption", "width", "height"]
+            )
 
         self.assertEqual(len(response.shards), shard_count)
         for shard in response.shards:
