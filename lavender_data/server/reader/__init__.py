@@ -122,6 +122,7 @@ class ServerSideReader:
         )
         with open(local_path, "wb") as f:
             f.write(content)
+        self._ensure_cache_size()
         return local_path
 
     def get_file(self, file_url: str):
@@ -130,6 +131,7 @@ class ServerSideReader:
         )
         if not os.path.exists(local_path):
             download_file(file_url, local_path, retry=0)
+        self._ensure_cache_size()
         return local_path
 
     def get_reader(
