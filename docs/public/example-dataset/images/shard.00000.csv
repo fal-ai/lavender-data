@@ -1,0 +1,11 @@
+id,image_url,caption,width,height
+0,https://example.com/image-00000.jpg,Caption for image 00000,640,360
+1,https://example.com/image-00001.jpg,Caption for image 00001,640,720
+2,https://example.com/image-00002.jpg,Caption for image 00002,640,720
+3,https://example.com/image-00003.jpg,Caption for image 00003,1280,360
+4,https://example.com/image-00004.jpg,Caption for image 00004,640,360
+5,https://example.com/image-00005.jpg,Caption for image 00005,640,720
+6,https://example.com/image-00006.jpg,Caption for image 00006,640,720
+7,https://example.com/image-00007.jpg,Caption for image 00007,1280,360
+8,https://example.com/image-00008.jpg,Caption for image 00008,640,720
+9,https://example.com/image-00009.jpg,Caption for image 00009,1280,720

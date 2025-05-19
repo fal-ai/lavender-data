@@ -1,5 +1,6 @@
 import urllib.parse
 from pathlib import Path
+from typing import Optional
 from lavender_data.storage.abc import Storage
 
 
@@ -8,7 +9,12 @@ class HuggingfaceStorage(Storage):
 
     def __init__(self):
         try:
-            from huggingface_hub import utils, hf_hub_download, upload_file
+            from huggingface_hub import (
+                utils,
+                hf_hub_download,
+                upload_file,
+                list_repo_tree,
+            )
         except ImportError:
             raise ImportError(
                 "Please install required dependencies for HuggingfaceStorage. "
@@ -20,6 +26,7 @@ class HuggingfaceStorage(Storage):
 
         self._download = hf_hub_download
         self._upload = upload_file
+        self._list = list_repo_tree
 
     def _parse_remote_path(self, remote_path: str) -> tuple[str, str]:
         parsed = urllib.parse.urlparse(remote_path)
@@ -62,5 +69,8 @@ class HuggingfaceStorage(Storage):
             path_in_repo=path,
         )
 
-    def list(self, remote_path: str) -> list[str]:
-        raise NotImplementedError("HuggingfaceStorage does not support listing yet")
+    def list(self, remote_path: str, limit: Optional[int] = None) -> list[str]:
+        repo_id, path = self._parse_remote_path(remote_path)
+        repo_files = self._list(repo_id, path, repo_type="dataset")
+        _path = path.rstrip("/") + "/"
+        return [file.path.removeprefix(_path) for file in repo_files]
