@@ -4,6 +4,31 @@ description: Release notes for Lavender Data
 ---
 
 
+## 0.1.1 (2025-05-19)
+
+### Added
+
+`overwrite`, `drop_last` options for dataset preprocessing
+
+### Fixed
+
+#### Background Preprocessing
+
+Background preprocessing might not preserve the order of samples.
+
+Only one worker is used for background preprocessing.
+
+#### Server Daemon
+
+Server does not terminate gracefully when `lavender-data server stop` is called.
+
+Server is not aware of if all background workers are ready or errored.
+
+#### LavenderDataLoader
+
+LavenderDataLoader unnecessarily calls `/version` endpoint multiple time.
+
+
 ## 0.1.0 (2025-05-15)
 
 ### Added
