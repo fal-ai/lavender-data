@@ -18,6 +18,13 @@ from lavender_data.logging import get_logger
 
 
 def _initializer(settings: Settings, kill_switch):
+    import sys
+
+    os.environ["LAVENDER_DATA_IS_WORKER"] = "true"
+    f = open(os.devnull, "w")
+    sys.stderr = f
+    sys.stdout = f
+
     setup_db(settings.lavender_data_db_url)
     setup_cache(redis_url=settings.lavender_data_redis_url)
     setup_registries(settings.lavender_data_modules_dir)
@@ -45,10 +52,25 @@ class ResultItem(BaseModel):
     exception_traceback: Optional[str] = None
 
 
-def _worker_process(settings: Settings, kill_switch, call_queue, result_queue):
-    os.environ["LAVENDER_DATA_IS_WORKER"] = "true"
+def _worker_process(
+    settings: Settings,
+    ready,
+    error,
+    kill_switch,
+    call_queue,
+    result_queue,
+):
+    try:
+        _initializer(settings, kill_switch)
+    except Exception as e:
+        error.put(
+            str(e)
+            + "\n"
+            + "".join(traceback.format_exception(type(e), e, e.__traceback__))
+        )
+        raise e
 
-    _initializer(settings, kill_switch)
+    ready.set()
 
     logger = get_logger(__name__)
 
@@ -94,35 +116,61 @@ class ProcessPool:
         self._result_queue = self._mp_ctx.SimpleQueue()
 
         self._num_workers = num_workers
-        self._logger.debug(
-            f"Starting background worker with {self._num_workers} workers"
-        )
-
         self._processes: list[mp.Process] = []
-
-        for _ in range(self._num_workers):
-            self._spawn_worker()
-
         self._tasks_completed = {}
 
         self._tasks_callbacks: dict[str, Callable[[ResultItem], None]] = {}
         self._tasks_callbacks_lock = threading.Lock()
 
+        self._logger.debug(
+            f"Starting background worker with {self._num_workers} workers"
+        )
+        self._spawn_worker(self._num_workers)
+        self._logger.debug(f"Spawned {len(self._processes)} workers")
         self._start_manager_thread()
 
-    def _spawn_worker(self):
-        p = self._mp_ctx.Process(
-            target=_worker_process,
-            args=(
-                get_settings(),
-                self._kill_switch,
-                self._call_queue,
-                self._result_queue,
-            ),
-            daemon=True,
-        )
-        p.start()
-        self._processes.append(p)
+    def _spawn_worker(self, num_processes: int = 1, timeout: float = 60):
+        events = [
+            (self._mp_ctx.Event(), self._mp_ctx.Queue()) for _ in range(num_processes)
+        ]
+        for i in range(num_processes):
+            ready, error = events[i]
+            p = self._mp_ctx.Process(
+                target=_worker_process,
+                args=(
+                    get_settings(),
+                    ready,
+                    error,
+                    self._kill_switch,
+                    self._call_queue,
+                    self._result_queue,
+                ),
+                daemon=True,
+            )
+            p.start()
+            self._processes.append(p)
+
+        ready = False
+        error = None
+        start = time.time()
+        while not ready and not error and time.time() - start < timeout:
+            ready = all(ready.is_set() for ready, _ in events)
+            for _, e in events:
+                try:
+                    error = e.get(block=False, timeout=0)
+                except:
+                    pass
+
+            time.sleep(0.1)
+
+        if error:
+            raise RuntimeError(f"Failed to spawn {num_processes} workers: {error}")
+
+        if not ready:
+            raise TimeoutError(
+                f"Failed to spawn {num_processes} workers in {timeout} seconds"
+            )
+
         return p
 
     def _start_keep_process_count_thread(self):
@@ -134,7 +182,7 @@ class ProcessPool:
                             f"process {p.pid} died, spawning a new one"
                         )
                         self._processes.remove(p)
-                        self._spawn_worker()
+                        self._spawn_worker(1)
                 time.sleep(0.1)
 
             for p in self._processes:
