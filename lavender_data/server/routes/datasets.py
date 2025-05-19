@@ -209,13 +209,19 @@ def create_dataset(
         cluster.sync_changes([dataset])
 
     if params.shardset_location:
-        create_shardset(
-            dataset_id=dataset.id,
-            params=CreateShardsetParams(location=params.shardset_location, columns=[]),
-            session=session,
-            background_worker=background_worker,
-            cluster=cluster,
-        )
+        try:
+            create_shardset(
+                dataset_id=dataset.id,
+                params=CreateShardsetParams(
+                    location=params.shardset_location, columns=[]
+                ),
+                session=session,
+                background_worker=background_worker,
+                cluster=cluster,
+            )
+        except:
+            cluster.sync_changes([dataset], delete=True)
+            raise
 
     return dataset
 

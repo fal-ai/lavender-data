@@ -132,7 +132,6 @@ class TestIterationAsync(unittest.TestCase):
 
         # Create shardset containing image_url and caption
         time.sleep(3)
-        shardset_id = response.id
 
         # Get dataset
         response = get_dataset(dataset_id)
@@ -143,6 +142,7 @@ class TestIterationAsync(unittest.TestCase):
             self.assertIn(column.name, ["id", "image_url", "caption"])
 
         # Get shardset
+        shardset_id = response.shardsets[0].id
         response = get_shardset(dataset_id, shardset_id)
         self.assertEqual(response.id, shardset_id)
         self.assertEqual(response.dataset_id, dataset_id)
@@ -160,3 +160,11 @@ class TestIterationAsync(unittest.TestCase):
 
         # Clean up
         shutil.rmtree(f".cache/{dataset_name}")
+
+    def test_create_dataset_with_shardset_location_failure(self):
+        dataset_name = f"test-dataset-{time.time()}"
+        location = ".cache/not-a-real-location"
+
+        self.assertRaises(
+            Exception, create_dataset, dataset_name, shardset_location=location
+        )
