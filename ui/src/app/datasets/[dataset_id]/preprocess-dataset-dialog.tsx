@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { preprocessDataset } from './preprocess-dataset-action';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type Shardset = {
   id: string;
@@ -129,6 +130,8 @@ export function PreprocessDatasetDialog({
   const [sourceShardsets, setSourceShardsets] = useState<string[]>([]);
   const [exportColumns, setExportColumns] = useState<string[]>([]);
   const [batchSize, setBatchSize] = useState(1);
+  const [overwrite, setOverwrite] = useState(false);
+  const [dropLast, setDropLast] = useState(false);
   const [open, setOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -163,7 +166,8 @@ export function PreprocessDatasetDialog({
       preprocessorsJson,
       exportColumns,
       batchSize,
-      true
+      overwrite,
+      dropLast
     );
 
     if (result.success) {
@@ -322,9 +326,35 @@ export function PreprocessDatasetDialog({
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="location" className="text-right">
-                Export Columns
+                Overwrite
               </Label>
-              {exportColumns.map((column, index) => (
+              <Checkbox
+                id="overwrite"
+                name="overwrite"
+                checked={overwrite}
+                onCheckedChange={(checked) =>
+                  setOverwrite(checked === 'indeterminate' ? false : checked)
+                }
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="location" className="text-right">
+                Drop Last
+              </Label>
+              <Checkbox
+                id="drop_last"
+                name="drop_last"
+                checked={dropLast}
+                onCheckedChange={(checked) =>
+                  setDropLast(checked === 'indeterminate' ? false : checked)
+                }
+              />
+            </div>
+            {exportColumns.map((column, index) => (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="location" className="text-right">
+                  Export Column {index + 1}
+                </Label>
                 <Input
                   key={`export-column-${index}`}
                   id="location"
@@ -341,8 +371,8 @@ export function PreprocessDatasetDialog({
                     })
                   }
                 />
-              ))}
-            </div>
+              </div>
+            ))}
             <Button
               type="button"
               variant="outline"
