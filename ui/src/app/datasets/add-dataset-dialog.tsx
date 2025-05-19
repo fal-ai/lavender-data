@@ -50,10 +50,13 @@ export function AddDatasetDialog({ children }: { children: React.ReactNode }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>New dataset</DialogTitle>
-          <DialogDescription>Add a new dataset.</DialogDescription>
+          <DialogDescription>
+            Add a new dataset. If you don't have any shard files at the moment,
+            leave the shardset location blank and add it later.
+          </DialogDescription>
         </DialogHeader>
 
         <form ref={formRef} action={clientAction}>
@@ -79,6 +82,17 @@ export function AddDatasetDialog({ children }: { children: React.ReactNode }) {
                 name="uidColumnName"
                 className="col-span-3"
                 placeholder="id"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="shardsetLocation" className="text-right">
+                Shardset Location
+              </Label>
+              <Input
+                id="shardsetLocation"
+                name="shardsetLocation"
+                className="col-span-3"
+                placeholder="(optional) file:///path/to/your/shardset"
               />
             </div>
           </div>

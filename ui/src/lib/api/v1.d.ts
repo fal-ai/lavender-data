@@ -553,6 +553,8 @@ export interface components {
             name: string;
             /** Uid Column Name */
             uid_column_name?: string | null;
+            /** Shardset Location */
+            shardset_location?: string | null;
         };
         /** CreateIterationParams */
         CreateIterationParams: {
@@ -876,6 +878,9 @@ export interface components {
             shardset_location: string;
             /** Source Shardset Ids */
             source_shardset_ids?: string[] | null;
+            /** Source Columns */
+            source_columns?: string[] | null;
+            collater?: components["schemas"]["IterationCollater"] | null;
             /** Preprocessors */
             preprocessors: components["schemas"]["IterationPreprocessor"][];
             /** Export Columns */

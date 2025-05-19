@@ -8,188 +8,149 @@ import { Tabs, TabItem, Aside, FileTree, Steps, LinkCard } from "@astrojs/starli
 
 This guide will walk you through the essential steps to set up the server, create your first dataset and iterate over it.
 
-<Steps>
-1. Install the `lavender-data`.
 
-    ```bash
-    pip install lavender-data
-    ```
+### Installation
 
-2. Start the lavender-data server.
+```bash
+pip install lavender-data
+```
 
-    ```bash
-    lavender-data server start --init
-    ```
-    ```
-    lavender-data is running on 0.0.0.0:8000
-    UI is running on http://localhost:3000
-    API key created: la-...
-    ```
+```bash
+lavender-data server start --init
+```
+```
+lavender-data is running on 0.0.0.0:8000
+UI is running on http://localhost:3000
+API key created: la-...
+```
 
-    <LinkCard title="Learn more about Server Configuration" href="/server/configuration" />
+Save the API key to use it in the next steps.
 
-3. Create the dataset.
+<LinkCard title="Learn more about the server configuration" href="/server/configuration" />
 
-    <Tabs syncKey="ui-or-py">
-      <TabItem value="cli" label="CLI">
+### Create a dataset
 
+You need a directory containing the shard file(s).
+It should be flat, containing the shard files only.
+If the order matters, sort shards by the filename.
 
-    ```bash
-    lavender-data client \
-      --api-url http://0.0.0.0:8000 --api-key la-... \
-      datasets create \
-      --name my_dataset \  # Identifier for the dataset
-      --uid-column-name uid  # Column name which can be used as a unique identifier for each row
-    ```
-    ```json
-    {
-      "id": "ds-...",
-      "name": "my_dataset",
-      "uid_column_name": "uid"
-    }
-    ```
+<FileTree>
+- /path/to/your/shardset/
+  - shard.00000.csv
+  - shard.00001.csv
+  - ...
+</FileTree>
 
-      </TabItem>
-      <TabItem value="python" label="Python">
+The directory can be located on a file system or a cloud storage. 
 
+```
+# file system
+shardset_location = "file:///path/to/the/shardset"
 
-    ```python
-    import lavender_data.client as lavender
+# s3
+shardset_location = "s3://my-bucket/path/to/the/shardset"
 
-    lavender.init(api_url="http://0.0.0.0:8000", api_key="la-...")
+# web
+shardset_location = "https://example.com/path/to/the/shardset"
+```
 
-    dataset = lavender.api.create_dataset(name="my-dataset", uid_column_name="uid")
-    ```
+Use this example shardset if you don't have any shards yet.
+```
+https://docs.lavenderdata.com/example-dataset/images/
+```
 
-      </TabItem>
-      <TabItem value="web-ui" label="Web UI">
-
-    Navigate to the [datasets page](http://localhost:3000/datasets) in your browser and click on the "+ Dataset" button.
-
-    ![Datasets Empty](/web-ui/web-ui-datasets-empty.png)
-
-    Enter the dataset name and the unique identifier column name.
-
-    ![Create a Dataset](/web-ui/web-ui-create-dataset.png)
-
-      </TabItem>
-    </Tabs>
+<Tabs syncKey="ui-or-py">
+  <TabItem value="cli" label="CLI">
 
 
-4. Create the shardset.
+```bash
+lavender-data client \
+  --api-url http://0.0.0.0:8000 --api-key la-... \
+  datasets create \
+  --name my_dataset \
+  --uid-column-name id \
+  --shardset-location https://docs.lavenderdata.com/example-dataset/images/
+```
 
-    Each shardset can be considered as a directory containing multiple shard files.
-    The directory should be flat, containing the shard files only.
-    If the order matters, sort shards by the filename.
-
-    <FileTree>
-    - /path/to/your/shardset/
-      - shard.00000.csv
-      - shard.00001.csv
-      - ...
-    </FileTree>
-
-    <Tabs syncKey="ui-or-py">
-      <TabItem value="cli" label="CLI">
-
-    ```bash
-    lavender-data client \
-      --api-url http://0.0.0.0:8000 --api-key la-... \
-      shardsets create \
-      --dataset-id ds-... \
-      --location file:///path/to/your/shardset  # Where shard files are located (can be `file://`, `s3://`, etc.)
-    ```
-    ```json
-    {
-      "id": "ss-...",
-      "dataset_id": "ds-...",
-      "location": "file:///path/to/your/shardset",
-      "shard_count": 0,
-      "total_samples": 0
-    }
-    ```
-
-      </TabItem>
-      <TabItem value="python" label="Python">
-
-    ```python
-    shardset = lavender.api.create_shardset(
-        dataset_id="ds-...",
-        location="file:///path/to/the/shardset/",
-    )
-    ```
-      </TabItem>
-      <TabItem value="web-ui" label="Web UI">
-
-    Click on "+ Shardset" button in the dataset detail page.
-    Enter the path to the directory containing the shard files.
-    If you don't have any shards yet, you need to specify the columns manually.
-
-    ![Create Shardset](/web-ui/web-ui-create-shardset.png)
-
-      </TabItem>
-    </Tabs>
-
-    <LinkCard title="Learn more about Data Structure" href="/dataset/structure" />
-
-5. Check the shardset and wait until it's synced to the server.
+  </TabItem>
+  <TabItem value="python" label="Python">
 
 
-    <Tabs syncKey="ui-or-py">
-      <TabItem value="cli" label="CLI">
+```python
+import lavender_data.client as lavender
 
-    ```bash
-    lavender-data client \
-      --api-url http://0.0.0.0:8000 --api-key la-... \
-      shardsets get \
-      --dataset-id ds-... --shardset-id ss-...
-    ```
-    ```json
-    {
-      "id": "ss-...",
-      "dataset_id": "ds-...",
-      "location": "file:///path/to/your/shardset",
-      "shard_count": 10,
-      "total_samples": 100
-    }
-    ```
+lavender.init(api_url="http://0.0.0.0:8000", api_key="la-...")
 
-      </TabItem>
-      <TabItem value="python" label="Python">
+dataset = lavender.api.create_dataset(
+    name="my-dataset",
+    uid_column_name="<uid_column_name>",
+    shardset_location="file:///path/to/your/shardset",
+)
+```
 
-    ```python
-    shardset = lavender.api.get_shardset(
-        dataset_id="ds-...",
-        shardset_id="ss-...",
-    )
-    ```
-      </TabItem>
-      <TabItem value="web-ui" label="Web UI">
+  </TabItem>
+  <TabItem value="web-ui" label="Web UI">
 
-    ![Shardset Created](/web-ui/web-ui-dataset-detail.png)
+Navigate to the [datasets page](http://localhost:3000/datasets) in your browser and click on the "+ Dataset" button.
 
-      </TabItem>
-    </Tabs>
+![Datasets Empty](/web-ui/web-ui-datasets-empty.png)
 
-6. Iterate over the dataset.
+![Create a Dataset](/web-ui/web-ui-create-dataset.png)
 
-    ```python
-    import lavender_data.client as lavender
+  </TabItem>
+</Tabs>
 
-    lavender.init(api_url="http://0.0.0.0:8000", api_key="la-...")
 
-    iteration = lavender.LavenderDataLoader(
-        dataset_name=dataset_name,
-        shuffle=True,
-        shuffle_block_size=10,
-    )
+Wait until the shardset is synced to the server.
 
-    for i in iteration:
-        print(i["uid"])
-    ```
+<Tabs syncKey="ui-or-py">
+  <TabItem value="cli" label="CLI">
 
-    <LinkCard title="Learn more about LavenderDataLoader" href="/dataloader" />
+```bash
+lavender-data client \
+  --api-url http://0.0.0.0:8000 --api-key la-... \
+  shardsets get \
+  --dataset-id ds-... --shardset-id ss-...
+```
 
-</Steps>
+  </TabItem>
+  <TabItem value="python" label="Python">
+
+```python
+shardset = lavender.api.get_shardset(
+    dataset_id="ds-...",
+    shardset_id="ss-...",
+)
+```
+  </TabItem>
+  <TabItem value="web-ui" label="Web UI">
+
+![Shardset Created](/web-ui/web-ui-dataset-detail.png)
+
+  </TabItem>
+</Tabs>
+
+<LinkCard title="Learn more about the dataset structure" href="/dataset/structure" />
+
+
+### Iterate over the dataset
+
+```python
+import lavender_data.client as lavender
+
+lavender.init(api_url="http://0.0.0.0:8000", api_key="la-...")
+
+iteration = lavender.LavenderDataLoader(
+    dataset_name=dataset_name,
+    shuffle=True,
+    shuffle_block_size=10,
+)
+
+for i in iteration:
+    print(i["uid"])
+```
+
+<LinkCard title="Learn more about the data loader" href="/dataloader" />
+
 
 You've successfully set up Lavender Data, created a dataset, synced data, and iterated over it!
