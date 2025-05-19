@@ -82,9 +82,9 @@ import lavender_data.client as lavender
 lavender.init(api_url="http://0.0.0.0:8000", api_key="la-...")
 
 dataset = lavender.api.create_dataset(
-    name="my-dataset",
-    uid_column_name="<uid_column_name>",
-    shardset_location="file:///path/to/your/shardset",
+    name="my_dataset",
+    uid_column_name="id",
+    shardset_location="https://docs.lavenderdata.com/example-dataset/images/",
 )
 ```
 
@@ -141,13 +141,13 @@ import lavender_data.client as lavender
 lavender.init(api_url="http://0.0.0.0:8000", api_key="la-...")
 
 iteration = lavender.LavenderDataLoader(
-    dataset_name=dataset_name,
+    dataset_name="my_dataset",
     shuffle=True,
     shuffle_block_size=10,
 )
 
 for i in iteration:
-    print(i["uid"])
+    print(i["id"])
 ```
 
 <LinkCard title="Learn more about the data loader" href="/dataloader" />

@@ -75,13 +75,13 @@ import lavender_data.client as lavender
 lavender.init()
 
 iteration = lavender.LavenderDataLoader(
-    dataset_name=dataset_name,
+    dataset_name="my_dataset",
     shuffle=True,
     shuffle_block_size=10,
 )
 
 for i in iteration:
-    print(i["uid"])
+    print(i["id"])
 ```
 
 <p align="center">

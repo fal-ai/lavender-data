@@ -137,7 +137,7 @@ class TestIterationAsync(unittest.TestCase):
         response = get_dataset(dataset_id)
         self.assertEqual(response.id, dataset_id)
         self.assertEqual(response.name, dataset_name)
-        self.assertEqual(len(response.columns), 3)
+        self.assertEqual(len(response.columns), 5)
         for column in response.columns:
             self.assertIn(
                 column.name, ["id", "image_url", "caption", "width", "height"]
