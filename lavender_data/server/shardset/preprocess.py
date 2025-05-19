@@ -8,13 +8,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from sqlmodel import select
 
 from lavender_data.logging import get_logger
-from lavender_data.storage import upload_file
+from lavender_data.storage import list_files, upload_file
 from lavender_data.server.reader import GlobalSampleIndex, MainShardInfo, ShardInfo
 from lavender_data.server.iteration import (
     process_next_samples,
     ProcessNextSamplesParams,
 )
-from lavender_data.server.background_worker.memory import TaskStatus, Memory
+from lavender_data.server.background_worker import TaskStatus, get_process_pool
 from lavender_data.server.db.models import (
     IterationCollater,
     IterationPreprocessor,
@@ -56,20 +56,23 @@ def _export_shard(
         upload_file(f.name, location)
 
 
-def _generate_shardset(
+def preprocess_shardset(
     shardset_location: str,
     source_shardset_ids: list[str],
     uid_column_name: str,
     uid_column_type: str,
+    collater: IterationCollater,
     # filters: list[IterationFilter],
     preprocessors: list[IterationPreprocessor],
     export_columns: list[str],
     batch_size: int,
     max_retry_count: int = 0,
     overwrite: bool = False,
+    drop_last: bool = False,
 ) -> Generator[TaskStatus, None, None]:
     logger = get_logger(__name__)
     session = next(get_session())
+    process_pool = get_process_pool()
 
     shardsets = session.exec(
         select(Shardset).where(Shardset.id.in_(source_shardset_ids))
@@ -90,7 +93,28 @@ def _generate_shardset(
     futures = []
     export_executor = ThreadPoolExecutor()
 
+    existing_shard_basenames = []
+    if not overwrite:
+        try:
+            existing_shard_basenames = [
+                basename
+                for basename in sorted(list_files(shardset_location))
+                if basename.endswith(".parquet") or basename.endswith(".csv")
+            ]
+        except Exception as e:
+            pass
+
     for main_shard in main_shardset.shards:
+        shard_basename = f"shard.{main_shard.index:05d}.parquet"
+        location = os.path.join(shardset_location, shard_basename)
+
+        if shard_basename in existing_shard_basenames:
+            logger.info(
+                f"{main_shard.index}th shard already exists at {location}, skipping"
+            )
+            current += main_shard.samples
+            continue
+
         try:
             processed_samples = []
 
@@ -115,9 +139,9 @@ def _generate_shardset(
                     )
                 )
 
+            indices: list[GlobalSampleIndex] = []
+            work_ids: list[str] = []
             for sample_index in range(main_shard.samples):
-                indices = []
-
                 indices.append(
                     GlobalSampleIndex(
                         index=current,
@@ -138,40 +162,50 @@ def _generate_shardset(
                 )
                 current += 1
 
-                if len(indices) < batch_size:
+                is_last_batch = sample_index == main_shard.samples - 1
+                if len(indices) < batch_size and (not is_last_batch or drop_last):
                     continue
 
                 params = ProcessNextSamplesParams(
                     current=current_batch,
                     global_sample_indices=indices,
-                    collater=IterationCollater(name="default", params={}),
+                    collater=collater,
                     preprocessors=preprocessors,
                     batch_size=batch_size,
                 )
                 current_batch += 1
                 indices = []
 
-                try:
-                    batch = process_next_samples(
-                        params, max_retry_count=max_retry_count
+                work_ids.append(
+                    process_pool.submit(
+                        process_next_samples,
+                        params=params,
+                        max_retry_count=max_retry_count,
                     )
-                    keys = list(batch.keys())
-                    for key in keys:
-                        if key not in _export_columns:
-                            del batch[key]
-
-                    processed_samples.extend(_decollate_batch(batch))
-                except Exception as e:
-                    logger.exception(
-                        f"Error processing sample {sample_index} of shard {main_shard.index} of main shardset {main_shardset.id}: {e}"
-                    )
-                    continue
+                )
 
                 yield TaskStatus(status="processing", total=total, current=current)
 
-            location = os.path.join(
-                shardset_location, f"shard.{main_shard.index:05d}.parquet"
-            )
+            for work_id in work_ids:
+                try:
+                    batch = process_pool.result(work_id)
+                except Exception as e:
+                    logger.error(e)
+                    continue
+
+                keys = list(batch.keys())
+                for key in keys:
+                    if key not in _export_columns:
+                        del batch[key]
+
+                processed_samples.extend(_decollate_batch(batch))
+
+            if len(processed_samples) == 0:
+                logger.warning(
+                    f"No samples generated for shard {main_shard.index} of main shardset {main_shardset.id}"
+                )
+                continue
+
             logger.info(
                 f"Exporting generated shard {main_shard.index} to {location} ({len(processed_samples)} samples)"
             )
@@ -198,34 +232,3 @@ def _generate_shardset(
 
     export_executor.shutdown(wait=True)
     logger.info("Export complete")
-
-
-def preprocess_dataset_task(
-    shardset_location: str,
-    source_shardset_ids: list[str],
-    uid_column_name: str,
-    uid_column_type: str,
-    preprocessors: list[IterationPreprocessor],
-    export_columns: list[str],
-    batch_size: int,
-    overwrite: bool = False,
-    *,
-    memory: Memory,
-    task_uid: str,
-):
-    for status in _generate_shardset(
-        shardset_location,
-        source_shardset_ids,
-        uid_column_name,
-        uid_column_type,
-        preprocessors,
-        export_columns,
-        batch_size,
-        overwrite,
-    ):
-        memory.set_task_status(
-            task_uid,
-            status=status.status,
-            total=status.total,
-            current=status.current,
-        )

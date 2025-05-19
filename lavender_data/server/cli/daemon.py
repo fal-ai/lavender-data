@@ -4,7 +4,7 @@ import signal
 import select
 import time
 import httpx
-from multiprocessing import Process
+import multiprocessing as mp
 import daemon
 from daemon.pidfile import PIDLockFile
 
@@ -65,9 +65,10 @@ def start(*args, **kwargs):
     f.flush()
     log_file_position = f.tell()
 
-    process = Process(target=_run, args=args, kwargs=kwargs)
+    ctx = mp.get_context("spawn")
+    process = ctx.Process(target=_run, args=args, kwargs=kwargs)
     process.start()
-    atexit.register(lambda: process.terminate())
+    atexit.register(lambda: os.kill(process.pid, signal.SIGINT))
 
     settings = get_settings()
 
@@ -132,8 +133,10 @@ def logs(f_flag: bool = False, n_lines: int = 10):
 
     with open(LOG_FILE, "r") as f:
         lines = f.readlines()
-        print("".join(lines[-n_lines:]))
+        print("".join(lines[-n_lines:]), end="", flush=True)
 
     if f_flag:
         for line in watch_log_file():
-            print(line, end="")
+            print(line, end="", flush=True)
+    else:
+        print()

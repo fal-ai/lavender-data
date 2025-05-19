@@ -23,6 +23,7 @@ class PreprocessDatasetParams:
         batch_size (int):
         source_shardset_ids (Union[None, Unset, list[str]]):
         overwrite (Union[Unset, bool]):  Default: False.
+        drop_last (Union[Unset, bool]):  Default: False.
     """
 
     shardset_location: str
@@ -31,6 +32,7 @@ class PreprocessDatasetParams:
     batch_size: int
     source_shardset_ids: Union[None, Unset, list[str]] = UNSET
     overwrite: Union[Unset, bool] = False
+    drop_last: Union[Unset, bool] = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -56,6 +58,8 @@ class PreprocessDatasetParams:
 
         overwrite = self.overwrite
 
+        drop_last = self.drop_last
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -70,6 +74,8 @@ class PreprocessDatasetParams:
             field_dict["source_shardset_ids"] = source_shardset_ids
         if overwrite is not UNSET:
             field_dict["overwrite"] = overwrite
+        if drop_last is not UNSET:
+            field_dict["drop_last"] = drop_last
 
         return field_dict
 
@@ -110,6 +116,8 @@ class PreprocessDatasetParams:
 
         overwrite = d.pop("overwrite", UNSET)
 
+        drop_last = d.pop("drop_last", UNSET)
+
         preprocess_dataset_params = cls(
             shardset_location=shardset_location,
             preprocessors=preprocessors,
@@ -117,6 +125,7 @@ class PreprocessDatasetParams:
             batch_size=batch_size,
             source_shardset_ids=source_shardset_ids,
             overwrite=overwrite,
+            drop_last=drop_last,
         )
 
         preprocess_dataset_params.additional_properties = d

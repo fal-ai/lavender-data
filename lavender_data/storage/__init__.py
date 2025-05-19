@@ -28,14 +28,19 @@ def _download_file_with_timeout(
     *,
     timeout: int,
 ):
-    with ThreadPoolExecutor() as executor:
+    executor = ThreadPoolExecutor()
+    try:
         storage = Storage.get(remote_path)
         future = executor.submit(storage.download, remote_path, local_path)
-        try:
-            return future.result(timeout=timeout)
-        except TimeoutError as e:
-            future.cancel()
-            raise e
+        return future.result(timeout=timeout)
+    except RuntimeError as e:
+        if "cannot schedule new futures after" in str(e):
+            # shutdown
+            return
+        raise e
+    except TimeoutError as e:
+        future.cancel()
+        raise e
 
 
 def _download_file_with_retry(
@@ -80,14 +85,19 @@ def _upload_file_with_timeout(
     *,
     timeout: int,
 ) -> None:
-    with ThreadPoolExecutor() as executor:
+    executor = ThreadPoolExecutor()
+    try:
         storage = Storage.get(remote_path)
         future = executor.submit(storage.upload, local_path, remote_path)
-        try:
-            future.result(timeout=timeout)
-        except TimeoutError as e:
-            future.cancel()
-            raise e
+        future.result(timeout=timeout)
+    except RuntimeError as e:
+        if "cannot schedule new futures after" in str(e):
+            # shutdown
+            return
+        raise e
+    except TimeoutError as e:
+        future.cancel()
+        raise e
 
 
 def _upload_file_with_retry(

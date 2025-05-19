@@ -22,6 +22,7 @@ from lavender_data.server.db.models import (
     DatasetColumnPublic,
     Iteration,
     IterationPreprocessor,
+    IterationCollater,
 )
 from lavender_data.server.cache import CacheClient
 from lavender_data.server.distributed import CurrentCluster
@@ -35,8 +36,8 @@ from lavender_data.server.background_worker import CurrentBackgroundWorker, Task
 from lavender_data.server.shardset import (
     get_main_shardset,
     span,
-    sync_shardset_location_task,
-    preprocess_dataset_task,
+    sync_shardset_location,
+    preprocess_shardset,
 )
 from lavender_data.server.auth import AppAuth
 from lavender_data.storage import list_files
@@ -167,6 +168,8 @@ def preview_dataset(
         for key in sample.keys():
             if type(sample[key]) == bytes:
                 sample[key] = "<bytes>"
+            if type(sample[key]) == dict:
+                sample[key] = str(sample[key])
 
         samples.append(sample)
 
@@ -415,7 +418,6 @@ def create_shardset(
             params=SyncShardsetParams(overwrite=True),
             session=session,
             background_worker=background_worker,
-            cluster=cluster,
         )
 
     return shardset
@@ -478,24 +480,6 @@ def _sync_shardset_status_key(shardset_id: str) -> str:
     return f"sync-{shardset_id}"
 
 
-def _sync_shardset_callback(cluster: CurrentCluster):
-    def callback(future: Future):
-        shardset: Shardset
-        shards: list[Shard]
-        shardset, shards = future
-        logger = get_logger(__name__)
-        if cluster is not None and cluster.is_head:
-            try:
-                logger.debug(
-                    f"Syncing shardset {shardset.id} to cluster nodes ({len(shards)} shards)"
-                )
-                cluster.sync_changes([shardset, *shards])
-            except Exception as e:
-                logger.exception(e)
-
-    return callback
-
-
 @router.post("/{dataset_id}/shardsets/{shardset_id}/sync")
 def sync_shardset(
     dataset_id: str,
@@ -503,7 +487,6 @@ def sync_shardset(
     params: SyncShardsetParams,
     session: DbSession,
     background_worker: CurrentBackgroundWorker,
-    cluster: CurrentCluster,
 ) -> GetShardsetResponse:
     try:
         shardset = session.exec(
@@ -515,9 +498,9 @@ def sync_shardset(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Shardset not found")
 
-    task_uid = _sync_shardset_status_key(shardset.id)
+    task_id = _sync_shardset_status_key(shardset.id)
 
-    existing = background_worker.memory().get_task_status(task_uid)
+    existing = background_worker.get_task_status(task_id)
     if existing and existing.status != "completed":
         raise HTTPException(
             status_code=400,
@@ -525,15 +508,14 @@ def sync_shardset(
         )
 
     background_worker.submit(
-        sync_shardset_location_task,
-        on_complete=_sync_shardset_callback(cluster),
+        sync_shardset_location,
         shardset_id=shardset.id,
         shardset_location=shardset.location,
         shardset_shard_samples=[s.samples for s in shardset.shards],
         shardset_shard_locations=[s.location for s in shardset.shards],
         num_workers=10,
         overwrite=params.overwrite,
-        task_uid=task_uid,
+        task_id=task_id,
     )
     return shardset
 
@@ -544,8 +526,8 @@ def get_sync_status(
     shardset_id: str,
     background_worker: CurrentBackgroundWorker,
 ) -> Optional[TaskStatus]:
-    task_uid = _sync_shardset_status_key(shardset_id)
-    status = background_worker.memory().get_task_status(task_uid)
+    task_id = _sync_shardset_status_key(shardset_id)
+    status = background_worker.get_task_status(task_id)
     return status
 
 
@@ -619,14 +601,17 @@ def delete_shardset(
 class PreprocessDatasetParams(BaseModel):
     shardset_location: str
     source_shardset_ids: Optional[list[str]] = None
+    source_columns: Optional[list[str]] = None
+    collater: Optional[IterationCollater] = None
     preprocessors: list[IterationPreprocessor]
     export_columns: list[str]
     batch_size: int
     overwrite: bool = False
+    drop_last: bool = False
 
 
 class PreprocessDatasetResponse(BaseModel):
-    task_uid: str
+    task_id: str
 
 
 @router.post("/{dataset_id}/preprocess")
@@ -656,17 +641,19 @@ def preprocess_dataset(
         s.id for s in dataset.shardsets
     ]
 
-    task_uid = f'{dataset.id}-{"-".join([p["name"] for p in preprocessors])}-{shardset_location}'
+    task_id = f'{dataset.id}-{"-".join([p["name"] for p in preprocessors])}-{shardset_location}'
     background_worker.submit(
-        preprocess_dataset_task,
+        preprocess_shardset,
+        task_id=task_id,
         shardset_location=shardset_location,
         source_shardset_ids=source_shardset_ids,
         uid_column_name=uid_column.name,
         uid_column_type=uid_column.type,
+        collater=params.collater or IterationCollater(name="default", params={}),
         preprocessors=preprocessors,
         export_columns=params.export_columns,
         batch_size=params.batch_size,
         overwrite=params.overwrite,
-        task_uid=task_uid,
+        drop_last=params.drop_last,
     )
-    return PreprocessDatasetResponse(task_uid=task_uid)
+    return PreprocessDatasetResponse(task_id=task_id)

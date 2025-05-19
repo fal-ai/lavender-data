@@ -9,7 +9,8 @@ export async function preprocessDataset(
   preprocessorsJson: string,
   exportColumns: string[],
   batchSize: number,
-  overwrite: boolean
+  overwrite: boolean,
+  dropLast: boolean
 ) {
   let preprocessors: {
     name: string;
@@ -39,6 +40,7 @@ export async function preprocessDataset(
         export_columns: exportColumns,
         batch_size: batchSize,
         overwrite: overwrite,
+        drop_last: dropLast,
       },
     });
 
