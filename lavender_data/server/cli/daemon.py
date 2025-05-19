@@ -132,8 +132,10 @@ def logs(f_flag: bool = False, n_lines: int = 10):
 
     with open(LOG_FILE, "r") as f:
         lines = f.readlines()
-        print("".join(lines[-n_lines:]))
+        print("".join(lines[-n_lines:]), end="", flush=True)
 
     if f_flag:
         for line in watch_log_file():
-            print(line, end="")
+            print(line, end="", flush=True)
+    else:
+        print()
