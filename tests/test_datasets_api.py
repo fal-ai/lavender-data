@@ -45,7 +45,7 @@ class TestIterationAsync(unittest.TestCase):
         stop_server(self.server)
         os.remove(self.db)
 
-    def test_create_dataset_shardset(self):
+    def test_create_dataset_and_shardset(self):
         shard_count = 10
         samples_per_shard = 10
 
@@ -116,3 +116,47 @@ class TestIterationAsync(unittest.TestCase):
 
         # Clean up
         shutil.rmtree(f".cache/{dataset_id}")
+
+    def test_create_dataset_with_shardset_location(self):
+        shard_count = 10
+        samples_per_shard = 10
+
+        # Create dataset
+        dataset_name = f"test-dataset-{time.time()}"
+
+        # Create test data
+        location = create_test_shards(dataset_name, shard_count, samples_per_shard)
+
+        response = create_dataset(dataset_name, shardset_location=location)
+        dataset_id = response.id
+
+        # Create shardset containing image_url and caption
+        time.sleep(3)
+        shardset_id = response.id
+
+        # Get dataset
+        response = get_dataset(dataset_id)
+        self.assertEqual(response.id, dataset_id)
+        self.assertEqual(response.name, dataset_name)
+        self.assertEqual(len(response.columns), 3)
+        for column in response.columns:
+            self.assertIn(column.name, ["id", "image_url", "caption"])
+
+        # Get shardset
+        response = get_shardset(dataset_id, shardset_id)
+        self.assertEqual(response.id, shardset_id)
+        self.assertEqual(response.dataset_id, dataset_id)
+        self.assertEqual(response.location, location)
+        self.assertEqual(response.shard_count, shard_count)
+        self.assertEqual(response.total_samples, shard_count * samples_per_shard)
+
+        self.assertEqual(len(response.columns), 3)
+        for column in response.columns:
+            self.assertIn(column.name, ["id", "image_url", "caption"])
+
+        self.assertEqual(len(response.shards), shard_count)
+        for shard in response.shards:
+            self.assertEqual(shard.samples, samples_per_shard)
+
+        # Clean up
+        shutil.rmtree(f".cache/{dataset_name}")
