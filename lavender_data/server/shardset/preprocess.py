@@ -61,6 +61,7 @@ def preprocess_shardset(
     source_shardset_ids: list[str],
     uid_column_name: str,
     uid_column_type: str,
+    collater: IterationCollater,
     # filters: list[IterationFilter],
     preprocessors: list[IterationPreprocessor],
     export_columns: list[str],
@@ -138,17 +139,6 @@ def preprocess_shardset(
                     )
                 )
 
-            def on_complete(batch: dict):
-                keys = list(batch.keys())
-                for key in keys:
-                    if key not in _export_columns:
-                        del batch[key]
-
-                processed_samples.extend(_decollate_batch(batch))
-
-            def on_error(e_msg: str, e_tb: str):
-                logger.error(e_msg + "\n" + e_tb)
-
             indices: list[GlobalSampleIndex] = []
             work_ids: list[str] = []
             for sample_index in range(main_shard.samples):
@@ -179,7 +169,7 @@ def preprocess_shardset(
                 params = ProcessNextSamplesParams(
                     current=current_batch,
                     global_sample_indices=indices,
-                    collater=IterationCollater(name="default", params={}),
+                    collater=collater,
                     preprocessors=preprocessors,
                     batch_size=batch_size,
                 )
@@ -189,8 +179,6 @@ def preprocess_shardset(
                 work_ids.append(
                     process_pool.submit(
                         process_next_samples,
-                        on_complete=on_complete,
-                        on_error=on_error,
                         params=params,
                         max_retry_count=max_retry_count,
                     )
@@ -198,7 +186,19 @@ def preprocess_shardset(
 
                 yield TaskStatus(status="processing", total=total, current=current)
 
-            process_pool.wait(*work_ids)
+            for work_id in work_ids:
+                try:
+                    batch = process_pool.result(work_id)
+                except Exception as e:
+                    logger.error(e)
+                    continue
+
+                keys = list(batch.keys())
+                for key in keys:
+                    if key not in _export_columns:
+                        del batch[key]
+
+                processed_samples.extend(_decollate_batch(batch))
 
             if len(processed_samples) == 0:
                 logger.warning(

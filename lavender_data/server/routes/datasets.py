@@ -22,6 +22,7 @@ from lavender_data.server.db.models import (
     DatasetColumnPublic,
     Iteration,
     IterationPreprocessor,
+    IterationCollater,
 )
 from lavender_data.server.cache import CacheClient
 from lavender_data.server.distributed import CurrentCluster
@@ -600,6 +601,8 @@ def delete_shardset(
 class PreprocessDatasetParams(BaseModel):
     shardset_location: str
     source_shardset_ids: Optional[list[str]] = None
+    source_columns: Optional[list[str]] = None
+    collater: Optional[IterationCollater] = None
     preprocessors: list[IterationPreprocessor]
     export_columns: list[str]
     batch_size: int
@@ -646,6 +649,7 @@ def preprocess_dataset(
         source_shardset_ids=source_shardset_ids,
         uid_column_name=uid_column.name,
         uid_column_type=uid_column.type,
+        collater=params.collater or IterationCollater(name="default", params={}),
         preprocessors=preprocessors,
         export_columns=params.export_columns,
         batch_size=params.batch_size,

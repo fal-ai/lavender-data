@@ -48,8 +48,7 @@ class WorkItem(BaseModel):
 class ResultItem(BaseModel):
     work_id: str
     result: Optional[Any] = None
-    exception_msg: Optional[str] = None
-    exception_traceback: Optional[str] = None
+    exception: Optional[str] = None
 
 
 def _worker_process(
@@ -85,10 +84,11 @@ def _worker_process(
             except Exception as e:
                 result_item = ResultItem(
                     work_id=work_item.work_id,
-                    exception_msg=str(e),
-                    exception_traceback="".join(
+                    exception="".join(
                         traceback.format_exception(type(e), e, e.__traceback__)
-                    ),
+                    )
+                    + "\n"
+                    + "".join(traceback.format_tb(e.__traceback__)),
                 )
 
             result_queue.put(result_item)
@@ -106,6 +106,17 @@ def _worker_process(
         logger.warning(f"work {work_item.work_id} aborted")
 
 
+class _ExceptionFromWorker(Exception):
+    def __init__(self, exception: str):
+        self.exception = exception
+
+    def __str__(self):
+        return self.exception
+
+    def __repr__(self):
+        return self.exception
+
+
 class ProcessPool:
     def __init__(self, num_workers: int):
         self._logger = get_logger(__name__)
@@ -119,8 +130,9 @@ class ProcessPool:
         self._processes: list[mp.Process] = []
         self._tasks_completed = {}
 
-        self._tasks_callbacks: dict[str, Callable[[ResultItem], None]] = {}
-        self._tasks_callbacks_lock = threading.Lock()
+        # TODO clean up thread
+        self._tasks_result: dict[str, ResultItem] = {}
+        self._tasks_result_lock = threading.Lock()
 
         self._logger.debug(
             f"Starting background worker with {self._num_workers} workers"
@@ -194,68 +206,52 @@ class ProcessPool:
         def _manager_thread():
             while not self._kill_switch.is_set():
                 try:
-                    result = self._result_queue.get()
+                    result: ResultItem = self._result_queue.get()
                 except EOFError:
                     self._logger.debug("Result queue closed, exiting manager thread")
                     break
 
-                with self._tasks_callbacks_lock:
-                    callback = self._tasks_callbacks.get(result.work_id)
-                    if callback is None:
-                        continue
+                work_id = result.work_id
+                with self._tasks_result_lock:
+                    if result.result is not None or result.exception is not None:
+                        self._tasks_result[work_id] = result
 
-                    if result.work_id in self._tasks_completed:
-                        self._tasks_completed[result.work_id].set()
-                        del self._tasks_completed[result.work_id]
-                    else:
-                        self._logger.warning(
-                            f"Work {result.work_id} not found in _tasks_completed"
-                        )
-
-                    try:
-                        callback(result)
-                    except Exception as e:
-                        self._logger.exception(
-                            f"Error calling callback for work {result.work_id}: {e}"
-                        )
-
-                    del self._tasks_callbacks[result.work_id]
+                if work_id in self._tasks_completed:
+                    self._tasks_completed[work_id].set()
+                    del self._tasks_completed[work_id]
+                else:
+                    self._logger.warning(
+                        f"Work {work_id} not found in _tasks_completed"
+                    )
 
         threading.Thread(target=_manager_thread, daemon=True).start()
 
     def submit(
         self,
         func,
-        on_complete: Optional[Callable[[Any], None]] = None,
-        on_error: Optional[Callable[[str, str], None]] = None,
         **kwargs,
     ):
         work_id = str(uuid.uuid4())
         work_item = WorkItem(work_id=work_id, func=func, kwargs=kwargs)
-
-        def callback(result_item: ResultItem):
-            r = result_item.result
-            e_msg = result_item.exception_msg
-            e_tb = result_item.exception_traceback
-            if on_complete is not None and r is not None:
-                on_complete(r)
-            if on_error is not None and e_msg is not None and e_tb is not None:
-                on_error(e_msg, e_tb)
-
-        with self._tasks_callbacks_lock:
-            self._tasks_callbacks[work_item.work_id] = callback
 
         self._tasks_completed[work_item.work_id] = threading.Event()
         self._call_queue.put(work_item)
 
         return work_id
 
-    def wait(self, *work_ids: str):
-        for work_id in work_ids:
-            if work_id not in self._tasks_completed:
-                continue
-
+    def result(self, work_id: str):
+        if work_id in self._tasks_completed:
             self._tasks_completed[work_id].wait()
+
+        if work_id not in self._tasks_result:
+            raise ValueError(f"Work {work_id} have no result")
+
+        with self._tasks_result_lock:
+            result = self._tasks_result.pop(work_id)
+            if result.exception is not None:
+                raise _ExceptionFromWorker(result.exception)
+
+            return result.result
 
     def shutdown(self):
         self._kill_switch.set()
