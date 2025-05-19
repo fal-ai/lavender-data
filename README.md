@@ -30,9 +30,9 @@
     </a>
 </p>
 
-### Quick Start
+## Quick Start
 
-#### Installation
+### Installation
 
 ```bash
 pip install lavender-data
@@ -52,12 +52,12 @@ API key created: la-...
 
 Save the API key to use it in the next steps.
 
-```
+```bash
 export LAVENDER_API_URL=http://0.0.0.0:8000
 export LAVENDER_API_KEY=la-...
 ```
 
-#### Create an example dataset
+### Create an example dataset
 
 ```bash
 lavender-data client \
@@ -67,7 +67,7 @@ lavender-data client \
   --shardset-location https://docs.lavenderdata.com/example-dataset/images/
 ```
 
-#### Iterate over the dataset
+### Iterate over the dataset
 
 ```python
 import lavender_data.client as lavender
@@ -84,8 +84,10 @@ for i in iteration:
     print(i["uid"])
 ```
 
-Please visit our docs for more information.
-<br />
-<a href="https://docs.lavenderdata.com/">
-docs.lavenderdata.com
-</a>
+<p align="center">
+    Please visit our docs for more information.
+    <br />
+    <a href="https://docs.lavenderdata.com/">
+        docs.lavenderdata.com
+    </a>
+</p>
