@@ -116,6 +116,14 @@ class ServerSideReader:
             oldest_file = self._get_oldest_cache_file()
             os.remove(oldest_file)
 
+    def set_file(self, content: bytes):
+        local_path = os.path.join(
+            self.dirname, "files", hashlib.md5(content).hexdigest()
+        )
+        with open(local_path, "wb") as f:
+            f.write(content)
+        return local_path
+
     def get_file(self, file_url: str):
         local_path = os.path.join(
             self.dirname, "files", hashlib.md5(file_url.encode()).hexdigest()
