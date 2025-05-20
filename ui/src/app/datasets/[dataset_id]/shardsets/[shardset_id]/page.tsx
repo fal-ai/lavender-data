@@ -11,17 +11,10 @@ import { ErrorCard } from '@/components/error-card';
 import Link from 'next/link';
 import { SyncShardsetButton } from './sync-shardset-button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import { Columns, FileStack, Settings } from 'lucide-react';
+import { ChevronLeft, Columns, FileStack, Settings } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeleteShardsetDialog } from './delete-shardset-dialog';
+import { Button } from '@/components/ui/button';
 
 export default async function ShardsetDetailPage({
   params,
@@ -50,38 +43,17 @@ export default async function ShardsetDetailPage({
   const shardset = shardsetResponse.data;
 
   return (
-    <main className="container flex w-full flex-1 flex-col items-center justify-center gap-8">
-      <Breadcrumb className="w-full pt-4">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/">Home</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/datasets">Datasets</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href={`/datasets/${shardset.dataset_id}`}>
-              {shardset.dataset_id}
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href={`/datasets/${shardset.dataset_id}`}>
-              Shardsets
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{shardset.id}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
-      <div className="w-full flex flex-col gap-1">
-        <div className="text-lg">{shardset.location}</div>
-        <div className="text-xs text-muted-foreground">{shardset.id}</div>
+    <div className="py-4 flex w-full flex-1 flex-col gap-8">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost">
+          <Link href={`/datasets/${dataset_id}/shardsets`}>
+            <ChevronLeft className="w-4 h-4" />
+          </Link>
+        </Button>
+        <div className="flex flex-col gap-2">
+          <div className="text-md">{shardset.location}</div>
+          <div className="text-xs text-muted-foreground">{shardset.id}</div>
+        </div>
       </div>
 
       <Tabs defaultValue={tab} className="w-full">
@@ -217,6 +189,6 @@ export default async function ShardsetDetailPage({
           </Card>
         </TabsContent>
       </Tabs>
-    </main>
+    </div>
   );
 }

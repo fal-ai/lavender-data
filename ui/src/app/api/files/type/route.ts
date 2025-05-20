@@ -26,5 +26,6 @@ export async function GET(request: NextRequest) {
 
   return new Response(JSON.stringify(response.data), {
     status: 200,
+    headers: response.response.headers,
   });
 }

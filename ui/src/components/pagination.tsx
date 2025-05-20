@@ -1,31 +1,31 @@
-import { PaginationLink } from './ui/pagination';
-import { Ellipsis } from 'lucide-react';
+import {
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+} from './ui/pagination';
+import { ArrowUpRight } from 'lucide-react';
 import { PaginationItem } from './ui/pagination';
 import { PaginationContent } from './ui/pagination';
 import { Pagination as PaginationComponent } from './ui/pagination';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 
 export function Pagination({
-  centerButtonCount,
+  buttonCount,
   totalPages,
   currentPage,
   pageHref,
 }: {
-  centerButtonCount: number;
+  buttonCount: number;
   totalPages: number;
   currentPage: number;
   pageHref: (page: number) => string;
 }) {
   const buttonStartPage = Math.max(
     0,
-    Math.min(
-      currentPage - Math.floor(centerButtonCount / 2),
-      totalPages - centerButtonCount
-    )
+    currentPage - (currentPage % buttonCount)
   );
-  const buttonEndPage = Math.min(
-    totalPages,
-    buttonStartPage + centerButtonCount
-  );
+  const buttonEndPage = Math.min(totalPages, buttonStartPage + buttonCount);
   const pageRange = Array.from(
     { length: buttonEndPage - buttonStartPage },
     (_, index) => buttonStartPage + index
@@ -37,10 +37,9 @@ export function Pagination({
         {buttonStartPage > 0 && (
           <>
             <PaginationItem>
-              <PaginationLink href={pageHref(0)}>1</PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <Ellipsis className="w-4" />
+              <PaginationPrevious
+                href={pageHref(buttonStartPage - buttonCount)}
+              />
             </PaginationItem>
           </>
         )}
@@ -57,15 +56,26 @@ export function Pagination({
         {totalPages > buttonEndPage && (
           <>
             <PaginationItem>
-              <Ellipsis className="w-4" />
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink href={pageHref(totalPages - 1)}>
-                {totalPages}
-              </PaginationLink>
+              <PaginationNext href={pageHref(buttonEndPage)} />
             </PaginationItem>
           </>
         )}
+        <form className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div>
+            <Input
+              className="w-24"
+              type="number"
+              min={1}
+              max={totalPages + 1}
+              defaultValue={currentPage + 1}
+            />
+          </div>
+          <div>/</div>
+          <div>{totalPages}</div>
+          <Button variant="outline" size="icon">
+            <ArrowUpRight className="w-4" />
+          </Button>
+        </form>
       </PaginationContent>
     </PaginationComponent>
   );

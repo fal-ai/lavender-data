@@ -20,7 +20,7 @@ import {
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { getDatasetPreview, getFileType } from '@/lib/client-side-api';
 import type { components } from '@/lib/api/v1';
-import { useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { LoaderCircle } from 'lucide-react';
+import { TabsContent } from '@radix-ui/react-tabs';
 
 type DatasetPreviewResponse = components['schemas']['PreviewDatasetResponse'];
 type FileType = components['schemas']['FileType'];
@@ -67,9 +70,11 @@ const ellipsize = (value: any) => {
 
 function FileCell({ url, sample }: { url: string; sample: any }) {
   const [loading, setLoading] = useState<boolean>(true);
+  const [contentLoading, setContentLoading] = useState<boolean>(true);
   const [fileType, setFileType] = useState<FileType | null>(null);
 
   useEffect(() => {
+    setLoading(true);
     getFileType(url).then((r) => {
       setFileType(r);
       setLoading(false);
@@ -77,20 +82,46 @@ function FileCell({ url, sample }: { url: string; sample: any }) {
   }, [url]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <Skeleton className="w-full h-[64px]" />;
   }
 
   if (!fileType) {
     return <div>{url}</div>;
   }
 
+  const src = `/api/files?file_url=${url}`;
+
   if (fileType.image) {
-    return <img src={`/api/files?file_url=${url}`} />;
+    return (
+      <div>
+        <Skeleton
+          className={`w-full h-[64px] ${contentLoading ? 'block' : 'hidden'}`}
+        />
+        <img
+          src={src}
+          className={`h-[64px] ${contentLoading ? 'hidden' : 'block'}`}
+          onLoad={() => setContentLoading(false)}
+        />
+      </div>
+    );
   } else if (fileType.video) {
     return (
       <Dialog>
         <DialogTrigger asChild>
-          <video src={`/api/files?file_url=${url}`} />
+          <div>
+            <Skeleton
+              className={`w-full h-[64px] ${contentLoading ? 'block' : 'hidden'}`}
+            />
+            <video
+              src={src}
+              className={`h-[64px] ${contentLoading ? 'hidden' : 'block'}`}
+              onCanPlay={() => setContentLoading(false)}
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
+          </div>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
@@ -100,12 +131,7 @@ function FileCell({ url, sample }: { url: string; sample: any }) {
             </DialogDescription>
           </DialogHeader>
           <div className="w-full flex justify-center">
-            <video
-              src={`/api/files?file_url=${url}`}
-              controls
-              autoPlay
-              className="w-[400px]"
-            />
+            <video src={src} controls autoPlay className="w-[400px]" />
           </div>
           <DialogFooter className="max-h-[500px] overflow-x-auto overflow-y-auto">
             <Table>
@@ -133,9 +159,11 @@ function FileCell({ url, sample }: { url: string; sample: any }) {
   }
 }
 
-export function DatasetPreview({ dataset_id }: { dataset_id: string }) {
-  const preview_limit = 20;
+export default function DatasetPreviewPage({}: {}) {
+  const { dataset_id } = useParams() as { dataset_id: string };
   const searchParams = useSearchParams();
+
+  const preview_limit = 20;
   const preview_page = Number(searchParams.get('preview_page')) || 0;
 
   const [preview, setPreview] = useState<DatasetPreviewResponse | null>(null);
@@ -160,7 +188,12 @@ export function DatasetPreview({ dataset_id }: { dataset_id: string }) {
   }
 
   if (!preview) {
-    return <div>Loading...</div>;
+    return (
+      <div className="w-full flex gap-2 p-4 justify-center items-center text-muted-foreground">
+        <LoaderCircle className="w-4 h-4 animate-spin" />
+        <div className="text-sm">Loading...</div>
+      </div>
+    );
   }
 
   const totalPages = Math.ceil(preview.total / preview_limit);
@@ -240,11 +273,11 @@ export function DatasetPreview({ dataset_id }: { dataset_id: string }) {
       </CardContent>
       <CardFooter className="w-full flex justify-center">
         <Pagination
-          centerButtonCount={5}
+          buttonCount={10}
           totalPages={totalPages}
           currentPage={currentPage}
           pageHref={(page) =>
-            `/datasets/${dataset_id}?tab=preview&preview_page=${page}`
+            `/datasets/${dataset_id}/preview?preview_page=${page}`
           }
         />
       </CardFooter>

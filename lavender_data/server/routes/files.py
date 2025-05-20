@@ -1,5 +1,5 @@
 import filetype
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -31,13 +31,14 @@ def _get_file_type(file_path: str) -> FileType:
 
 @router.get("/type")
 def get_file_type(
-    session: DbSession, file_url: str, reader: ReaderInstance
+    session: DbSession, file_url: str, reader: ReaderInstance, response: Response
 ) -> FileType:
     try:
         f = reader.get_file(file_url)
     except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid file URL")
 
+    response.headers["Cache-Control"] = "public, max-age=3600"
     return _get_file_type(f)
 
 
@@ -51,4 +52,5 @@ def get_file(session: DbSession, file_url: str, reader: ReaderInstance) -> FileR
     file_type = _get_file_type(f)
     if not file_type.image and not file_type.video:
         raise HTTPException(status_code=400, detail="Invalid file type")
-    return FileResponse(f)
+
+    return FileResponse(f, headers={"Cache-Control": "public, max-age=3600"})
