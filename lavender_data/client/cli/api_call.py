@@ -19,9 +19,11 @@ def get_dataset(api_url: str, api_key: str, dataset_id: str, name: str):
     )
 
 
-def create_dataset(api_url: str, api_key: str, name: str, uid_column_name: str):
+def create_dataset(
+    api_url: str, api_key: str, name: str, uid_column_name: str, shardset_location: str
+):
     return _api(api_url=api_url, api_key=api_key).create_dataset(
-        name=name, uid_column_name=uid_column_name
+        name=name, uid_column_name=uid_column_name, shardset_location=shardset_location
     )
 
 

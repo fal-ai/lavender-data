@@ -587,6 +587,8 @@ export interface components {
             name: string;
             /** Uid Column Name */
             uid_column_name?: string | null;
+            /** Shardset Location */
+            shardset_location?: string | null;
         };
         /** CreateIterationParams */
         CreateIterationParams: {

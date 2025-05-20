@@ -29,3 +29,65 @@
         docs.lavenderdata.com
     </a>
 </p>
+
+## Quick Start
+
+### Installation
+
+```bash
+pip install lavender-data
+```
+
+#### Start the server
+
+```bash
+lavender-data server start --init
+```
+
+```
+lavender-data is running on 0.0.0.0:8000
+UI is running on http://localhost:3000
+API key created: la-...
+```
+
+Save the API key to use it in the next steps.
+
+```bash
+export LAVENDER_API_URL=http://0.0.0.0:8000
+export LAVENDER_API_KEY=la-...
+```
+
+### Create an example dataset
+
+```bash
+lavender-data client \
+  datasets create \
+  --name my_dataset \
+  --uid-column-name id \
+  --shardset-location https://docs.lavenderdata.com/example-dataset/images/
+```
+
+### Iterate over the dataset
+
+```python
+import lavender_data.client as lavender
+
+lavender.init()
+
+iteration = lavender.LavenderDataLoader(
+    dataset_name="my_dataset",
+    shuffle=True,
+    shuffle_block_size=10,
+)
+
+for i in iteration:
+    print(i["id"])
+```
+
+<p align="center">
+    Please visit our docs for more information.
+    <br />
+    <a href="https://docs.lavenderdata.com/">
+        docs.lavenderdata.com
+    </a>
+</p>

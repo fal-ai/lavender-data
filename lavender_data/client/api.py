@@ -189,13 +189,19 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
-    def create_dataset(self, name: str, uid_column_name: Optional[str] = None):
+    def create_dataset(
+        self,
+        name: str,
+        uid_column_name: Optional[str] = None,
+        shardset_location: Optional[str] = None,
+    ):
         with self._get_client() as client:
             response = create_dataset_datasets_post.sync_detailed(
                 client=client,
                 body=CreateDatasetParams(
                     name=name,
                     uid_column_name=uid_column_name,
+                    shardset_location=shardset_location,
                 ),
             )
         return self._check_response(response)
@@ -498,8 +504,14 @@ def get_datasets(name: Optional[str] = None):
 
 
 @ensure_client()
-def create_dataset(name: str, uid_column_name: Optional[str] = None):
-    return _client_instance.create_dataset(name=name, uid_column_name=uid_column_name)
+def create_dataset(
+    name: str,
+    uid_column_name: Optional[str] = None,
+    shardset_location: Optional[str] = None,
+):
+    return _client_instance.create_dataset(
+        name=name, uid_column_name=uid_column_name, shardset_location=shardset_location
+    )
 
 
 @ensure_client()

@@ -15,10 +15,12 @@ class CreateDatasetParams:
     Attributes:
         name (str):
         uid_column_name (Union[None, Unset, str]):
+        shardset_location (Union[None, Unset, str]):
     """
 
     name: str
     uid_column_name: Union[None, Unset, str] = UNSET
+    shardset_location: Union[None, Unset, str] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -30,6 +32,12 @@ class CreateDatasetParams:
         else:
             uid_column_name = self.uid_column_name
 
+        shardset_location: Union[None, Unset, str]
+        if isinstance(self.shardset_location, Unset):
+            shardset_location = UNSET
+        else:
+            shardset_location = self.shardset_location
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -39,6 +47,8 @@ class CreateDatasetParams:
         )
         if uid_column_name is not UNSET:
             field_dict["uid_column_name"] = uid_column_name
+        if shardset_location is not UNSET:
+            field_dict["shardset_location"] = shardset_location
 
         return field_dict
 
@@ -56,9 +66,19 @@ class CreateDatasetParams:
 
         uid_column_name = _parse_uid_column_name(d.pop("uid_column_name", UNSET))
 
+        def _parse_shardset_location(data: object) -> Union[None, Unset, str]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(Union[None, Unset, str], data)
+
+        shardset_location = _parse_shardset_location(d.pop("shardset_location", UNSET))
+
         create_dataset_params = cls(
             name=name,
             uid_column_name=uid_column_name,
+            shardset_location=shardset_location,
         )
 
         create_dataset_params.additional_properties = d

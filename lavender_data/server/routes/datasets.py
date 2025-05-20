@@ -188,12 +188,14 @@ def preview_dataset(
 class CreateDatasetParams(BaseModel):
     name: str
     uid_column_name: Optional[str] = None
+    shardset_location: Optional[str] = None
 
 
 @router.post("/")
 def create_dataset(
     params: CreateDatasetParams,
     session: DbSession,
+    background_worker: CurrentBackgroundWorker,
     cluster: CurrentCluster,
 ) -> DatasetPublic:
     dataset = Dataset(name=params.name, uid_column_name=params.uid_column_name)
@@ -209,6 +211,21 @@ def create_dataset(
 
     if cluster:
         cluster.sync_changes([dataset])
+
+    if params.shardset_location:
+        try:
+            create_shardset(
+                dataset_id=dataset.id,
+                params=CreateShardsetParams(
+                    location=params.shardset_location, columns=[]
+                ),
+                session=session,
+                background_worker=background_worker,
+                cluster=cluster,
+            )
+        except:
+            cluster.sync_changes([dataset], delete=True)
+            raise
 
     return dataset
 

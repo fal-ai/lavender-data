@@ -48,7 +48,9 @@ class ClientCLI:
         self.datasets_create = self.datasets_command_parser.add_parser("create")
         self.datasets_create.add_argument("--name", type=str, required=True)
         self.datasets_create.add_argument("--uid-column-name", type=str, required=True)
-
+        self.datasets_create.add_argument(
+            "--shardset-location", type=str, required=False, default=None
+        )
         self.datasets_delete = self.datasets_command_parser.add_parser("delete")
         self.datasets_delete.add_argument("--id", type=str, required=True)
 
@@ -137,7 +139,11 @@ class ClientCLI:
                 ]
             elif args.command == "create":
                 result = create_dataset(
-                    args.api_url, args.api_key, args.name, args.uid_column_name
+                    args.api_url,
+                    args.api_key,
+                    args.name,
+                    args.uid_column_name,
+                    args.shardset_location,
                 ).to_dict()
             elif args.command == "delete":
                 result = delete_dataset(args.api_url, args.api_key, args.id).to_dict()

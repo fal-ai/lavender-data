@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 export async function createDataset(formData: FormData) {
   const name = formData.get('name') as string;
   const uidColumnName = formData.get('uidColumnName') as string;
+  const shardsetLocation = formData.get('shardsetLocation') as string;
 
   if (!name) {
     return { success: false, error: 'Name is required' };
@@ -15,7 +16,11 @@ export async function createDataset(formData: FormData) {
     const response = await (
       await getClient()
     ).POST('/datasets/', {
-      body: { name, uid_column_name: uidColumnName },
+      body: {
+        name,
+        uid_column_name: uidColumnName,
+        shardset_location: shardsetLocation,
+      },
     });
 
     if (response.error) {
