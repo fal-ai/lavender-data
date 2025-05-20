@@ -184,7 +184,9 @@ export default function DatasetPreviewPage({}: {}) {
       .then((r) => {
         const totalPages = Math.ceil(r.total / preview_limit);
         const fetchedColumns = r.columns.map((column) => column.name);
-        const selectedColumns = selected_columns.split(',');
+        const selectedColumns = selected_columns
+          .split(',')
+          .filter((c) => c !== '');
 
         setPreview(r);
         setTotalPages(totalPages);
