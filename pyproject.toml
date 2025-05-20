@@ -40,6 +40,7 @@ redis = {extras = ["hiredis"], version = "^5.2.1"}
 boto3 = "^1.38.13"
 webdataset = "^0.2.111"
 huggingface-hub = "^0.31.1"
+filetype = "^1.2.0"
 
 [tool.poetry.group.dev.dependencies]
 autopep8 = "2.1.0"

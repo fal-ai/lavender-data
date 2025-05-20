@@ -1,10 +1,12 @@
 import os
+import hashlib
 from typing import Annotated
 
 import numpy as np
 from fastapi import Depends
 from pydantic import BaseModel
 
+from lavender_data.storage import download_file
 from lavender_data.shard import Reader
 
 
@@ -113,6 +115,24 @@ class ServerSideReader:
         while self._get_cache_size() >= self.disk_cache_size:
             oldest_file = self._get_oldest_cache_file()
             os.remove(oldest_file)
+
+    def set_file(self, content: bytes):
+        local_path = os.path.join(
+            self.dirname, "files", hashlib.md5(content).hexdigest()
+        )
+        with open(local_path, "wb") as f:
+            f.write(content)
+        self._ensure_cache_size()
+        return local_path
+
+    def get_file(self, file_url: str):
+        local_path = os.path.join(
+            self.dirname, "files", hashlib.md5(file_url.encode()).hexdigest()
+        )
+        if not os.path.exists(local_path):
+            download_file(file_url, local_path, retry=0)
+        self._ensure_cache_size()
+        return local_path
 
     def get_reader(
         self, shard: ShardInfo, uid_column_name: str, uid_column_type: str

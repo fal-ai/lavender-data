@@ -7,6 +7,7 @@ from .iterations import router as iterations_router
 from .registries import router as registries_router
 from .cluster import router as cluster_router
 from .background_tasks import router as background_tasks_router
+from .files import router as files_router
 
 __all__ = [
     "root_router",
@@ -15,6 +16,7 @@ __all__ = [
     "registries_router",
     "cluster_router",
     "background_tasks_router",
+    "files_router",
 ]
 
 root_router = APIRouter(prefix="", tags=["root"])

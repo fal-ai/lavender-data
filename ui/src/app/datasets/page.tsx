@@ -41,7 +41,7 @@ export default async function DatasetsPage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>Datasets</BreadcrumbPage>
+            <BreadcrumbPage>datasets</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -62,7 +62,7 @@ export default async function DatasetsPage() {
                   {datasets.map((dataset: any) => (
                     <TableRow key={dataset.id}>
                       <TableCell className="font-mono text-xs">
-                        <Link href={`/datasets/${dataset.id}`}>
+                        <Link href={`/datasets/${dataset.id}/preview`}>
                           {dataset.id}
                         </Link>
                       </TableCell>

@@ -25,6 +25,7 @@ from .routes import (
     cluster_router,
     root_router,
     background_tasks_router,
+    files_router,
 )
 
 from .registries import setup_registries
@@ -123,3 +124,4 @@ app.include_router(iterations_router)
 app.include_router(registries_router)
 app.include_router(cluster_router)
 app.include_router(background_tasks_router)
+app.include_router(files_router)

@@ -1,6 +1,30 @@
 {
   "version": 4,
   "routes": {
+    "/background-tasks": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/background-tasks",
+      "dataRoute": "/background-tasks.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/": {
       "experimentalBypassFor": [
         {
@@ -48,37 +72,13 @@
         "x-next-revalidated-tags",
         "x-next-revalidate-tag-token"
       ]
-    },
-    "/background-tasks": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/background-tasks",
-      "dataRoute": "/background-tasks.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
     }
   },
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "b3411c2c3b1bee9f1b3569eb21faaa77",
-    "previewModeSigningKey": "bdff0bea279abdb3ea96c6879464537a3b7035c4622c48869bce8ebe4b4ea91b",
-    "previewModeEncryptionKey": "986d5116b655f548db6af2ef89bce5ec361413992404d2f987424dd352ebfce6"
+    "previewModeId": "50eca0e1951af3203b7488e0b04bbc50",
+    "previewModeSigningKey": "0416df83183a56c4dd6b679ae7880a2965ce24913c08cea6d26e2dfd7c94ec96",
+    "previewModeEncryptionKey": "41e2abe3bab66682551b3244c9fdc6187a4d674855621ce78d6ae4a5f73e2968"
   }
 }

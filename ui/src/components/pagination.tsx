@@ -1,31 +1,41 @@
-import { PaginationLink } from './ui/pagination';
-import { Ellipsis } from 'lucide-react';
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import {
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+} from './ui/pagination';
+import { ArrowUpRight } from 'lucide-react';
 import { PaginationItem } from './ui/pagination';
 import { PaginationContent } from './ui/pagination';
 import { Pagination as PaginationComponent } from './ui/pagination';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 
 export function Pagination({
-  centerButtonCount,
+  buttonCount,
   totalPages,
   currentPage,
   pageHref,
 }: {
-  centerButtonCount: number;
+  buttonCount: number;
   totalPages: number;
   currentPage: number;
   pageHref: (page: number) => string;
 }) {
+  const [page, setPage] = useState<number>(currentPage);
+
+  useEffect(() => {
+    setPage(currentPage);
+  }, [currentPage]);
+
   const buttonStartPage = Math.max(
     0,
-    Math.min(
-      currentPage - Math.floor(centerButtonCount / 2),
-      totalPages - centerButtonCount
-    )
+    currentPage - (currentPage % buttonCount)
   );
-  const buttonEndPage = Math.min(
-    totalPages,
-    buttonStartPage + centerButtonCount
-  );
+  const buttonEndPage = Math.min(totalPages, buttonStartPage + buttonCount);
   const pageRange = Array.from(
     { length: buttonEndPage - buttonStartPage },
     (_, index) => buttonStartPage + index
@@ -37,10 +47,9 @@ export function Pagination({
         {buttonStartPage > 0 && (
           <>
             <PaginationItem>
-              <PaginationLink href={pageHref(0)}>1</PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <Ellipsis className="w-4" />
+              <PaginationPrevious
+                href={pageHref(buttonStartPage - buttonCount)}
+              />
             </PaginationItem>
           </>
         )}
@@ -57,15 +66,29 @@ export function Pagination({
         {totalPages > buttonEndPage && (
           <>
             <PaginationItem>
-              <Ellipsis className="w-4" />
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink href={pageHref(totalPages - 1)}>
-                {totalPages}
-              </PaginationLink>
+              <PaginationNext href={pageHref(buttonEndPage)} />
             </PaginationItem>
           </>
         )}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div>
+            <Input
+              className="w-24 text-right"
+              type="number"
+              min={1}
+              max={totalPages + 1}
+              value={page + 1}
+              onChange={(e) => setPage(Number(e.target.value) - 1)}
+            />
+          </div>
+          <div>/</div>
+          <div>{totalPages}</div>
+          <Button variant="outline" size="icon">
+            <Link href={pageHref(page)}>
+              <ArrowUpRight className="w-4" />
+            </Link>
+          </Button>
+        </div>
       </PaginationContent>
     </PaginationComponent>
   );
