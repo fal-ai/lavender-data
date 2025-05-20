@@ -116,7 +116,13 @@ export function MultiSelect({
                     setValue(
                       value.includes(currentValue)
                         ? value.filter((v) => v !== currentValue)
-                        : [...value, currentValue]
+                        : options
+                            .filter(
+                              (o) =>
+                                value.includes(o.value) ||
+                                o.value === currentValue
+                            )
+                            .map((o) => o.value)
                     );
                   }}
                   draggable={draggable}

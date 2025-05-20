@@ -160,9 +160,26 @@ function FileCell({ url, sample }: { url: string; sample: any }) {
   }
 }
 
+const getColumnsFromLocalStorage = (dataset_id: string): string[] => {
+  if (typeof window !== 'undefined') {
+    const storage = localStorage.getItem(`columns-${dataset_id}`);
+    if (storage) {
+      return JSON.parse(storage);
+    }
+  }
+  return [];
+};
+
+const setColumnsToLocalStorage = (dataset_id: string, columns: string[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(`columns-${dataset_id}`, JSON.stringify(columns));
+  }
+};
+
 export default function DatasetPreviewPage({}: {}) {
   const { dataset_id } = useParams() as { dataset_id: string };
   const searchParams = useSearchParams();
+
   const router = useRouter();
 
   const preview_limit = 20;
@@ -174,7 +191,7 @@ export default function DatasetPreviewPage({}: {}) {
   const [allColumns, setAllColumns] = useState<
     { label: string; value: string }[]
   >([]);
-  const [columns, setColumns] = useState<string[]>(selected_columns.split(','));
+  const [columns, setColumns] = useState<string[]>([]);
   const [fileColumns, setFileColumns] = useState<string[]>([]);
   const [preview, setPreview] = useState<DatasetPreviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -184,9 +201,11 @@ export default function DatasetPreviewPage({}: {}) {
       .then((r) => {
         const totalPages = Math.ceil(r.total / preview_limit);
         const fetchedColumns = r.columns.map((column) => column.name);
-        const selectedColumns = selected_columns
-          .split(',')
-          .filter((c) => c !== '');
+        const storedColumns = getColumnsFromLocalStorage(dataset_id);
+        const selectedColumns =
+          storedColumns.length > 0
+            ? storedColumns
+            : selected_columns.split(',').filter((c) => c !== '');
 
         setPreview(r);
         setTotalPages(totalPages);
@@ -227,9 +246,12 @@ export default function DatasetPreviewPage({}: {}) {
   }, [dataset_id, preview_page, preview_limit]);
 
   useEffect(() => {
-    router.push(
-      `/datasets/${dataset_id}/preview?preview_page=${currentPage}&selected_columns=${columns.join(',')}`
-    );
+    if (columns.length > 0) {
+      router.push(
+        `/datasets/${dataset_id}/preview?preview_page=${currentPage}&selected_columns=${columns.join(',')}`
+      );
+      setColumnsToLocalStorage(dataset_id, columns);
+    }
   }, [columns]);
 
   if (error) {
