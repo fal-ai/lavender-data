@@ -160,7 +160,9 @@ function FileCell({ url, sample }: { url: string; sample: any }) {
   }
 }
 
-const getColumnsFromLocalStorage = (dataset_id: string): string[] => {
+const getColumnsFromLocalStorage = (
+  dataset_id: string
+): { name: string; selected: boolean }[] => {
   if (typeof window !== 'undefined') {
     const storage = localStorage.getItem(`columns-${dataset_id}`);
     if (storage) {
@@ -170,7 +172,10 @@ const getColumnsFromLocalStorage = (dataset_id: string): string[] => {
   return [];
 };
 
-const setColumnsToLocalStorage = (dataset_id: string, columns: string[]) => {
+const setColumnsToLocalStorage = (
+  dataset_id: string,
+  columns: { name: string; selected: boolean }[]
+) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem(`columns-${dataset_id}`, JSON.stringify(columns));
   }
@@ -185,13 +190,15 @@ export default function DatasetPreviewPage({}: {}) {
   const preview_limit = 20;
   const preview_page = Number(searchParams.get('preview_page')) || 0;
   const currentPage = Number(preview_page);
-  const selected_columns = searchParams.get('selected_columns') || '';
+  const columnsParams = searchParams.get('columns') || '';
   const [totalPages, setTotalPages] = useState<number>(0);
 
-  const [allColumns, setAllColumns] = useState<
-    { label: string; value: string }[]
+  const [columns, setColumns] = useState<
+    {
+      name: string;
+      selected: boolean;
+    }[]
   >([]);
-  const [columns, setColumns] = useState<string[]>([]);
   const [fileColumns, setFileColumns] = useState<string[]>([]);
   const [preview, setPreview] = useState<DatasetPreviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -202,25 +209,32 @@ export default function DatasetPreviewPage({}: {}) {
         const totalPages = Math.ceil(r.total / preview_limit);
         const fetchedColumns = r.columns.map((column) => column.name);
         const storedColumns = getColumnsFromLocalStorage(dataset_id);
-        const selectedColumns =
+        const paramsColumns =
           storedColumns.length > 0
             ? storedColumns
-            : selected_columns.split(',').filter((c) => c !== '');
+            : columnsParams
+                .split(',')
+                .filter((c) => c !== '')
+                .map((c) => {
+                  const [name, selected] = c.split('||');
+                  return {
+                    name: name,
+                    selected: selected === '1',
+                  };
+                });
 
         setPreview(r);
         setTotalPages(totalPages);
 
-        if (selectedColumns.length === 0) {
-          setAllColumns(fetchedColumns.map((c) => ({ label: c, value: c })));
-          setColumns(fetchedColumns);
+        if (paramsColumns.length === 0) {
+          setColumns(
+            fetchedColumns.map((c) => ({
+              name: c,
+              selected: true,
+            }))
+          );
         } else {
-          setAllColumns([
-            ...selectedColumns.map((c) => ({ label: c, value: c })),
-            ...fetchedColumns
-              .filter((c) => !selectedColumns.includes(c))
-              .map((c) => ({ label: c, value: c })),
-          ]);
-          setColumns(selectedColumns);
+          setColumns(paramsColumns);
         }
         setFileColumns(
           r.columns
@@ -248,7 +262,9 @@ export default function DatasetPreviewPage({}: {}) {
   useEffect(() => {
     if (columns.length > 0) {
       router.push(
-        `/datasets/${dataset_id}/preview?preview_page=${currentPage}&selected_columns=${columns.join(',')}`
+        `/datasets/${dataset_id}/preview?preview_page=${currentPage}&columns=${columns
+          .map((c) => `${c.name}||${c.selected ? '1' : '0'}`)
+          .join(',')}`
       );
       setColumnsToLocalStorage(dataset_id, columns);
     }
@@ -277,19 +293,33 @@ export default function DatasetPreviewPage({}: {}) {
         <div className="w-full flex justify-start mb-4">
           <div className="flex gap-2">
             <MultiSelect
-              options={allColumns}
-              setOptions={setAllColumns}
               label="Columns"
               placeholder="Search columns..."
               emptyText="No columns found"
               draggable={true}
-              value={columns}
-              setValue={setColumns}
+              value={columns.map((c) => ({
+                label: c.name,
+                value: c.name,
+                selected: c.selected,
+              }))}
+              onChange={(value) =>
+                setColumns(
+                  value.map((v) => ({
+                    name: v.value,
+                    selected: v.selected,
+                  }))
+                )
+              }
             />
             <Button
               variant="outline"
               onClick={() =>
-                setColumns(preview.columns.map((column) => column.name))
+                setColumns(
+                  preview.columns.map((column) => ({
+                    name: column.name,
+                    selected: true,
+                  }))
+                )
               }
             >
               Reset
@@ -299,51 +329,55 @@ export default function DatasetPreviewPage({}: {}) {
         <Table>
           <TableHeader>
             <TableRow>
-              {columns.map((column) => (
-                <TableHead key={column}>{column}</TableHead>
-              ))}
+              {columns
+                .filter((c) => c.selected)
+                .map((column) => (
+                  <TableHead key={column.name}>{column.name}</TableHead>
+                ))}
             </TableRow>
           </TableHeader>
           <TableBody>
             {preview.samples.map((sample, index) => (
               <TableRow key={`preview-sample-${index}`}>
-                {columns.map((column) => {
-                  const value = sample[column];
-                  if (fileColumns.includes(column)) {
+                {columns
+                  .filter((c) => c.selected)
+                  .map((column) => {
+                    const value = sample[column.name];
+                    if (fileColumns.includes(column.name)) {
+                      return (
+                        <TableCell key={column.name}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <FileCell url={value as string} sample={sample} />
+                            </TooltipTrigger>
+                            <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
+                              {value as string}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                      );
+                    }
+
+                    const sanitizedValue = sanitize(value);
+                    const ellipsizedValue = ellipsize(sanitizedValue);
+
                     return (
-                      <TableCell key={column}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <FileCell url={value as string} sample={sample} />
-                          </TooltipTrigger>
-                          <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
-                            {value as string}
-                          </TooltipContent>
-                        </Tooltip>
+                      <TableCell key={column.name}>
+                        {ellipsizedValue ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>{ellipsizedValue}</div>
+                            </TooltipTrigger>
+                            <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
+                              {sanitizedValue}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <div>{sanitizedValue}</div>
+                        )}
                       </TableCell>
                     );
-                  }
-
-                  const sanitizedValue = sanitize(value);
-                  const ellipsizedValue = ellipsize(sanitizedValue);
-
-                  return (
-                    <TableCell key={column}>
-                      {ellipsizedValue ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div>{ellipsizedValue}</div>
-                          </TooltipTrigger>
-                          <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
-                            {sanitizedValue}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <div>{sanitizedValue}</div>
-                      )}
-                    </TableCell>
-                  );
-                })}
+                  })}
               </TableRow>
             ))}
           </TableBody>

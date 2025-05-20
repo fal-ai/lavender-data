@@ -22,13 +22,12 @@ import {
 type Item = {
   label: string;
   value: string;
+  selected: boolean;
 };
 
 type MultiSelectProps = {
-  options: Item[];
-  value: string[];
-  setValue: React.Dispatch<React.SetStateAction<string[]>>;
-  setOptions?: React.Dispatch<React.SetStateAction<Item[]>>;
+  value: Item[];
+  onChange: (value: Item[]) => void;
   draggable?: boolean;
   label?: string;
   placeholder?: string;
@@ -37,10 +36,8 @@ type MultiSelectProps = {
 };
 
 export function MultiSelect({
-  options,
   value,
-  setValue,
-  setOptions = () => {},
+  onChange,
   draggable = false,
   label = '',
   placeholder = '',
@@ -57,34 +54,25 @@ export function MultiSelect({
   const handleDrop = (e: any, targetItem: any) => {
     e.preventDefault();
     if (draggingItem) {
-      setOptions((prev: Item[]) => {
-        const updatedItems = [...prev];
-        const draggingIndex = updatedItems.findIndex(
-          (item) => item.value === draggingItem.value
-        );
-        const targetIndex = updatedItems.findIndex(
-          (item) => item.value === targetItem.value
-        );
-        [updatedItems[draggingIndex], updatedItems[targetIndex]] = [
-          updatedItems[targetIndex],
-          updatedItems[draggingIndex],
-        ];
-        return updatedItems;
-      });
-      setValue((prev: string[]) => {
-        const updatedItems = [...prev];
-        const draggingIndex = updatedItems.findIndex(
-          (item) => item === draggingItem.value
-        );
-        const targetIndex = updatedItems.findIndex(
-          (item) => item === targetItem.value
-        );
-        [updatedItems[draggingIndex], updatedItems[targetIndex]] = [
-          updatedItems[targetIndex],
-          updatedItems[draggingIndex],
-        ];
-        return updatedItems;
-      });
+      const updatedItems = [...value];
+      const draggingIndex = updatedItems.findIndex(
+        (item) => item.value === draggingItem.value
+      );
+      const targetIndex = updatedItems.findIndex(
+        (item) => item.value === targetItem.value
+      );
+      if (draggingIndex > targetIndex) {
+        for (let i = draggingIndex; i > targetIndex; i--) {
+          updatedItems[i] = updatedItems[i - 1];
+        }
+        updatedItems[targetIndex] = draggingItem;
+      } else {
+        for (let i = draggingIndex; i < targetIndex; i++) {
+          updatedItems[i] = updatedItems[i + 1];
+        }
+        updatedItems[targetIndex] = draggingItem;
+      }
+      onChange(updatedItems);
       setDraggingItem(null);
     }
   };
@@ -108,22 +96,20 @@ export function MultiSelect({
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {value.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
                   onSelect={(currentValue) => {
-                    setValue(
-                      value.includes(currentValue)
-                        ? value.filter((v) => v !== currentValue)
-                        : options
-                            .filter(
-                              (o) =>
-                                value.includes(o.value) ||
-                                o.value === currentValue
-                            )
-                            .map((o) => o.value)
+                    const index = value.findIndex(
+                      (v) => v.value === currentValue
                     );
+                    if (index !== -1) {
+                      const updatedItems = [...value];
+                      updatedItems[index].selected =
+                        !updatedItems[index].selected;
+                      onChange(updatedItems);
+                    }
                   }}
                   draggable={draggable}
                   onDragStart={() => handleDragStart(option)}
@@ -135,7 +121,9 @@ export function MultiSelect({
                   <Check
                     className={cn(
                       'ml-auto',
-                      value.includes(option.value) ? 'opacity-100' : 'opacity-0'
+                      value.find((v) => v.value === option.value)?.selected
+                        ? 'opacity-100'
+                        : 'opacity-0'
                     )}
                   />
                 </CommandItem>
