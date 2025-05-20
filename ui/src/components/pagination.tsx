@@ -1,3 +1,7 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import {
   PaginationLink,
   PaginationPrevious,
@@ -21,6 +25,12 @@ export function Pagination({
   currentPage: number;
   pageHref: (page: number) => string;
 }) {
+  const [page, setPage] = useState<number>(currentPage);
+
+  useEffect(() => {
+    setPage(currentPage);
+  }, [currentPage]);
+
   const buttonStartPage = Math.max(
     0,
     currentPage - (currentPage % buttonCount)
@@ -60,22 +70,25 @@ export function Pagination({
             </PaginationItem>
           </>
         )}
-        <form className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div>
             <Input
-              className="w-24"
+              className="w-24 text-right"
               type="number"
               min={1}
               max={totalPages + 1}
-              defaultValue={currentPage + 1}
+              value={page + 1}
+              onChange={(e) => setPage(Number(e.target.value) - 1)}
             />
           </div>
           <div>/</div>
           <div>{totalPages}</div>
           <Button variant="outline" size="icon">
-            <ArrowUpRight className="w-4" />
+            <Link href={pageHref(page)}>
+              <ArrowUpRight className="w-4" />
+            </Link>
           </Button>
-        </form>
+        </div>
       </PaginationContent>
     </PaginationComponent>
   );

@@ -165,7 +165,10 @@ export default function DatasetPreviewPage({}: {}) {
 
   const preview_limit = 20;
   const preview_page = Number(searchParams.get('preview_page')) || 0;
+  const currentPage = Number(preview_page);
 
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [fileColumns, setFileColumns] = useState<string[]>([]);
   const [preview, setPreview] = useState<DatasetPreviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -173,6 +176,25 @@ export default function DatasetPreviewPage({}: {}) {
     getDatasetPreview(dataset_id, preview_page, preview_limit)
       .then((r) => {
         setPreview(r);
+        const totalPages = Math.ceil(r.total / preview_limit);
+        setTotalPages(totalPages);
+        setFileColumns(
+          r.columns
+            .filter((column) =>
+              r.samples
+                .map((s) => s[column.name])
+                .every(
+                  (v) =>
+                    typeof v === 'string' &&
+                    (v.startsWith('http://') ||
+                      v.startsWith('https://') ||
+                      v.startsWith('s3://') ||
+                      v.startsWith('hf://') ||
+                      v.startsWith('file://'))
+                )
+            )
+            .map((column) => column.name)
+        );
       })
       .catch((e) => {
         setError(e.message);
@@ -195,25 +217,6 @@ export default function DatasetPreviewPage({}: {}) {
       </div>
     );
   }
-
-  const totalPages = Math.ceil(preview.total / preview_limit);
-  const currentPage = Number(preview_page);
-
-  const fileColumns = preview.columns
-    .filter((column) =>
-      preview.samples
-        .map((s) => s[column.name])
-        .every(
-          (v) =>
-            typeof v === 'string' &&
-            (v.startsWith('http://') ||
-              v.startsWith('https://') ||
-              v.startsWith('s3://') ||
-              v.startsWith('hf://') ||
-              v.startsWith('file://'))
-        )
-    )
-    .map((column) => column.name);
 
   return (
     <Card className="w-full">
