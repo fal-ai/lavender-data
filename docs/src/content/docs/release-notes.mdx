@@ -4,6 +4,44 @@ description: Release notes for Lavender Data
 ---
 
 
+## 0.1.2 (2025-05-20)
+
+### Added
+
+#### Preview media 
+
+Preview media files like images, videos in dataset preview.
+
+<img src="/web-ui/web-ui-preview-media.png" alt="Preview media" width="480" />
+
+#### Selectable columns
+
+Select columns and sort them as you like.
+
+<img src="/web-ui/web-ui-selectable-columns.png" alt="Selectable columns" width="200" />
+
+#### HTTP Storage
+
+Added HTTP/HTTPS storage support. Fetch files from HTTP/HTTPS URLs.
+
+For example,
+```
+https://docs.lavenderdata.com/example-dataset/images/shard.00000.csv
+```
+
+#### `shardset_location` option for dataset creation
+
+Added `shardset_location` option so you can create a dataset and the shardset at the same time.
+
+```bash
+lavender-data client \
+  datasets create \
+  --name my_dataset \
+  --uid-column-name id \
+  --shardset-location https://docs.lavenderdata.com/example-dataset/images/
+```
+
+
 ## 0.1.1 (2025-05-19)
 
 ### Added
