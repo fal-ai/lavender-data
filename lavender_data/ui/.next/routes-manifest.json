@@ -15,6 +15,14 @@
   "headers": [],
   "dynamicRoutes": [
     {
+      "page": "/api/datasets/[dataset_id]/preview",
+      "regex": "^/api/datasets/([^/]+?)/preview(?:/)?$",
+      "routeKeys": {
+        "nxtPdataset_id": "nxtPdataset_id"
+      },
+      "namedRegex": "^/api/datasets/(?<nxtPdataset_id>[^/]+?)/preview(?:/)?$"
+    },
+    {
       "page": "/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync",
       "regex": "^/api/datasets/([^/]+?)/shardsets/([^/]+?)/sync(?:/)?$",
       "routeKeys": {
@@ -30,6 +38,38 @@
         "nxtPdataset_id": "nxtPdataset_id"
       },
       "namedRegex": "^/datasets/(?<nxtPdataset_id>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/datasets/[dataset_id]/iterations",
+      "regex": "^/datasets/([^/]+?)/iterations(?:/)?$",
+      "routeKeys": {
+        "nxtPdataset_id": "nxtPdataset_id"
+      },
+      "namedRegex": "^/datasets/(?<nxtPdataset_id>[^/]+?)/iterations(?:/)?$"
+    },
+    {
+      "page": "/datasets/[dataset_id]/preview",
+      "regex": "^/datasets/([^/]+?)/preview(?:/)?$",
+      "routeKeys": {
+        "nxtPdataset_id": "nxtPdataset_id"
+      },
+      "namedRegex": "^/datasets/(?<nxtPdataset_id>[^/]+?)/preview(?:/)?$"
+    },
+    {
+      "page": "/datasets/[dataset_id]/settings",
+      "regex": "^/datasets/([^/]+?)/settings(?:/)?$",
+      "routeKeys": {
+        "nxtPdataset_id": "nxtPdataset_id"
+      },
+      "namedRegex": "^/datasets/(?<nxtPdataset_id>[^/]+?)/settings(?:/)?$"
+    },
+    {
+      "page": "/datasets/[dataset_id]/shardsets",
+      "regex": "^/datasets/([^/]+?)/shardsets(?:/)?$",
+      "routeKeys": {
+        "nxtPdataset_id": "nxtPdataset_id"
+      },
+      "namedRegex": "^/datasets/(?<nxtPdataset_id>[^/]+?)/shardsets(?:/)?$"
     },
     {
       "page": "/datasets/[dataset_id]/shardsets/[shardset_id]",
