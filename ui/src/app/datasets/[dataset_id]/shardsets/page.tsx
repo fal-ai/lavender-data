@@ -14,7 +14,6 @@ import type { components } from '@/lib/api/v1';
 import { AddShardsetDialog } from './add-shardset-dialog';
 import { ErrorCard } from '@/components/error-card';
 import { Card, CardContent } from '@/components/ui/card';
-import { TabsContent } from '@/components/ui/tabs';
 
 function ShardSetInfo({ shardset }: { shardset: any }) {
   if (!shardset) {

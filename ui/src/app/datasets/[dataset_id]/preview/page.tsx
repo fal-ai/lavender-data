@@ -20,7 +20,7 @@ import {
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { getDatasetPreview, getFileType } from '@/lib/client-side-api';
 import type { components } from '@/lib/api/v1';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
@@ -32,7 +32,8 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LoaderCircle } from 'lucide-react';
-import { TabsContent } from '@radix-ui/react-tabs';
+import { Button } from '@/components/ui/button';
+import { MultiSelect } from '@/components/multiselect';
 
 type DatasetPreviewResponse = components['schemas']['PreviewDatasetResponse'];
 type FileType = components['schemas']['FileType'];
@@ -162,12 +163,18 @@ function FileCell({ url, sample }: { url: string; sample: any }) {
 export default function DatasetPreviewPage({}: {}) {
   const { dataset_id } = useParams() as { dataset_id: string };
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const preview_limit = 20;
   const preview_page = Number(searchParams.get('preview_page')) || 0;
   const currentPage = Number(preview_page);
-
+  const selected_columns = searchParams.get('selected_columns') || '';
   const [totalPages, setTotalPages] = useState<number>(0);
+
+  const [allColumns, setAllColumns] = useState<
+    { label: string; value: string }[]
+  >([]);
+  const [columns, setColumns] = useState<string[]>(selected_columns.split(','));
   const [fileColumns, setFileColumns] = useState<string[]>([]);
   const [preview, setPreview] = useState<DatasetPreviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -175,9 +182,25 @@ export default function DatasetPreviewPage({}: {}) {
   useEffect(() => {
     getDatasetPreview(dataset_id, preview_page, preview_limit)
       .then((r) => {
-        setPreview(r);
         const totalPages = Math.ceil(r.total / preview_limit);
+        const fetchedColumns = r.columns.map((column) => column.name);
+        const selectedColumns = selected_columns.split(',');
+
+        setPreview(r);
         setTotalPages(totalPages);
+
+        if (selectedColumns.length === 0) {
+          setAllColumns(fetchedColumns.map((c) => ({ label: c, value: c })));
+          setColumns(fetchedColumns);
+        } else {
+          setAllColumns([
+            ...selectedColumns.map((c) => ({ label: c, value: c })),
+            ...fetchedColumns
+              .filter((c) => !selectedColumns.includes(c))
+              .map((c) => ({ label: c, value: c })),
+          ]);
+          setColumns(selectedColumns);
+        }
         setFileColumns(
           r.columns
             .filter((column) =>
@@ -201,6 +224,12 @@ export default function DatasetPreviewPage({}: {}) {
       });
   }, [dataset_id, preview_page, preview_limit]);
 
+  useEffect(() => {
+    router.push(
+      `/datasets/${dataset_id}/preview?preview_page=${currentPage}&selected_columns=${columns.join(',')}`
+    );
+  }, [columns]);
+
   if (error) {
     return (
       <ErrorCard
@@ -221,22 +250,44 @@ export default function DatasetPreviewPage({}: {}) {
   return (
     <Card className="w-full">
       <CardContent className="w-full">
+        <div className="w-full flex justify-start mb-4">
+          <div className="flex gap-2">
+            <MultiSelect
+              options={allColumns}
+              setOptions={setAllColumns}
+              label="Columns"
+              placeholder="Search columns..."
+              emptyText="No columns found"
+              draggable={true}
+              value={columns}
+              setValue={setColumns}
+            />
+            <Button
+              variant="outline"
+              onClick={() =>
+                setColumns(preview.columns.map((column) => column.name))
+              }
+            >
+              Reset
+            </Button>
+          </div>
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
-              {preview.columns.map((column) => (
-                <TableHead key={column.id}>{column.name}</TableHead>
+              {columns.map((column) => (
+                <TableHead key={column}>{column}</TableHead>
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
             {preview.samples.map((sample, index) => (
               <TableRow key={`preview-sample-${index}`}>
-                {preview.columns.map((column) => {
-                  const value = sample[column.name];
-                  if (fileColumns.includes(column.name)) {
+                {columns.map((column) => {
+                  const value = sample[column];
+                  if (fileColumns.includes(column)) {
                     return (
-                      <TableCell key={column.id}>
+                      <TableCell key={column}>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <FileCell url={value as string} sample={sample} />
@@ -253,7 +304,7 @@ export default function DatasetPreviewPage({}: {}) {
                   const ellipsizedValue = ellipsize(sanitizedValue);
 
                   return (
-                    <TableCell key={column.id}>
+                    <TableCell key={column}>
                       {ellipsizedValue ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
