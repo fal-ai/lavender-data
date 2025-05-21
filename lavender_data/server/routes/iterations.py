@@ -125,39 +125,39 @@ def create_iteration(
 
     if params.filters is not None:
         for f in params.filters:
-            if f["name"] not in FilterRegistry.list():
+            if f["name"] not in FilterRegistry.all():
                 raise HTTPException(
                     status_code=400,
                     detail="filter must be one of the following: ["
-                    + ", ".join(FilterRegistry.list())
+                    + ", ".join(FilterRegistry.all())
                     + "]",
                 )
 
     if params.categorizer is not None:
-        if params.categorizer["name"] not in CategorizerRegistry.list():
+        if params.categorizer["name"] not in CategorizerRegistry.all():
             raise HTTPException(
                 status_code=400,
                 detail="categorizer must be one of the following: ["
-                + ", ".join(CategorizerRegistry.list())
+                + ", ".join(CategorizerRegistry.all())
                 + "]",
             )
 
     if params.collater is not None:
-        if params.collater["name"] not in CollaterRegistry.list():
+        if params.collater["name"] not in CollaterRegistry.all():
             raise HTTPException(
                 status_code=400,
                 detail="collater must be one of the following: ["
-                + ", ".join(CollaterRegistry.list())
+                + ", ".join(CollaterRegistry.all())
                 + "]",
             )
 
     if params.preprocessors is not None:
         for preprocessor in params.preprocessors:
-            if preprocessor["name"] not in PreprocessorRegistry.list():
+            if preprocessor["name"] not in PreprocessorRegistry.all():
                 raise HTTPException(
                     status_code=400,
                     detail="preprocessor must be one of the following: ["
-                    + ", ".join(PreprocessorRegistry.list())
+                    + ", ".join(PreprocessorRegistry.all())
                     + "]",
                 )
 

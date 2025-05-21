@@ -6,6 +6,8 @@ from .abc import Registry
 
 
 class PreprocessorRegistry(Registry["Preprocessor"]):
+    _func_name: str = "process"
+
     @classmethod
     def process(
         cls,

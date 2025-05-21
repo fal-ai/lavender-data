@@ -4,7 +4,7 @@ from .abc import Registry
 
 
 class FilterRegistry(Registry["Filter"]):
-    pass
+    _func_name: str = "filter"
 
 
 class Filter(ABC):

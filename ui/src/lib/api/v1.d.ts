@@ -712,6 +712,16 @@ export interface components {
             /** Image */
             image: boolean;
         };
+        /** FuncSpec */
+        FuncSpec: {
+            /** Name */
+            name: string;
+            /** Args */
+            args: [
+                string,
+                string
+            ][];
+        };
         /** GetDatasetResponse */
         GetDatasetResponse: {
             /** Id */
@@ -1926,7 +1936,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["FuncSpec"][];
                 };
             };
         };
@@ -1946,7 +1956,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["FuncSpec"][];
                 };
             };
         };
@@ -1966,7 +1976,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["FuncSpec"][];
                 };
             };
         };
@@ -1986,7 +1996,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["FuncSpec"][];
                 };
             };
         };

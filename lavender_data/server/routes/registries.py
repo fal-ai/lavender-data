@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from lavender_data.server.registries import (
+    FuncSpec,
     FilterRegistry,
     CategorizerRegistry,
     CollaterRegistry,
@@ -11,20 +12,20 @@ router = APIRouter(prefix="/registries", tags=["registries"])
 
 
 @router.get("/filters")
-def get_filters() -> list[str]:
-    return FilterRegistry.list()
+def get_filters() -> list[FuncSpec]:
+    return FilterRegistry.specs()
 
 
 @router.get("/categorizers")
-def get_categorizers() -> list[str]:
-    return CategorizerRegistry.list()
+def get_categorizers() -> list[FuncSpec]:
+    return CategorizerRegistry.specs()
 
 
 @router.get("/collaters")
-def get_collaters() -> list[str]:
-    return CollaterRegistry.list()
+def get_collaters() -> list[FuncSpec]:
+    return CollaterRegistry.specs()
 
 
 @router.get("/preprocessors")
-def get_preprocessors() -> list[str]:
-    return PreprocessorRegistry.list()
+def get_preprocessors() -> list[FuncSpec]:
+    return PreprocessorRegistry.specs()

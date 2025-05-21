@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional
 from lavender_data.logging import get_logger
 
+from .abc import Registry, FuncSpec
 from .collater import CollaterRegistry, Collater
 from .filter import FilterRegistry, Filter
 from .categorizer import CategorizerRegistry, Categorizer
@@ -19,6 +20,7 @@ __all__ = [
     "Categorizer",
     "PreprocessorRegistry",
     "Preprocessor",
+    "FuncSpec",
 ]
 
 
@@ -26,10 +28,10 @@ def import_from_directory(directory: str):
     logger = get_logger(__name__)
     for file in Path(directory).glob("*.py"):
         before = {
-            "filter": FilterRegistry.list(),
-            "categorizer": CategorizerRegistry.list(),
-            "collater": CollaterRegistry.list(),
-            "preprocessor": PreprocessorRegistry.list(),
+            "filter": FilterRegistry.all(),
+            "categorizer": CategorizerRegistry.all(),
+            "collater": CollaterRegistry.all(),
+            "preprocessor": PreprocessorRegistry.all(),
         }
 
         mod_name = file.stem
@@ -40,10 +42,10 @@ def import_from_directory(directory: str):
         spec.loader.exec_module(mod)
 
         after = {
-            "filter": FilterRegistry.list(),
-            "categorizer": CategorizerRegistry.list(),
-            "collater": CollaterRegistry.list(),
-            "preprocessor": PreprocessorRegistry.list(),
+            "filter": FilterRegistry.all(),
+            "categorizer": CategorizerRegistry.all(),
+            "collater": CollaterRegistry.all(),
+            "preprocessor": PreprocessorRegistry.all(),
         }
         diff = {
             key: list(set(after[key]) - set(before[key]))
