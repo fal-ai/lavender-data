@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Factory, Filter, Tag, Trash, Package } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Factory, Filter, Tag, Trash, Package, Settings } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import type { components } from '@/lib/api/v1';
+import { createIteration } from '@/lib/client-side-api';
 import { MultiSelect, MultiSelectItem } from '@/components/multiselect';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { CodeBlock } from '@/components/code-block';
 import {
   Dialog,
@@ -13,6 +14,7 @@ import {
   DialogTrigger,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -27,6 +29,29 @@ const pyTypeToInputType: Record<string, string> = {
   float: 'number',
   str: 'text',
   bool: 'checkbox',
+  list: 'text',
+};
+
+const pyTypeToJsonValue = (type: string, value: string) => {
+  if (type === 'bool') {
+    return value === 'True';
+  } else if (type === 'int') {
+    return parseInt(value);
+  } else if (type === 'float') {
+    return parseFloat(value);
+  } else if (type === 'str') {
+    return value;
+  } else if (type === 'list') {
+    return value.split(',');
+  } else if (type === 'dict') {
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      return {};
+    }
+  } else {
+    return value;
+  }
 };
 
 const pyTypeToInputValue = (type: string, value: string) => {
@@ -38,6 +63,14 @@ const pyTypeToInputValue = (type: string, value: string) => {
     return value;
   } else if (type === 'str') {
     return `"${value}"`;
+  } else if (type === 'list') {
+    return `[${value
+      .split(',')
+      .map((v) => `"${v}"`)
+      .join(', ')}]`;
+  } else if (type === 'dict') {
+    // handle None
+    return value;
   } else {
     return value;
   }
@@ -79,16 +112,22 @@ const anyArgsDefined = (argsState: ArgsState[string]) => {
   return Object.values(argsState).some(({ value }) => value !== '');
 };
 
-const argsStateToParams = (argsState: ArgsState[string]) => {
-  if (!anyArgsDefined(argsState)) {
+const argsPlaceholder = (type: string) => {
+  if (type === 'bool') {
+    return '';
+  } else if (type === 'int') {
+    return '1';
+  } else if (type === 'float') {
+    return '1.0';
+  } else if (type === 'str') {
+    return 'text';
+  } else if (type === 'list') {
+    return 'abc, def, ...';
+  } else if (type === 'dict') {
+    return '{"k": "v", ...} (JSON)';
+  } else {
     return '';
   }
-  return Object.entries(argsState)
-    .filter(([_, { value }]) => value !== '')
-    .map(([key, { value, type }]) => {
-      return `"${key}": ${pyTypeToInputValue(type, value)}`;
-    })
-    .join(', ');
 };
 
 function SpecParamsInput({
@@ -114,6 +153,7 @@ function SpecParamsInput({
                 className={`col-span-3 ${type === 'bool' ? 'h-6 my-2' : ''}`}
                 type={pyTypeToInputType[type]}
                 value={argsState[spec.name]?.[key]?.value || ''}
+                placeholder={argsPlaceholder(type)}
                 onChange={(e) =>
                   onArgsStateChange((prev) => ({
                     ...prev,
@@ -176,8 +216,9 @@ function FuncInputDialog({
   onArgsStateChange: (callback: (argsState: ArgsState) => ArgsState) => void;
   singleSelect?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">
           {icon}
@@ -186,41 +227,78 @@ function FuncInputDialog({
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>{label}</DialogTitle>
-        <DialogDescription></DialogDescription>
-        <MultiSelect
-          className="col-span-3"
-          value={selected}
-          onChange={setSelected}
-          label={label}
-          singleSelect={singleSelect}
-        />
-        {selected
-          .filter(({ selected }) => selected)
-          .map(({ value }) => specs.find((f) => f.name === value))
-          .map(
-            (spec) =>
-              spec && (
-                <SpecParamsInput
-                  key={spec.name}
-                  spec={spec}
-                  argsState={argsState}
-                  onArgsStateChange={onArgsStateChange}
-                />
-              )
-          )}
+        <div className="flex flex-col gap-2">
+          <MultiSelect
+            className="col-span-3"
+            value={selected}
+            onChange={setSelected}
+            label={label}
+            singleSelect={singleSelect}
+          />
+          {selected
+            .filter(({ selected }) => selected)
+            .map(({ value }) => specs.find((f) => f.name === value))
+            .map(
+              (spec) =>
+                spec && (
+                  <SpecParamsInput
+                    key={spec.name}
+                    spec={spec}
+                    argsState={argsState}
+                    onArgsStateChange={onArgsStateChange}
+                  />
+                )
+            )}
+          <DialogFooter className="justify-end">
+            <Button onClick={() => setOpen(false)}>Save</Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-const getParamsStrings = (
+const argsStateToParams = (argsState: ArgsState[string]) => {
+  return Object.entries(argsState)
+    .filter(([_, { value }]) => value !== '')
+    .reduce((acc: Record<string, any>, [key, { value, type }]) => {
+      acc[key] = pyTypeToJsonValue(type, value);
+      return acc;
+    }, {});
+};
+
+const getPipelineParams = (
+  selectItems: MultiSelectItem[],
+  argsState: ArgsState
+) => {
+  return selectItems
+    .filter(({ selected }) => selected)
+    .map(({ value }) => ({
+      name: value,
+      params: argsStateToParams(argsState[value]),
+    }));
+};
+
+const argsStateToParamsString = (argsState: ArgsState[string]) => {
+  if (!anyArgsDefined(argsState)) {
+    return '';
+  }
+  return Object.entries(argsState)
+    .filter(([_, { value }]) => value !== '')
+    .map(([key, { value, type }]) => {
+      return `"${key}": ${pyTypeToInputValue(type, value)}`;
+    })
+    .join(', ');
+};
+
+const getPipelineParamsStrings = (
   selectItems: MultiSelectItem[],
   argsState: ArgsState
 ) => {
   return selectItems
     .filter(({ selected }) => selected)
     .map(({ value }) => {
-      const args = argsStateToParams(argsState[value]);
+      const args = argsStateToParamsString(argsState[value]);
       if (args) {
         return `("${value}", {${args}})`;
       }
@@ -282,39 +360,34 @@ export default function DataloaderCode({
   }, [shardsetOptions, filters, categorizers, collaters, preprocessors]);
 
   const dataloaderParams = useMemo(() => {
-    const params: Record<string, string> = {};
+    const params: Record<string, any> = {};
     if (shardsets.filter((s) => s.selected).length > 0) {
-      params.shardsets =
-        '[' +
-        shardsets
-          .filter((s) => s.selected)
-          .map((s) => `"${s.value}"`)
-          .join(', ') +
-        ']';
+      params.shardsets = shardsets
+        .filter((s) => s.selected)
+        .map((s) => s.value);
     }
 
     const filters = selectedFilters.filter((f) => f.selected);
     if (filters.length > 0) {
-      params.filters =
-        '[' + getParamsStrings(filters, selectedFiltersArgs).join(', ') + ']';
+      params.filters = getPipelineParams(filters, selectedFiltersArgs);
     }
     const categorizers = selectedCategorizers.filter((c) => c.selected);
     if (categorizers.length > 0) {
-      params.categorizer = getParamsStrings(
+      params.categorizer = getPipelineParams(
         categorizers,
         selectedCategorizersArgs
       )[0];
     }
     const collaters = selectedCollaters.filter((c) => c.selected);
     if (collaters.length > 0) {
-      params.collater = getParamsStrings(collaters, selectedCollatersArgs)[0];
+      params.collater = getPipelineParams(collaters, selectedCollatersArgs)[0];
     }
     const preprocessors = selectedPreprocessors.filter((p) => p.selected);
     if (preprocessors.length > 0) {
-      params.preprocessors =
-        '[' +
-        getParamsStrings(preprocessors, selectedPreprocessorsArgs).join(', ') +
-        ']';
+      params.preprocessors = getPipelineParams(
+        preprocessors,
+        selectedPreprocessorsArgs
+      );
     }
 
     if (maxRetryCount > 0) {
@@ -338,6 +411,99 @@ export default function DataloaderCode({
     }
 
     return params;
+  }, [
+    shardsets,
+    selectedFilters,
+    selectedFiltersArgs,
+    selectedCategorizers,
+    selectedCategorizersArgs,
+    selectedCollaters,
+    selectedCollatersArgs,
+    selectedPreprocessors,
+    selectedPreprocessorsArgs,
+    maxRetryCount,
+    skipOnFailure,
+    shuffle,
+    shuffleSeed,
+    shuffleBlockSize,
+    batchSize,
+    noCache,
+  ]);
+
+  const onStartIteration = useCallback(async () => {
+    console.log(dataloaderParams);
+    const iteration = await createIteration(dataset_id, dataloaderParams);
+    console.log(iteration);
+  }, [dataloaderParams]);
+
+  const dataloaderParamsString = useMemo(() => {
+    // TODO get it from dataloaderParams
+
+    const params: Record<string, string> = {};
+    if (shardsets.filter((s) => s.selected).length > 0) {
+      params.shardsets =
+        '[' +
+        shardsets
+          .filter((s) => s.selected)
+          .map((s) => `"${s.value}"`)
+          .join(', ') +
+        ']';
+    }
+
+    const filters = selectedFilters.filter((f) => f.selected);
+    if (filters.length > 0) {
+      params.filters =
+        '[' +
+        getPipelineParamsStrings(filters, selectedFiltersArgs).join(', ') +
+        ']';
+    }
+    const categorizers = selectedCategorizers.filter((c) => c.selected);
+    if (categorizers.length > 0) {
+      params.categorizer = getPipelineParamsStrings(
+        categorizers,
+        selectedCategorizersArgs
+      )[0];
+    }
+    const collaters = selectedCollaters.filter((c) => c.selected);
+    if (collaters.length > 0) {
+      params.collater = getPipelineParamsStrings(
+        collaters,
+        selectedCollatersArgs
+      )[0];
+    }
+    const preprocessors = selectedPreprocessors.filter((p) => p.selected);
+    if (preprocessors.length > 0) {
+      params.preprocessors =
+        '[' +
+        getPipelineParamsStrings(preprocessors, selectedPreprocessorsArgs).join(
+          ', '
+        ) +
+        ']';
+    }
+
+    if (maxRetryCount > 0) {
+      params.max_retry_count = `${maxRetryCount}`;
+    }
+    if (skipOnFailure) {
+      params.skip_on_failure = skipOnFailure ? 'True' : 'False';
+    }
+    if (shuffle) {
+      params.shuffle = shuffle ? 'True' : 'False';
+      params.shuffle_block_size = `${shuffleBlockSize}`;
+    }
+    if (shuffleSeed) {
+      params.shuffle_seed = `${shuffleSeed}`;
+    }
+    if (batchSize) {
+      params.batch_size = `${batchSize}`;
+    }
+    if (noCache) {
+      params.no_cache = noCache ? 'True' : 'False';
+    }
+
+    return Object.entries(params)
+      .map(([key, value]) => `\n    ${key}=${value},`)
+      .join('');
   }, [
     shardsets,
     selectedFilters,
@@ -459,16 +625,51 @@ export default function DataloaderCode({
               </div>
             </div>
             <div className="grid grid-cols-4 gap-2">
-              <Label>Batch Size</Label>
-              <Input
-                type="number"
-                value={batchSize}
-                onChange={(e) => setBatchSize(parseInt(e.target.value) || 0)}
-              />
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              <Label>No Cache</Label>
-              <Switch checked={noCache} onCheckedChange={setNoCache} />
+              <Label>Settings</Label>
+              <div className="col-span-3">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Settings className="h-4 w-4" />
+                      Settings
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogTitle>Settings</DialogTitle>
+                    <div className="grid grid-cols-4 gap-2">
+                      <Label>Batch Size</Label>
+                      <Input
+                        type="number"
+                        value={batchSize}
+                        onChange={(e) =>
+                          setBatchSize(parseInt(e.target.value) || 0)
+                        }
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      <Label>Max Retry Count</Label>
+                      <Input
+                        type="number"
+                        value={maxRetryCount}
+                        onChange={(e) =>
+                          setMaxRetryCount(parseInt(e.target.value) || 0)
+                        }
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      <Label>Skip On Failure</Label>
+                      <Switch
+                        checked={skipOnFailure}
+                        onCheckedChange={setSkipOnFailure}
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      <Label>No Cache</Label>
+                      <Switch checked={noCache} onCheckedChange={setNoCache} />
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           </div>
           <CodeBlock
@@ -478,12 +679,13 @@ export default function DataloaderCode({
 import lavender_data.client as lavender
 
 dataloader = lavender.LavenderDataLoader(
-    "${dataset_id}",${Object.entries(dataloaderParams)
-      .map(([key, value]) => `\n    ${key}=${value},`)
-      .join('')}
+    "${dataset_id}",${dataloaderParamsString}
 )`}
           />
         </CardContent>
+        <CardFooter>
+          <Button onClick={onStartIteration}>Start Iteration</Button>
+        </CardFooter>
       </Card>
     </div>
   );

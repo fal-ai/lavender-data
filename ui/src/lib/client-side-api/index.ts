@@ -59,3 +59,17 @@ export const getFileType = async (fileUrl: string): Promise<FileType> => {
   }
   return response.json();
 };
+
+export const createIteration = async (
+  datasetId: string,
+  dataloaderParams: Record<string, any>
+) => {
+  const response = await fetch(`/api/iterations`, {
+    method: 'POST',
+    body: JSON.stringify({ dataset_id: datasetId, ...dataloaderParams }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to start iteration: ${response.status}`);
+  }
+  return response.json();
+};
