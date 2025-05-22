@@ -11,7 +11,6 @@ import { getClient } from '@/lib/api';
 import { utcToLocal } from '@/lib/date';
 import { ErrorCard } from '@/components/error-card';
 import { Card, CardContent } from '@/components/ui/card';
-import DataloaderCode from './dataloader-code';
 
 export default async function DatasetIterationsPage({
   params,
@@ -22,45 +21,19 @@ export default async function DatasetIterationsPage({
 }) {
   const { dataset_id } = await params;
   const client = await getClient();
-  const datasetResponse = await client.GET('/datasets/{dataset_id}', {
-    params: { path: { dataset_id } },
-  });
-
-  if (datasetResponse.error) {
-    return <ErrorCard error={datasetResponse.error.detail} />;
-  }
 
   const iterationsResponse = await client.GET('/iterations/', {
     params: { query: { dataset_id } },
   });
-
-  const filters = (await client.GET('/registries/filters')).data || [];
-  const categorizers =
-    (await client.GET('/registries/categorizers')).data || [];
-  const collaters = (await client.GET('/registries/collaters')).data || [];
-  const preprocessors =
-    (await client.GET('/registries/preprocessors')).data || [];
 
   if (iterationsResponse.error) {
     return <ErrorCard error={iterationsResponse.error.detail} />;
   }
 
   const iterations = iterationsResponse.data;
-  const shardsetOptions = datasetResponse.data.shardsets.map((shardset) => ({
-    label: shardset.location,
-    value: shardset.id as string,
-    selected: false,
-  }));
 
   return (
     <div className="flex flex-col gap-4">
-      <DataloaderCode
-        shardsetOptions={shardsetOptions}
-        filters={filters}
-        categorizers={categorizers}
-        collaters={collaters}
-        preprocessors={preprocessors}
-      />
       <Card className="w-full">
         <CardContent>
           <Table>

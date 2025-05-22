@@ -217,6 +217,10 @@ class IterationState(IterationStateOps):
             pipe.lindex(self._key(f"shardsets:{shardset_id}:format"), shard_index)
             pipe.lindex(self._key(f"shardsets:{shardset_id}:filesize"), shard_index)
             [columns, samples, location, format, filesize] = pipe.execute()
+        if samples is None:
+            raise IterationStateException(
+                f"Shard {shard_index} of shardset {shardset_id} not found"
+            )
         return ShardInfo(
             shardset_id=shardset_id,
             columns=json.loads(columns),
@@ -309,11 +313,17 @@ class IterationState(IterationStateOps):
         shardsets = [
             s.decode("utf-8") for s in self.cache.lrange(self._key("shardsets"), 0, -1)
         ]
-        shards: list[ShardInfo] = [
-            self._get_shard_info(shardset_id, shard_index)
-            for shardset_id in shardsets
-            if shardset_id != main_shardset_id
-        ]
+        shards: list[ShardInfo] = []
+        for shardset_id in shardsets:
+            if shardset_id == main_shardset_id:
+                continue
+            try:
+                shards.append(self._get_shard_info(shardset_id, shard_index))
+            except IterationStateException:
+                pass
+            except Exception as e:
+                # TODO handle error
+                pass
 
         if main_shard is None:
             raise IterationStateException("Main shard not found")

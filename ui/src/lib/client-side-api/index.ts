@@ -73,3 +73,13 @@ export const createIteration = async (
   }
   return response.json();
 };
+
+export const getIterationNextPreview = async (iterationId: string) => {
+  const response = await fetch(`/api/iterations/${iterationId}/next-preview`);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch iteration next preview: ${response.status}`
+    );
+  }
+  return response.json();
+};

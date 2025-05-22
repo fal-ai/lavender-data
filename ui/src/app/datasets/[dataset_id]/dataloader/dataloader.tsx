@@ -1,10 +1,23 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Factory, Filter, Tag, Trash, Package, Settings } from 'lucide-react';
+import {
+  Factory,
+  Filter,
+  Tag,
+  Trash,
+  Package,
+  Settings,
+  Loader2,
+  Play,
+  ArrowDown,
+} from 'lucide-react';
 import { useParams } from 'next/navigation';
 import type { components } from '@/lib/api/v1';
-import { createIteration } from '@/lib/client-side-api';
+import {
+  createIteration,
+  getIterationNextPreview,
+} from '@/lib/client-side-api';
 import { MultiSelect, MultiSelectItem } from '@/components/multiselect';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { CodeBlock } from '@/components/code-block';
@@ -13,7 +26,6 @@ import {
   DialogContent,
   DialogTrigger,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -21,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import SamplesTable from '../samples-table';
 
 type FuncSpec = components['schemas']['FuncSpec'];
 
@@ -306,7 +319,7 @@ const getPipelineParamsStrings = (
     });
 };
 
-export default function DataloaderCode({
+export function Dataloader({
   shardsetOptions,
   filters,
   categorizers,
@@ -346,6 +359,12 @@ export default function DataloaderCode({
   const [shuffleBlockSize, setShuffleBlockSize] = useState<number>(5);
   const [batchSize, setBatchSize] = useState<number>(0);
   const [noCache, setNoCache] = useState<boolean>(false);
+
+  const [samples, setSamples] = useState<any[]>([]);
+  const [columns, setColumns] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [iterationId, setIterationId] = useState<string | null>(null);
+  const numSamplesPerFetch = 10;
 
   useEffect(() => {
     setShardsets(shardsetOptions);
@@ -429,12 +448,6 @@ export default function DataloaderCode({
     batchSize,
     noCache,
   ]);
-
-  const onStartIteration = useCallback(async () => {
-    console.log(dataloaderParams);
-    const iteration = await createIteration(dataset_id, dataloaderParams);
-    console.log(iteration);
-  }, [dataloaderParams]);
 
   const dataloaderParamsString = useMemo(() => {
     // TODO get it from dataloaderParams
@@ -523,6 +536,33 @@ export default function DataloaderCode({
     noCache,
   ]);
 
+  const onStartIteration = useCallback(async () => {
+    setLoading(true);
+    setSamples([]);
+    setColumns([]);
+    const iteration = await createIteration(dataset_id, dataloaderParams);
+    setIterationId(iteration.id);
+    setLoading(false);
+
+    onLoadMore(iteration.id);
+  }, [dataloaderParams]);
+
+  const onLoadMore = useCallback(async (iterationId: string) => {
+    setLoading(true);
+    const samples = (
+      await Promise.allSettled(
+        Array.from({ length: numSamplesPerFetch }).map(() =>
+          getIterationNextPreview(iterationId)
+        )
+      )
+    )
+      .filter((s) => s.status === 'fulfilled')
+      .map((s) => s.value);
+    setSamples((prev) => [...prev, ...samples]);
+    setColumns(Object.keys(samples[0]));
+    setLoading(false);
+  }, []);
+
   return (
     <div className="flex flex-col gap-4">
       <Card className="w-full">
@@ -600,6 +640,7 @@ export default function DataloaderCode({
                     onChange={(e) =>
                       setShuffleBlockSize(parseInt(e.target.value) || 0)
                     }
+                    min={1}
                     disabled={!shuffle}
                   />
                 </div>
@@ -639,6 +680,7 @@ export default function DataloaderCode({
                     <div className="grid grid-cols-4 gap-2">
                       <Label>Batch Size</Label>
                       <Input
+                        min={0}
                         type="number"
                         value={batchSize}
                         onChange={(e) =>
@@ -649,6 +691,7 @@ export default function DataloaderCode({
                     <div className="grid grid-cols-4 gap-2">
                       <Label>Max Retry Count</Label>
                       <Input
+                        min={0}
                         type="number"
                         value={maxRetryCount}
                         onChange={(e) =>
@@ -678,13 +721,42 @@ export default function DataloaderCode({
             code={`
 import lavender_data.client as lavender
 
+lavender.init()
+
 dataloader = lavender.LavenderDataLoader(
     "${dataset_id}",${dataloaderParamsString}
 )`}
           />
         </CardContent>
         <CardFooter>
-          <Button onClick={onStartIteration}>Start Iteration</Button>
+          <Button onClick={onStartIteration} disabled={loading}>
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+            Start Iteration
+          </Button>
+        </CardFooter>
+      </Card>
+      <Card>
+        <CardContent>
+          <SamplesTable samples={samples} columns={columns} />
+        </CardContent>
+        <CardFooter>
+          {samples.length > 0 && (
+            <Button
+              onClick={() => iterationId && onLoadMore(iterationId)}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowDown className="h-4 w-4" />
+              )}
+              Load More
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </div>

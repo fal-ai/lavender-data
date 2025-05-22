@@ -16,6 +16,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeleteShardsetDialog } from './delete-shardset-dialog';
 import { Button } from '@/components/ui/button';
 
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  } else if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(2)} KB`;
+  } else if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  } else if (bytes < 1024 * 1024 * 1024 * 1024) {
+    return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+  } else {
+    return `${(bytes / 1024 / 1024 / 1024 / 1024).toFixed(2)} TB`;
+  }
+};
+
 export default async function ShardsetDetailPage({
   params,
   searchParams,
@@ -147,7 +161,7 @@ export default async function ShardsetDetailPage({
                         <TableCell>{shard.location}</TableCell>
                         <TableCell>{shard.format}</TableCell>
                         <TableCell>{shard.samples}</TableCell>
-                        <TableCell>{shard.filesize}</TableCell>
+                        <TableCell>{formatFileSize(shard.filesize)}</TableCell>
                       </TableRow>
                     ))}
                 </TableBody>

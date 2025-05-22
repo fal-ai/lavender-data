@@ -4,8 +4,12 @@ import { getClient } from '@/lib/api';
 export async function POST(request: NextRequest) {
   const client = await getClient();
   const body = await request.json();
+
   const response = await client.POST('/iterations/', {
-    body,
+    body: {
+      ...body,
+      batch_size: 0,
+    },
   });
 
   if (!response.data) {
