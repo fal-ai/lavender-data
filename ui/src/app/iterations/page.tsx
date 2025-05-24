@@ -19,8 +19,39 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-export default async function IterationsPage() {
-  const iterationsResponse = await (await getClient()).GET('/iterations/');
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { redirect } from 'next/navigation';
+import { Search } from 'lucide-react';
+
+export default async function IterationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    dataset_id?: string;
+  }>;
+}) {
+  const { dataset_id } = await searchParams;
+  const datasetsResponse = await (await getClient()).GET('/datasets/');
+  const iterationsResponse = await (
+    await getClient()
+  ).GET('/iterations/', {
+    params: {
+      query: { dataset_id: dataset_id || undefined },
+    },
+  });
+
+  if (datasetsResponse.error) {
+    return <ErrorCard error={datasetsResponse.error.detail} />;
+  }
+
+  const datasets = datasetsResponse.data;
 
   if (iterationsResponse.error) {
     return <ErrorCard error={iterationsResponse.error.detail} />;
@@ -46,6 +77,37 @@ export default async function IterationsPage() {
         <div className="text-lg">Iterations</div>
         <Card className="w-full">
           <CardContent>
+            <div className="w-full flex justify-start mb-4">
+              <form
+                className="flex gap-2"
+                action={async (f: FormData) => {
+                  'use server';
+                  const datasetId = f.get('datasetId');
+                  redirect(
+                    `/iterations?dataset_id=${datasetId !== 'all' ? datasetId : ''}`
+                  );
+                }}
+              >
+                <Select defaultValue={dataset_id} name="datasetId">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Dataset" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-muted-foreground">
+                      All
+                    </SelectItem>
+                    {datasets.map((d) => (
+                      <SelectItem key={d.id as string} value={d.id as string}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="submit" variant="outline">
+                  <Search />
+                </Button>
+              </form>
+            </div>
             <Table className="w-full">
               <TableHeader>
                 <TableRow>
