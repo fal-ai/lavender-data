@@ -172,9 +172,7 @@ export default function DatasetPreviewPage({}: {}) {
           buttonCount={10}
           totalPages={totalPages}
           currentPage={currentPage}
-          pageHref={(page) =>
-            `/datasets/${dataset_id}/preview?preview_page=${page}`
-          }
+          pageHref={`/datasets/${dataset_id}/preview?preview_page={page}`}
         />
       </CardFooter>
     </Card>
