@@ -5,10 +5,19 @@ import type { paths } from './v1';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-export const getDirect = async (path: string) => {
-  const baseUrl = process.env.API_URL || 'http://localhost:8000';
+export const getApiUrl = () => {
+  return process.env.API_URL || 'http://localhost:8000';
+};
+
+export const getApiKey = async () => {
   const cookieStore = await cookies();
   const apiKey = cookieStore.get('lavender-data-api-key')?.value;
+  return apiKey;
+};
+
+export const getDirect = async (path: string) => {
+  const baseUrl = getApiUrl();
+  const apiKey = await getApiKey();
   const url = new URL(path, baseUrl);
   return fetch(url, {
     headers: apiKey
@@ -21,9 +30,8 @@ export const getDirect = async (path: string) => {
 };
 
 export const getClient = async () => {
-  const baseUrl = process.env.API_URL || 'http://localhost:8000';
-  const cookieStore = await cookies();
-  const apiKey = cookieStore.get('lavender-data-api-key')?.value;
+  const baseUrl = getApiUrl();
+  const apiKey = await getApiKey();
   return createClient<paths>({
     baseUrl,
     headers: apiKey
@@ -42,7 +50,7 @@ export const getClient = async () => {
 };
 
 export const getManualAuthClient = async (apiKey: string) => {
-  const baseUrl = process.env.API_URL || 'http://localhost:8000';
+  const baseUrl = getApiUrl();
   return createClient<paths>({
     baseUrl,
     headers: {

@@ -1,16 +1,5 @@
-import Link from 'next/link';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { getClient } from '@/lib/api';
-import { utcToLocal } from '@/lib/date';
+import { getApiKey, getApiUrl, getClient } from '@/lib/api';
 import { ErrorCard } from '@/components/error-card';
-import { Card, CardContent } from '@/components/ui/card';
 import { Dataloader } from './dataloader';
 
 export default async function DatasetDataloaderPage({
@@ -43,9 +32,14 @@ export default async function DatasetDataloaderPage({
     selected: false,
   }));
 
+  const apiUrl = getApiUrl();
+  const apiKey = await getApiKey();
+
   return (
     <div className="flex flex-col gap-4">
       <Dataloader
+        apiUrl={apiUrl}
+        apiKey={apiKey}
         shardsetOptions={shardsetOptions}
         filters={filters}
         categorizers={categorizers}

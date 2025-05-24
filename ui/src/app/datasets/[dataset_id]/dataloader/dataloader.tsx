@@ -320,12 +320,16 @@ const getPipelineParamsStrings = (
 };
 
 export function Dataloader({
+  apiUrl,
+  apiKey,
   shardsetOptions,
   filters,
   categorizers,
   collaters,
   preprocessors,
 }: {
+  apiUrl: string;
+  apiKey?: string;
   shardsetOptions: MultiSelectItem[];
   filters: FuncSpec[];
   categorizers: FuncSpec[];
@@ -721,7 +725,14 @@ export function Dataloader({
             code={`
 import lavender_data.client as lavender
 
-lavender.init()
+lavender.init(
+    api_url="${apiUrl}",${
+      apiKey
+        ? `
+    api_key="${apiKey}",`
+        : ''
+    }
+)
 
 dataloader = lavender.LavenderDataLoader(
     "${dataset_id}",${dataloaderParamsString}
