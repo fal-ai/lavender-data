@@ -71,6 +71,7 @@ async def lifespan(app: FastAPI):
                 settings.lavender_data_ui_port,
                 force_install_dependencies=settings.lavender_data_ui_force_install_dependencies,
             )
+            logger.info("UI is running")
         except Exception as e:
             logger.warning(f"UI failed to start: {e}")
 

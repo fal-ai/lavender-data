@@ -72,7 +72,7 @@ def start(*args, **kwargs):
 
     settings = get_settings()
 
-    timeout = 30
+    timeout = 60
     start_time = time.time()
     while True:
         if port_open(settings.lavender_data_port):
@@ -96,12 +96,17 @@ def start(*args, **kwargs):
             if "API key created" in line:
                 print(line, end="")
 
+            if "UI is running" in line:
+                print(
+                    f"UI is running on http://localhost:{settings.lavender_data_ui_port}"
+                )
+
+            if "UI failed to start" in line:
+                print(line.split("UI failed to start: ")[1], end="")
+
     print(
         f"lavender-data is running on http://{settings.lavender_data_host}:{settings.lavender_data_port}"
     )
-    if not settings.lavender_data_disable_ui:
-        print(f"UI is running on http://localhost:{settings.lavender_data_ui_port}")
-
     with daemon.DaemonContext(
         working_directory=WORKING_DIRECTORY,
         umask=0o002,

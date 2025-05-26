@@ -33,7 +33,7 @@ def _start_ui(api_url: str, ui_port: int, force_install_dependencies: bool = Fal
     npm_path = shutil.which("npm")
     if node_path is None or npm_path is None:
         raise RuntimeError(
-            "Node is not installed, cannot start UI. Please refer to https://nodejs.org/download for installation instructions."
+            "Node is not installed, cannot start UI. Please refer to https://nodejs.org/en/download for installation instructions."
         )
 
     ui_dir = os.path.join(os.path.dirname(__file__), "..", "ui")
@@ -57,7 +57,7 @@ def _start_ui(api_url: str, ui_port: int, force_install_dependencies: bool = Fal
     )
 
     for line in _read_process_output(process):
-        logger.info(line)
+        logger.debug(line)
         if "Ready" in line:
             return process
 
