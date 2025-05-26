@@ -33,7 +33,8 @@ export default async function DatasetDataloaderPage({
   }));
 
   const apiUrl = getApiUrl();
-  const apiKey = await getApiKey();
+  const token = await getApiKey();
+  const apiKey = token ? Buffer.from(token, 'base64').toString('utf-8') : '';
 
   return (
     <div className="flex flex-col gap-4">
