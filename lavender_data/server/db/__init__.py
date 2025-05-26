@@ -17,10 +17,6 @@ def default_db_url():
     return f"sqlite:///{db_path}"
 
 
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
-
-
 def setup_db(db_url: Optional[str] = None):
     global engine
 
@@ -41,7 +37,6 @@ def setup_db(db_url: Optional[str] = None):
             )
 
     engine = create_engine(db_url, connect_args=connect_args)
-    create_db_and_tables()
 
 
 def get_session():

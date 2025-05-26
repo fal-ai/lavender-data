@@ -6,6 +6,7 @@ from lavender_data.logging import get_logger
 from lavender_data.server.settings import get_settings
 
 from .create_api_key import create_api_key
+from .db import migrate
 
 
 def run(env_file: str = ".env", init: bool = False):
@@ -13,6 +14,7 @@ def run(env_file: str = ".env", init: bool = False):
 
     if init:
         os.environ["LAVENDER_DATA_UI_FORCE_INSTALL_DEPENDENCIES"] = "true"
+        migrate(env_file)
 
     settings = get_settings()
 
