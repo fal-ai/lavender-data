@@ -1,10 +1,11 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, Union
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.func_spec import FuncSpec
 from ...types import Response
 
 
@@ -17,9 +18,16 @@ def _get_kwargs() -> dict[str, Any]:
     return _kwargs
 
 
-def _parse_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Optional[list[str]]:
+def _parse_response(
+    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
+) -> Optional[list["FuncSpec"]]:
     if response.status_code == 200:
-        response_200 = cast(list[str], response.json())
+        response_200 = []
+        _response_200 = response.json()
+        for response_200_item_data in _response_200:
+            response_200_item = FuncSpec.from_dict(response_200_item_data)
+
+            response_200.append(response_200_item)
 
         return response_200
     if client.raise_on_unexpected_status:
@@ -28,7 +36,9 @@ def _parse_response(*, client: Union[AuthenticatedClient, Client], response: htt
         return None
 
 
-def _build_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Response[list[str]]:
+def _build_response(
+    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
+) -> Response[list["FuncSpec"]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -40,7 +50,7 @@ def _build_response(*, client: Union[AuthenticatedClient, Client], response: htt
 def sync_detailed(
     *,
     client: Union[AuthenticatedClient, Client],
-) -> Response[list[str]]:
+) -> Response[list["FuncSpec"]]:
     """Get Collaters
 
     Raises:
@@ -48,7 +58,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[list[str]]
+        Response[list['FuncSpec']]
     """
 
     kwargs = _get_kwargs()
@@ -63,7 +73,7 @@ def sync_detailed(
 def sync(
     *,
     client: Union[AuthenticatedClient, Client],
-) -> Optional[list[str]]:
+) -> Optional[list["FuncSpec"]]:
     """Get Collaters
 
     Raises:
@@ -71,7 +81,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        list[str]
+        list['FuncSpec']
     """
 
     return sync_detailed(
@@ -82,7 +92,7 @@ def sync(
 async def asyncio_detailed(
     *,
     client: Union[AuthenticatedClient, Client],
-) -> Response[list[str]]:
+) -> Response[list["FuncSpec"]]:
     """Get Collaters
 
     Raises:
@@ -90,7 +100,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[list[str]]
+        Response[list['FuncSpec']]
     """
 
     kwargs = _get_kwargs()
@@ -103,7 +113,7 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: Union[AuthenticatedClient, Client],
-) -> Optional[list[str]]:
+) -> Optional[list["FuncSpec"]]:
     """Get Collaters
 
     Raises:
@@ -111,7 +121,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        list[str]
+        list['FuncSpec']
     """
 
     return (

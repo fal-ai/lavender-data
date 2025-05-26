@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Columns, Eye, IterationCw, Settings } from 'lucide-react';
+import { Code, Columns, Eye, IterationCw, Settings } from 'lucide-react';
 import { getClient } from '@/lib/api';
 import { ErrorCard } from '@/components/error-card';
 import { Breadcrumb } from './breadcrumb';
@@ -12,6 +12,7 @@ const getTab = (pathname: string) => {
   if (tab === 'preview') return 'preview';
   if (tab === 'shardsets') return 'shardsets';
   if (tab === 'iterations') return 'iterations';
+  if (tab === 'dataloader') return 'dataloader';
   if (tab === 'settings') return 'settings';
   return 'preview';
 };
@@ -73,6 +74,14 @@ export default async function DatasetDetailPageLayout({
                 <div className="flex items-center gap-1">
                   <IterationCw className="w-4 h-4" />
                   Iterations
+                </div>
+              </TabsTrigger>
+            </Link>
+            <Link href={`/datasets/${dataset_id}/dataloader`}>
+              <TabsTrigger value="dataloader">
+                <div className="flex items-center gap-1">
+                  <Code className="w-4 h-4" />
+                  Dataloader
                 </div>
               </TabsTrigger>
             </Link>

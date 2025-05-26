@@ -47,6 +47,7 @@ def start_server(port: int, env: dict):
             "lavender-data",
             "server",
             "run",
+            "--init",
         ],
         env={
             **env,
@@ -58,6 +59,11 @@ def start_server(port: int, env: dict):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
+
+    _threads[server_process] = threading.Thread(
+        target=_flush_logs, args=(server_process,), daemon=True
+    )
+    _threads[server_process].start()
 
     return server_process
 
@@ -77,8 +83,6 @@ def wait_server_ready(server_process: subprocess.Popen, port: int, timeout: int 
             break
 
         if not server_process.poll() is None:
-            print(server_process.stdout.read().decode("utf-8"))
-            print(server_process.stderr.read().decode("utf-8"))
             raise RuntimeError("Server process terminated.")
 
         if time.time() - start_time > timeout:
@@ -86,14 +90,7 @@ def wait_server_ready(server_process: subprocess.Popen, port: int, timeout: int 
 
         time.sleep(0.1)
 
-    _threads[server_process] = threading.Thread(
-        target=_flush_logs, args=(server_process,), daemon=True
-    )
-    _threads[server_process].start()
-
 
 def stop_server(server_process: subprocess.Popen):
     server_process.terminate()
-    server_process.wait()
-    _threads[server_process].join()
-    del _threads[server_process]
+    server_process.wait(timeout=10)

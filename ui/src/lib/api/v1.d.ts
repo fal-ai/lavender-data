@@ -196,6 +196,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/iterations/{iteration_id}/next-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Next Preview */
+        get: operations["get_next_preview_iterations__iteration_id__next_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/iterations/{iteration_id}/next": {
         parameters: {
             query?: never;
@@ -711,6 +728,16 @@ export interface components {
             video: boolean;
             /** Image */
             image: boolean;
+        };
+        /** FuncSpec */
+        FuncSpec: {
+            /** Name */
+            name: string;
+            /** Args */
+            args: [
+                string,
+                string
+            ][];
         };
         /** GetDatasetResponse */
         GetDatasetResponse: {
@@ -1646,6 +1673,39 @@ export interface operations {
             };
         };
     };
+    get_next_preview_iterations__iteration_id__next_preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                iteration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_next_iterations__iteration_id__next_get: {
         parameters: {
             query?: {
@@ -1926,7 +1986,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["FuncSpec"][];
                 };
             };
         };
@@ -1946,7 +2006,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["FuncSpec"][];
                 };
             };
         };
@@ -1966,7 +2026,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["FuncSpec"][];
                 };
             };
         };
@@ -1986,7 +2046,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["FuncSpec"][];
                 };
             };
         };

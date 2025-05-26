@@ -4,7 +4,7 @@ from .abc import Registry
 
 
 class CategorizerRegistry(Registry["Categorizer"]):
-    pass
+    _func_name: str = "categorize"
 
 
 class Categorizer(ABC):

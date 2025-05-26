@@ -19,20 +19,21 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
-type Item = {
+export type MultiSelectItem = {
   label: string;
   value: string;
   selected: boolean;
 };
 
 type MultiSelectProps = {
-  value: Item[];
-  onChange: (value: Item[]) => void;
+  value: MultiSelectItem[];
+  onChange: (value: MultiSelectItem[]) => void;
   draggable?: boolean;
   label?: string;
   placeholder?: string;
   emptyText?: string;
   className?: string;
+  singleSelect?: boolean;
 };
 
 export function MultiSelect({
@@ -42,10 +43,13 @@ export function MultiSelect({
   label = '',
   placeholder = '',
   emptyText = '',
+  className = '',
+  singleSelect = false,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
-  const [draggingItem, setDraggingItem] = React.useState<Item | null>(null);
-  const handleDragStart = (item: Item) => {
+  const [draggingItem, setDraggingItem] =
+    React.useState<MultiSelectItem | null>(null);
+  const handleDragStart = (item: MultiSelectItem) => {
     setDraggingItem(item);
   };
   const handleDragOver = (e: any) => {
@@ -84,13 +88,13 @@ export function MultiSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-[200px] justify-between"
+          className={cn('w-[200px] justify-between', className)}
         >
           {label}
           <ChevronsUpDown className="opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
+      <PopoverContent className="w-full p-0">
         <Command>
           <CommandInput placeholder={placeholder} className="h-9" />
           <CommandList>
@@ -111,6 +115,11 @@ export function MultiSelect({
                       onChange(updatedItems);
                     }
                   }}
+                  disabled={
+                    singleSelect &&
+                    value.filter((v) => v.selected).length > 0 &&
+                    !option.selected
+                  }
                   draggable={draggable}
                   onDragStart={() => handleDragStart(option)}
                   onDragOver={handleDragOver}

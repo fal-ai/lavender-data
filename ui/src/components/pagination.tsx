@@ -14,23 +14,15 @@ import { Pagination as PaginationComponent } from './ui/pagination';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 
-export function Pagination({
+export const getPageRange = ({
   buttonCount,
   totalPages,
   currentPage,
-  pageHref,
 }: {
   buttonCount: number;
   totalPages: number;
   currentPage: number;
-  pageHref: (page: number) => string;
-}) {
-  const [page, setPage] = useState<number>(currentPage);
-
-  useEffect(() => {
-    setPage(currentPage);
-  }, [currentPage]);
-
+}) => {
   const buttonStartPage = Math.max(
     0,
     currentPage - (currentPage % buttonCount)
@@ -40,6 +32,38 @@ export function Pagination({
     { length: buttonEndPage - buttonStartPage },
     (_, index) => buttonStartPage + index
   );
+  return pageRange;
+};
+
+export function Pagination({
+  buttonCount,
+  totalPages,
+  currentPage,
+  pageHref,
+}: {
+  buttonCount: number;
+  totalPages: number;
+  currentPage: number;
+  pageHref: string;
+}) {
+  const [page, setPage] = useState<number>(currentPage);
+
+  useEffect(() => {
+    setPage(currentPage);
+  }, [currentPage]);
+
+  const pageRange = getPageRange({
+    buttonCount,
+    totalPages,
+    currentPage,
+  });
+
+  const buttonStartPage = pageRange[0];
+  const buttonEndPage = pageRange[pageRange.length - 1];
+
+  const getPageHref = (page: number) => {
+    return pageHref.replace('{page}', `${page}`);
+  };
 
   return (
     <PaginationComponent>
@@ -48,7 +72,7 @@ export function Pagination({
           <>
             <PaginationItem>
               <PaginationPrevious
-                href={pageHref(buttonStartPage - buttonCount)}
+                href={getPageHref(buttonStartPage - buttonCount)}
               />
             </PaginationItem>
           </>
@@ -56,7 +80,7 @@ export function Pagination({
         {pageRange.map((page) => (
           <PaginationItem key={page}>
             <PaginationLink
-              href={pageHref(page)}
+              href={getPageHref(page)}
               isActive={currentPage === page}
             >
               {page + 1}
@@ -66,7 +90,7 @@ export function Pagination({
         {totalPages > buttonEndPage && (
           <>
             <PaginationItem>
-              <PaginationNext href={pageHref(buttonEndPage)} />
+              <PaginationNext href={getPageHref(buttonEndPage)} />
             </PaginationItem>
           </>
         )}
@@ -84,7 +108,7 @@ export function Pagination({
           <div>/</div>
           <div>{totalPages}</div>
           <Button variant="outline" size="icon">
-            <Link href={pageHref(page)}>
+            <Link href={getPageHref(page)}>
               <ArrowUpRight className="w-4" />
             </Link>
           </Button>

@@ -1,4 +1,5 @@
 import random
+import numpy as np
 from typing import Optional
 
 from fastapi import HTTPException, APIRouter, Response, Depends
@@ -29,11 +30,13 @@ from lavender_data.server.background_worker import (
     CurrentSharedMemory,
 )
 from lavender_data.server.distributed import CurrentCluster
+from lavender_data.server.reader import ReaderInstance
 from lavender_data.server.iteration import (
     IterationState,
     CurrentIterationState,
     Progress,
     ProcessNextSamplesException,
+    process_next_samples,
     process_next_samples_task,
     set_cluster_sync,
     get_iteration_hash,
@@ -49,6 +52,11 @@ from lavender_data.server.registries import (
 )
 from lavender_data.server.settings import AppSettings
 from lavender_data.server.auth import AppAuth
+
+try:
+    import torch
+except ImportError:
+    torch = None
 
 router = APIRouter(
     prefix="/iterations",
@@ -125,39 +133,39 @@ def create_iteration(
 
     if params.filters is not None:
         for f in params.filters:
-            if f["name"] not in FilterRegistry.list():
+            if f["name"] not in FilterRegistry.all():
                 raise HTTPException(
                     status_code=400,
                     detail="filter must be one of the following: ["
-                    + ", ".join(FilterRegistry.list())
+                    + ", ".join(FilterRegistry.all())
                     + "]",
                 )
 
     if params.categorizer is not None:
-        if params.categorizer["name"] not in CategorizerRegistry.list():
+        if params.categorizer["name"] not in CategorizerRegistry.all():
             raise HTTPException(
                 status_code=400,
                 detail="categorizer must be one of the following: ["
-                + ", ".join(CategorizerRegistry.list())
+                + ", ".join(CategorizerRegistry.all())
                 + "]",
             )
 
     if params.collater is not None:
-        if params.collater["name"] not in CollaterRegistry.list():
+        if params.collater["name"] not in CollaterRegistry.all():
             raise HTTPException(
                 status_code=400,
                 detail="collater must be one of the following: ["
-                + ", ".join(CollaterRegistry.list())
+                + ", ".join(CollaterRegistry.all())
                 + "]",
             )
 
     if params.preprocessors is not None:
         for preprocessor in params.preprocessors:
-            if preprocessor["name"] not in PreprocessorRegistry.list():
+            if preprocessor["name"] not in PreprocessorRegistry.all():
                 raise HTTPException(
                     status_code=400,
                     detail="preprocessor must be one of the following: ["
-                    + ", ".join(PreprocessorRegistry.list())
+                    + ", ".join(PreprocessorRegistry.all())
                     + "]",
                 )
 
@@ -305,6 +313,44 @@ def get_iteration(iteration_id: str, session: DbSession) -> GetIterationResponse
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Iteration not found")
     return iteration
+
+
+@router.get("/{iteration_id}/next-preview")
+def get_next_preview(
+    iteration_id: str,
+    state: CurrentIterationState,
+    reader: ReaderInstance,
+) -> dict:
+    _, params = state.get_next_samples(0)
+
+    try:
+        batch = process_next_samples(params, 0)
+    except ProcessNextSamplesException as e:
+        raise e.to_http_exception()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # TODO decollate
+    sample = batch
+    for key in sample.keys():
+        if isinstance(sample[key], bytes):
+            sample[key] = "<bytes>"
+        if isinstance(sample[key], dict):
+            if sample[key].get("bytes"):
+                local_path = reader.set_file(sample[key]["bytes"])
+                sample[key] = f"file://{local_path}"
+            else:
+                sample[key] = str(sample[key])
+        if torch and isinstance(sample[key], torch.Tensor):
+            sample[key] = (
+                f"<torch.Tensor shape={sample[key].shape} dtype={sample[key].dtype}>"
+            )
+        if isinstance(sample[key], np.ndarray):
+            sample[key] = (
+                f"<numpy.ndarray shape={sample[key].shape} dtype={sample[key].dtype}>"
+            )
+
+    return sample
 
 
 @router.get("/{iteration_id}/next")

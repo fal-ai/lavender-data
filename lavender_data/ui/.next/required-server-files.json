@@ -305,6 +305,6 @@
     ".next/server/next-font-manifest.json"
   ],
   "ignore": [
-    "../node_modules/.pnpm/next@15.2.3_@babel+core@7.26.9_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/@ampproject/toolbox-optimizer/**/*"
+    "../node_modules/.pnpm/next@15.2.3_@babel+core@7.26.9_@opentelemetry+api@1.9.0_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/@ampproject/toolbox-optimizer/**/*"
   ]
 }

@@ -11,7 +11,7 @@ except ImportError:
 
 
 class CollaterRegistry(Registry["Collater"]):
-    pass
+    _func_name: str = "collate"
 
 
 class Collater(ABC):

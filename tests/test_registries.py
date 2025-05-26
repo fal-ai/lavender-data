@@ -17,7 +17,7 @@ from lavender_data.server.registries import (
 
 # Test registries
 class TestRegistry(Registry["TestComponent"]):
-    pass
+    _func_name = "process"
 
 
 class TestComponent:
@@ -94,9 +94,9 @@ class RegistriesTest(unittest.TestCase):
 
     def test_base_registry(self):
         # Test registration
-        self.assertEqual(len(TestRegistry.list()), 2)
-        self.assertIn("test1", TestRegistry.list())
-        self.assertIn("test2", TestRegistry.list())
+        self.assertEqual(len(TestRegistry.all()), 2)
+        self.assertIn("test1", TestRegistry.all())
+        self.assertIn("test2", TestRegistry.all())
 
         # Test getting components
         comp1 = TestRegistry.get("test1")
@@ -113,7 +113,7 @@ class RegistriesTest(unittest.TestCase):
 
     def test_preprocessor_registry(self):
         # Test registration
-        self.assertIn("multiply", PreprocessorRegistry.list())
+        self.assertIn("multiply", PreprocessorRegistry.all())
 
         # Test getting preprocessors
         preprocessor1 = PreprocessorRegistry.get("multiply")
@@ -125,7 +125,7 @@ class RegistriesTest(unittest.TestCase):
 
     def test_filter_registry(self):
         # Test registration
-        self.assertIn("mod", FilterRegistry.list())
+        self.assertIn("mod", FilterRegistry.all())
 
         # Test getting filters
         filter1 = FilterRegistry.get("mod")
@@ -140,7 +140,7 @@ class RegistriesTest(unittest.TestCase):
 
     def test_categorizer_registry(self):
         # Test registration
-        self.assertIn("aspect_ratio", CategorizerRegistry.list())
+        self.assertIn("aspect_ratio", CategorizerRegistry.all())
 
         # Test getting categorizers
         categorizer1 = CategorizerRegistry.get("aspect_ratio")
@@ -155,8 +155,8 @@ class RegistriesTest(unittest.TestCase):
 
     def test_collater_registry(self):
         # Test registration
-        self.assertIn("count", CollaterRegistry.list())
-        self.assertIn("default", CollaterRegistry.list())  # Default collater
+        self.assertIn("count", CollaterRegistry.all())
+        self.assertIn("default", CollaterRegistry.all())  # Default collater
 
         # Test getting collaters
         collater1 = CollaterRegistry.get("count")
@@ -170,7 +170,7 @@ class RegistriesTest(unittest.TestCase):
         batch = {"value": np.array([1, 2, 3])}
 
         # Concurrency
-        self.assertIn("slow", PreprocessorRegistry.list())
+        self.assertIn("slow", PreprocessorRegistry.all())
         start = time.time()
         PreprocessorRegistry.process(
             [
@@ -186,7 +186,7 @@ class RegistriesTest(unittest.TestCase):
         self.assertLessEqual(abs(end - start) - 1, 0.01)
 
         # depends_on
-        self.assertIn("add_after_multiply", PreprocessorRegistry.list())
+        self.assertIn("add_after_multiply", PreprocessorRegistry.all())
 
         self.assertRaises(
             ValueError,
