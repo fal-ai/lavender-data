@@ -4,8 +4,7 @@ from typing import Optional
 from .run import run
 from .create_api_key import create_api_key
 from .daemon import start, stop, restart, logs
-from .migrate import migrate
-from .makemigrations import makemigrations
+from .db import makemigrations, migrate
 
 
 class ServerCLI:
