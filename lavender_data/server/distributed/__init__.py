@@ -2,6 +2,8 @@ from typing import Annotated, Optional
 
 from fastapi import Depends
 
+from lavender_data.logging import get_logger
+
 from .cluster import Cluster
 
 cluster = None
@@ -30,7 +32,10 @@ def cleanup_cluster():
         return
 
     if not cluster.is_head:
-        cluster.deregister()
+        try:
+            cluster.deregister()
+        except Exception as e:
+            get_logger(__name__).warning(f"Failed to deregister: {e}")
 
 
 def get_cluster() -> Optional[Cluster]:
