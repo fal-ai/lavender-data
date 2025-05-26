@@ -17,7 +17,7 @@ from lavender_data.server.registries import (
 
 # Test registries
 class TestRegistry(Registry["TestComponent"]):
-    pass
+    _func_name = "process"
 
 
 class TestComponent:

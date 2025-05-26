@@ -47,6 +47,7 @@ def start_server(port: int, env: dict):
             "lavender-data",
             "server",
             "run",
+            "--init",
         ],
         env={
             **env,
@@ -94,6 +95,9 @@ def wait_server_ready(server_process: subprocess.Popen, port: int, timeout: int 
 
 def stop_server(server_process: subprocess.Popen):
     server_process.terminate()
-    server_process.wait()
-    _threads[server_process].join()
-    del _threads[server_process]
+    try:
+        server_process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        server_process.kill()
+        print(server_process.stdout.read().decode("utf-8"))
+        print(server_process.stderr.read().decode("utf-8"))
