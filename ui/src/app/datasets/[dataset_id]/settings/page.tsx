@@ -52,7 +52,9 @@ export default async function DatasetSettingsPage({
                   location: string;
                 }[]
               }
-              preprocessors={preprocessorsResponse.data}
+              preprocessors={preprocessorsResponse.data.map(
+                (preprocessor) => preprocessor.name
+              )}
             >
               <Button variant="default">Preprocess</Button>
             </PreprocessDatasetDialog>
