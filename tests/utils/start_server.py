@@ -60,6 +60,11 @@ def start_server(port: int, env: dict):
         stderr=subprocess.PIPE,
     )
 
+    _threads[server_process] = threading.Thread(
+        target=_flush_logs, args=(server_process,), daemon=True
+    )
+    _threads[server_process].start()
+
     return server_process
 
 
@@ -78,8 +83,6 @@ def wait_server_ready(server_process: subprocess.Popen, port: int, timeout: int 
             break
 
         if not server_process.poll() is None:
-            print(server_process.stdout.read().decode("utf-8"))
-            print(server_process.stderr.read().decode("utf-8"))
             raise RuntimeError("Server process terminated.")
 
         if time.time() - start_time > timeout:
@@ -87,17 +90,7 @@ def wait_server_ready(server_process: subprocess.Popen, port: int, timeout: int 
 
         time.sleep(0.1)
 
-    _threads[server_process] = threading.Thread(
-        target=_flush_logs, args=(server_process,), daemon=True
-    )
-    _threads[server_process].start()
-
 
 def stop_server(server_process: subprocess.Popen):
     server_process.terminate()
-    try:
-        server_process.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        server_process.kill()
-        print(server_process.stdout.read().decode("utf-8"))
-        print(server_process.stderr.read().decode("utf-8"))
+    server_process.wait(timeout=10)
