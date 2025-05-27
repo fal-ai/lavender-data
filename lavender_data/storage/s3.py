@@ -106,6 +106,9 @@ class S3Storage(Storage):
             r = self.client.list_objects_v2(
                 Bucket=bucket, MaxKeys=max_keys, StartAfter=offset, Prefix=prefix
             )
+            if r.get("Contents") is None:
+                break
+
             for obj in r["Contents"]:
                 filename = obj["Key"][len(prefix) :]
                 if filename.startswith("/"):
