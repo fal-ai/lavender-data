@@ -86,16 +86,49 @@ function FileCell({ url, sample }: { url: string; sample: any }) {
 
   if (fileType.image) {
     return (
-      <div>
-        <Skeleton
-          className={`w-full h-[64px] ${contentLoading ? 'block' : 'hidden'}`}
-        />
-        <img
-          src={src}
-          className={`h-[64px] ${contentLoading ? 'hidden' : 'block'}`}
-          onLoad={() => setContentLoading(false)}
-        />
-      </div>
+      <Dialog>
+        <DialogTrigger asChild>
+          <div>
+            <Skeleton
+              className={`w-full h-[64px] ${contentLoading ? 'block' : 'hidden'}`}
+            />
+            <img
+              src={src}
+              className={`h-[64px] ${contentLoading ? 'hidden' : 'block'}`}
+              onLoad={() => setContentLoading(false)}
+            />
+          </div>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Image Preview</DialogTitle>
+            <DialogDescription className="w-full break-all">
+              {url}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="w-full flex justify-center">
+            <img src={src} className="w-[400px]" />
+          </div>
+          <DialogFooter className="max-h-[500px] overflow-x-auto overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Key</TableHead>
+                  <TableHead>Value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Object.keys(sample).map((key) => (
+                  <TableRow key={key}>
+                    <TableCell>{key}</TableCell>
+                    <TableCell>{sanitize(sample[key])}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     );
   } else if (fileType.video) {
     return (
