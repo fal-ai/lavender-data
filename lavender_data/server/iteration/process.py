@@ -120,8 +120,10 @@ def _process_next_samples(params: ProcessNextSamplesParams) -> dict:
         for k, v in batch.items():
             if torch is not None and isinstance(v, torch.Tensor):
                 _batch[k] = v.item()
-            else:
+            elif isinstance(v, list) and len(v) > 0:
                 _batch[k] = v[0]
+            else:
+                _batch[k] = v
         batch = _batch
 
     batch["_lavender_data_indices"] = [i.index for i in global_sample_indices]
@@ -148,7 +150,7 @@ def process_next_samples(
             if i < max_retry_count:
                 logger.warning(f"{str(error)}, retrying... ({i+1}/{max_retry_count})")
             else:
-                logger.error(str(error))
+                logger.exception(error)
                 raise error
 
 
