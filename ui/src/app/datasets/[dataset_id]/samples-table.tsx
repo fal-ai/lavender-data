@@ -27,6 +27,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Eye } from 'lucide-react';
 
 type FileType = components['schemas']['FileType'];
 
@@ -61,12 +63,22 @@ const ellipsize = (value: any) => {
   return ellipsizedValue;
 };
 
-function FileCell({ url, sample }: { url: string; sample: any }) {
+function FileCell({
+  defaultShow,
+  url,
+  sample,
+}: {
+  defaultShow: boolean;
+  url: string;
+  sample: any;
+}) {
+  const [show, setShow] = useState<boolean>(defaultShow);
   const [loading, setLoading] = useState<boolean>(true);
   const [contentLoading, setContentLoading] = useState<boolean>(true);
   const [fileType, setFileType] = useState<FileType | null>(null);
 
   useEffect(() => {
+    setShow(defaultShow);
     setLoading(true);
     getFileType(url).then((r) => {
       setFileType(r);
@@ -134,20 +146,26 @@ function FileCell({ url, sample }: { url: string; sample: any }) {
     return (
       <Dialog>
         <DialogTrigger asChild>
-          <div>
-            <Skeleton
-              className={`w-full h-[64px] ${contentLoading ? 'block' : 'hidden'}`}
-            />
-            <video
-              src={src}
-              className={`h-[64px] ${contentLoading ? 'hidden' : 'block'}`}
-              onCanPlay={() => setContentLoading(false)}
-              autoPlay
-              muted
-              loop
-              playsInline
-            />
-          </div>
+          {show ? (
+            <div>
+              <Skeleton
+                className={`w-full h-[64px] ${contentLoading ? 'block' : 'hidden'}`}
+              />
+              <video
+                src={src}
+                className={`h-[64px] ${contentLoading ? 'hidden' : 'block'}`}
+                onCanPlay={() => setContentLoading(false)}
+                autoPlay
+                muted
+                loop
+                playsInline
+              />
+            </div>
+          ) : (
+            <Button className="w-full h-[64px]" onClick={() => setShow(true)}>
+              <Eye />
+            </Button>
+          )}
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
@@ -231,7 +249,11 @@ export default function SamplesTable({
                   <TableCell key={column}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <FileCell url={value as string} sample={sample} />
+                        <FileCell
+                          defaultShow={false}
+                          url={value as string}
+                          sample={sample}
+                        />
                       </TooltipTrigger>
                       <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
                         {value as string}

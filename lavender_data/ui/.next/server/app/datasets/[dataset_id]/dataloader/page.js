@@ -60,4 +60,4 @@ dataloader = lavender.LavenderDataLoader(
         figure[data-rehype-pretty-code-figure]:hover > pre > code button.rehype-pretty-copy {
           opacity: 1;
         }
-      `),a(r)}({copyIcon:e.copyIcon,successIcon:e.successIcon,visibility:e.visibility})}]})}}}}};var t=require("../../../../webpack-runtime.js");t.C(e);var n=e=>t(t.s=e),r=t.X(0,[294,562,94,825,158,560,463,602,399],()=>n(49158));module.exports=r})();
+      `),a(r)}({copyIcon:e.copyIcon,successIcon:e.successIcon,visibility:e.visibility})}]})}}}}};var t=require("../../../../webpack-runtime.js");t.C(e);var n=e=>t(t.s=e),r=t.X(0,[294,562,94,825,158,180,463,602,399],()=>n(49158));module.exports=r})();
