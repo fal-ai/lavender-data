@@ -167,7 +167,9 @@ def preview_dataset(
 
         for key in sample.keys():
             if type(sample[key]) == bytes:
-                sample[key] = "<bytes>"
+                local_path = reader.set_file(sample[key])
+                sample[key] = f"file://{local_path}"
+                # sample[key] = "<bytes>"
             if type(sample[key]) == dict:
                 if sample[key].get("bytes"):
                     local_path = reader.set_file(sample[key]["bytes"])
