@@ -333,8 +333,9 @@ def get_next_preview(
     # TODO decollate
     sample = batch
     for key in sample.keys():
-        if isinstance(sample[key], bytes):
-            sample[key] = "<bytes>"
+        if type(sample[key]) == bytes:
+            local_path = reader.set_file(sample[key])
+            sample[key] = f"file://{local_path}"
         if isinstance(sample[key], dict):
             if sample[key].get("bytes"):
                 local_path = reader.set_file(sample[key]["bytes"])
