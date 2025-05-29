@@ -226,7 +226,8 @@ def create_dataset(
                 cluster=cluster,
             )
         except:
-            cluster.sync_changes([dataset], delete=True)
+            if cluster:
+                cluster.sync_changes([dataset], delete=True)
             raise
 
     return dataset

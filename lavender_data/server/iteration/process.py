@@ -89,6 +89,20 @@ class ProcessNextSamplesException(Exception):
         )
 
 
+def _decollate(batch: dict) -> dict:
+    _batch = {}
+    for k, v in batch.items():
+        if torch is not None and isinstance(v, torch.Tensor):
+            _batch[k] = v.item()
+        elif isinstance(v, list) and len(v) == 1:
+            _batch[k] = v[0]
+        elif isinstance(v, dict):
+            _batch[k] = _decollate(v)
+        else:
+            _batch[k] = v
+    return _batch
+
+
 def _process_next_samples(params: ProcessNextSamplesParams) -> dict:
     reader = get_reader_instance()
 
@@ -116,15 +130,7 @@ def _process_next_samples(params: ProcessNextSamplesParams) -> dict:
         )
 
     if batch_size == 0:
-        _batch = {}
-        for k, v in batch.items():
-            if torch is not None and isinstance(v, torch.Tensor):
-                _batch[k] = v.item()
-            elif isinstance(v, list) and len(v) > 0:
-                _batch[k] = v[0]
-            else:
-                _batch[k] = v
-        batch = _batch
+        batch = _decollate(batch)
 
     batch["_lavender_data_indices"] = [i.index for i in global_sample_indices]
     batch["_lavender_data_current"] = current
