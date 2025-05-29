@@ -40,7 +40,14 @@ class S3Storage(Storage):
 
         if Path(local_path).exists():
             # md5 check
-            etag = self.client.head_object(Bucket=bucket, Key=key)["ETag"].strip('"')
+            try:
+                etag = self.client.head_object(Bucket=bucket, Key=key)["ETag"]
+            except Exception as e:
+                if "404" in str(e):
+                    raise FileNotFoundError(f"File not found: {remote_path}")
+                raise
+
+            etag = etag.strip('"')
             etag_parts = etag.split("-")
             if len(etag_parts) == 1:
                 etag_hash = etag_parts[0]
@@ -70,11 +77,16 @@ class S3Storage(Storage):
         if not Path(local_path).parent.exists():
             Path(local_path).parent.mkdir(parents=True, exist_ok=True)
 
-        self.client.download_file(
-            Bucket=bucket,
-            Key=key,
-            Filename=local_path,
-        )
+        try:
+            self.client.download_file(
+                Bucket=bucket,
+                Key=key,
+                Filename=local_path,
+            )
+        except Exception as e:
+            if "404" in str(e):
+                raise FileNotFoundError(f"File not found: {remote_path}")
+            raise
 
     def upload(self, local_path: str, remote_path: str) -> None:
         if not Path(local_path).exists():

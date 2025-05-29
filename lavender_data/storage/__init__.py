@@ -55,6 +55,8 @@ def _download_file_with_retry(
     for i in range(retry + 1):
         try:
             return _download_file_with_timeout(remote_path, local_path, timeout=timeout)
+        except FileNotFoundError as e:
+            raise e
         except Exception as e:
             if i < retry:
                 logger.warning(
@@ -113,6 +115,8 @@ def _upload_file_with_retry(
         try:
             _upload_file_with_timeout(local_path, remote_path, timeout=timeout)
             return
+        except FileNotFoundError as e:
+            raise e
         except Exception as e:
             if i < retry:
                 logger.warning(
