@@ -117,6 +117,16 @@ class Reader(ABC):
         except Exception as e:
             raise ReaderPrepareFailed(f"Failed to prepare shard: {e}") from e
 
+    def clear(self):
+        self.loaded = False
+        self.uids = []
+        self.cache = {}
+
+        try:
+            os.remove(self.filepath)
+        except FileNotFoundError:
+            pass
+
     def __len__(self) -> int:
         if not self.loaded:
             self._load()

@@ -133,10 +133,23 @@ class ServerSideReader:
         self._ensure_cache_size()
         return local_path
 
+    def _get_reader_cache_key(self, shard: ShardInfo):
+        return hashlib.md5(
+            str(
+                (
+                    shard.shardset_id,
+                    shard.location,
+                    shard.samples,
+                    shard.format,
+                    shard.filesize,
+                )
+            ).encode()
+        ).hexdigest()
+
     def get_reader(
         self, shard: ShardInfo, uid_column_name: str, uid_column_type: str
     ) -> Reader:
-        cache_key = f"{shard.shardset_id}-{shard.location}-{shard.index}"
+        cache_key = self._get_reader_cache_key(shard)
         if cache_key not in self.reader_cache:
             self.reader_cache[cache_key] = self._get_reader(
                 shard, uid_column_name, uid_column_type
@@ -144,6 +157,13 @@ class ServerSideReader:
             self._ensure_cache_size()
 
         return self.reader_cache[cache_key]
+
+    def clear_cache(self, *shards: list[ShardInfo]):
+        for shard in shards:
+            cache_key = self._get_reader_cache_key(shard)
+            if cache_key in self.reader_cache:
+                self.reader_cache[cache_key].clear()
+                del self.reader_cache[cache_key]
 
     def get_sample(self, index: GlobalSampleIndex):
         reader = self.get_reader(

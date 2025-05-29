@@ -11,6 +11,7 @@ from lavender_data.shard.readers.exceptions import ReaderException
 from lavender_data.server.background_worker import TaskStatus
 from lavender_data.server.db import Shardset, Shard, get_session
 from lavender_data.server.distributed import get_cluster
+from lavender_data.server.reader import get_reader_instance, ShardInfo
 
 
 def inspect_shardset_location(
@@ -60,10 +61,10 @@ def sync_shardset_location(
     num_workers: int = 10,
     overwrite: bool = False,
 ) -> Generator[TaskStatus, None, None]:
-    # TODO di?
     logger = get_logger(__name__)
     session = next(get_session())
     cluster = get_cluster()
+    reader = get_reader_instance()
 
     yield TaskStatus(status="list", current=0, total=0)
 
@@ -79,7 +80,7 @@ def sync_shardset_location(
         yield TaskStatus(status="inspect", current=done_count, total=shard_count)
 
     shard_and_index.sort(key=lambda x: x[1])
-    shard_infos = [x[0] for x in shard_and_index]
+    orphan_shard_infos = [x[0] for x in shard_and_index]
 
     if overwrite:
         shard_index = 0
@@ -91,7 +92,7 @@ def sync_shardset_location(
     yield TaskStatus(status="reflect", current=done_count, total=shard_count)
 
     current_shard_index = shard_index
-    for orphan_shard in shard_infos:
+    for orphan_shard in orphan_shard_infos:
         # TODO upsert https://github.com/fastapi/sqlmodel/issues/59
         updated = False
         if overwrite:
@@ -126,7 +127,14 @@ def sync_shardset_location(
         current_shard_index += 1
         total_samples += orphan_shard.samples
         logger.info(
-            f"Shard {current_shard_index}/{shard_index+len(shard_infos)} ({orphan_shard.location}) synced to {shardset_id}"
+            f"Shard {current_shard_index}/{shard_index+len(orphan_shard_infos)} ({orphan_shard.location}) synced to {shardset_id}"
+        )
+        reader.clear_cache(
+            ShardInfo(
+                shardset_id=shardset_id,
+                index=current_shard_index,
+                **orphan_shard.model_dump(),
+            )
         )
 
     session.exec(
