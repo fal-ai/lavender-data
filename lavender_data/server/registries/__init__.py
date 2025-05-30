@@ -112,4 +112,10 @@ def _watch_modules(modules_dir: str, interval: int):
 def setup_registries(modules_dir: Optional[str] = None, interval: int = 10):
     if modules_dir:
         _import_from_directory(modules_dir)
-        Thread(target=_watch_modules, args=(modules_dir, interval), daemon=True).start()
+
+        if interval > 0:
+            Thread(
+                target=_watch_modules,
+                args=(modules_dir, interval),
+                daemon=True,
+            ).start()
