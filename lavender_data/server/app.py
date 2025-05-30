@@ -41,7 +41,10 @@ async def lifespan(app: FastAPI):
 
     setup_cache(redis_url=settings.lavender_data_redis_url)
 
-    setup_registries(settings.lavender_data_modules_dir)
+    setup_registries(
+        settings.lavender_data_modules_dir,
+        settings.lavender_data_modules_reload_interval,
+    )
 
     setup_reader(settings.lavender_data_reader_disk_cache_size)
 

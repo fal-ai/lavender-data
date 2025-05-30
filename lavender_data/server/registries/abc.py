@@ -1,15 +1,23 @@
 import inspect
+import hashlib
 from abc import ABC
 from typing_extensions import Generic, TypeVar
 
 from pydantic import BaseModel
+from lavender_data.logging import get_logger
 
 T = TypeVar("T")
 
 
 class FuncSpec(BaseModel):
+    registry: str
     name: str
     args: list[tuple[str, str]]
+    md5: str
+
+
+def _get_md5(_class: type[T]) -> str:
+    return hashlib.md5(inspect.getsource(_class).encode()).hexdigest()
 
 
 class Registry(ABC, Generic[T]):
@@ -19,10 +27,11 @@ class Registry(ABC, Generic[T]):
         cls._instances: dict[str, T] = {}
 
     @classmethod
-    def register(cls, name: str, _class: T):
+    def register(cls, name: str, _class: type[T]):
         _class.name = name
         cls._classes[name] = _class
         cls._func_specs[name] = FuncSpec(
+            registry=cls.__name__,
             name=name,
             args=[
                 (param.name, param.annotation.__name__)
@@ -31,11 +40,14 @@ class Registry(ABC, Generic[T]):
                 ).parameters.values()
                 if param.name != "self"
             ][1:],
+            md5=_get_md5(_class),
         )
 
     @classmethod
     def initialize(cls):
         for name, _class in cls._classes.items():
+            if name in cls._instances and cls._func_specs[name].md5 == _get_md5(_class):
+                continue
             cls._instances[name] = _class()
 
     @classmethod

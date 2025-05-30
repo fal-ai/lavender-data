@@ -16,6 +16,8 @@ class Settings(BaseSettings, extra="ignore"):
     lavender_data_num_workers: int = 0
 
     lavender_data_modules_dir: str = ""
+    lavender_data_modules_reload_interval: int = 10
+
     lavender_data_db_url: str = ""
     lavender_data_redis_url: str = ""
     lavender_data_reader_disk_cache_size: int = 4 * 1024**3  # 4GB
