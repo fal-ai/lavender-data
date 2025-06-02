@@ -1,10 +1,10 @@
 import inspect
 import hashlib
 from abc import ABC
+from typing import Optional
 from typing_extensions import Generic, TypeVar
 
 from pydantic import BaseModel
-from lavender_data.logging import get_logger
 
 T = TypeVar("T")
 
@@ -44,11 +44,15 @@ class Registry(ABC, Generic[T]):
         )
 
     @classmethod
-    def initialize(cls):
-        for name, _class in cls._classes.items():
-            if name in cls._instances and cls._func_specs[name].md5 == _get_md5(_class):
+    def initialize(cls, name: Optional[str] = None):
+        for _name, _class in cls._classes.items():
+            if name is not None and _name != name:
                 continue
-            cls._instances[name] = _class()
+            if _name in cls._instances and cls._func_specs[_name].md5 == _get_md5(
+                _class
+            ):
+                continue
+            cls._instances[_name] = _class()
 
     @classmethod
     def get(cls, name: str) -> T:

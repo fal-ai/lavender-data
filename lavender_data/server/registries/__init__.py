@@ -1,4 +1,5 @@
 import sys
+import tempfile
 import time
 import importlib.util
 import hashlib
@@ -16,6 +17,7 @@ from .preprocessor import PreprocessorRegistry, Preprocessor
 
 __all__ = [
     "setup_registries",
+    "import_from_code",
     "CollaterRegistry",
     "Collater",
     "FilterRegistry",
@@ -40,12 +42,26 @@ def _group_by_registry(
     return {k: v for k, v in d.items() if len(v) > 0}
 
 
+def _import_from_file(filepath: Path, force: bool = False):
+    with open(filepath, "rb") as f:
+        script_hash = hashlib.md5(f.read()).hexdigest()
+        if script_hash in script_hashes and not force:
+            return None
+
+    mod_name = filepath.stem
+    spec = importlib.util.spec_from_file_location(mod_name, filepath)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[mod_name] = mod
+
+    spec.loader.exec_module(mod)
+    return script_hash
+
+
 def _import_from_directory(directory: str):
     global script_hashes
     # TODO unable to delete
 
     logger = get_logger(__name__)
-    current_hashes = set()
 
     registries: list[Registry] = [
         FilterRegistry,
@@ -58,24 +74,16 @@ def _import_from_directory(directory: str):
     for registry in registries:
         before.extend(registry.specs())
 
+    current_hashes = set()
     for file in Path(directory).glob("*.py"):
-        with open(file, "rb") as f:
-            script_hash = hashlib.sha256(f.read()).hexdigest()
-            if script_hash in script_hashes:
-                continue
-            current_hashes.add(script_hash)
-
-        mod_name = file.stem
-        spec = importlib.util.spec_from_file_location(mod_name, file)
-        mod = importlib.util.module_from_spec(spec)
-
-        sys.modules[mod_name] = mod
-
         try:
-            spec.loader.exec_module(mod)
+            script_hash = _import_from_file(file)
         except Exception as e:
-            logger.error(f"Error importing {mod_name}: {e}")
-            continue
+            logger.error(f"Error importing {file}: {e}")
+
+        if script_hash:
+            current_hashes.add(script_hash)
+    script_hashes = current_hashes
 
     after: list[FuncSpec] = []
     for registry in registries:
@@ -100,7 +108,12 @@ def _import_from_directory(directory: str):
         if len(modified) > 0:
             logger.info(f"modified {_group_by_registry(modified, registries)}")
 
-    script_hashes = current_hashes
+
+def import_from_code(code: str):
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        f.write(code)
+        f.flush()
+        _import_from_file(Path(f.name))
 
 
 def _watch_modules(modules_dir: str, interval: int):
