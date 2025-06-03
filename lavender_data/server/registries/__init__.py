@@ -31,6 +31,13 @@ __all__ = [
 
 script_hashes = set()
 
+registries: list[Registry] = [
+    FilterRegistry,
+    CategorizerRegistry,
+    CollaterRegistry,
+    PreprocessorRegistry,
+]
+
 
 def _group_by_registry(
     specs: list[FuncSpec], registries: list[Registry]
@@ -63,13 +70,6 @@ def _import_from_directory(directory: str):
 
     logger = get_logger(__name__)
 
-    registries: list[Registry] = [
-        FilterRegistry,
-        CategorizerRegistry,
-        CollaterRegistry,
-        PreprocessorRegistry,
-    ]
-
     before: list[FuncSpec] = []
     for registry in registries:
         before.extend(registry.specs())
@@ -101,6 +101,10 @@ def _import_from_directory(directory: str):
                 modified.append(a)
                 break
 
+    for f in [*added, *modified]:
+        r = next(r for r in registries if r.__name__ == f.registry)
+        r.initialize(f.name)
+
     if len(added) > 0 or len(modified) > 0:
         logger.info(f"Imported {file}")
         if len(added) > 0:
@@ -123,6 +127,7 @@ def _watch_modules(modules_dir: str, interval: int):
 
 
 def setup_registries(modules_dir: Optional[str] = None, interval: int = 10):
+    _import_from_directory(Path(__file__).parent / "built_in")
     if modules_dir:
         _import_from_directory(modules_dir)
 
@@ -132,3 +137,6 @@ def setup_registries(modules_dir: Optional[str] = None, interval: int = 10):
                 args=(modules_dir, interval),
                 daemon=True,
             ).start()
+    else:
+        for registry in registries:
+            registry.initialize()
