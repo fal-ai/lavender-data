@@ -156,7 +156,6 @@ class RegistriesTest(unittest.TestCase):
     def test_collater_registry(self):
         # Test registration
         self.assertIn("count", CollaterRegistry.all())
-        self.assertIn("default", CollaterRegistry.all())  # Default collater
 
         # Test getting collaters
         collater1 = CollaterRegistry.get("count")

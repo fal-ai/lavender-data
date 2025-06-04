@@ -27,7 +27,10 @@ def _initializer(settings: Settings, kill_switch):
 
     setup_db(settings.lavender_data_db_url)
     setup_cache(redis_url=settings.lavender_data_redis_url)
-    setup_registries(settings.lavender_data_modules_dir)
+    setup_registries(
+        settings.lavender_data_modules_dir,
+        settings.lavender_data_modules_reload_interval,
+    )
     setup_reader(settings.lavender_data_reader_disk_cache_size)
 
     def _abort_on_kill_switch():
