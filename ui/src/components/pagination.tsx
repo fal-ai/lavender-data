@@ -90,7 +90,7 @@ export function Pagination({
         {totalPages > buttonEndPage && (
           <>
             <PaginationItem>
-              <PaginationNext href={getPageHref(buttonEndPage)} />
+              <PaginationNext href={getPageHref(buttonEndPage + 1)} />
             </PaginationItem>
           </>
         )}

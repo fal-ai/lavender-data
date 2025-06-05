@@ -561,7 +561,15 @@ export function Dataloader({
       )
     )
       .filter((s) => s.status === 'fulfilled')
-      .map((s) => s.value);
+      .map((s) => s.value)
+      .map((s) => {
+        Object.keys(s).forEach((k) => {
+          if (k.startsWith('_lavender_data_')) {
+            delete s[k];
+          }
+        });
+        return s;
+      });
     setSamples((prev) => [...prev, ...samples]);
     setColumns(Object.keys(samples[0]));
     setLoading(false);
