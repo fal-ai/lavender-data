@@ -36,7 +36,7 @@ class S3Storage(Storage):
     def download(self, remote_path: str, local_path: str) -> None:
         parsed = urllib.parse.urlparse(remote_path)
         bucket = parsed.netloc
-        key = parsed.path.lstrip("/")
+        key = parsed.path[1:]
 
         if Path(local_path).exists():
             # md5 check
@@ -97,7 +97,7 @@ class S3Storage(Storage):
 
         parsed = urllib.parse.urlparse(remote_path)
         bucket = parsed.netloc
-        key = parsed.path.lstrip("/")
+        key = parsed.path[1:]
 
         self.client.upload_file(
             Bucket=bucket,
@@ -108,7 +108,7 @@ class S3Storage(Storage):
     def list(self, remote_path: str, limit: Optional[int] = None) -> list[str]:
         parsed = urllib.parse.urlparse(remote_path)
         bucket = parsed.netloc
-        prefix = parsed.path.lstrip("/")
+        prefix = parsed.path[1:]
 
         keys = []
 
