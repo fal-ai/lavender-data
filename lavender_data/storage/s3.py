@@ -16,6 +16,7 @@ class S3Storage(Storage):
     def __init__(self):
         try:
             import boto3
+            import botocore.client
         except ImportError:
             raise ImportError(
                 "Please install required dependencies for S3Storage. "
@@ -26,11 +27,15 @@ class S3Storage(Storage):
         aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
         aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
 
+        config = botocore.client.Config(
+            tcp_keepalive=os.getenv("AWS_TCP_KEEPALIVE", "").lower() == "true",
+        )
         self.client = boto3.client(
             "s3",
             endpoint_url=endpoint_url,
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
+            config=config,
         )
 
     def download(self, remote_path: str, local_path: str) -> None:

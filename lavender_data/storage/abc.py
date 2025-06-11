@@ -3,17 +3,21 @@ import urllib.parse
 from typing import Optional
 from typing_extensions import Self
 
+_storage_instances: dict[str, "Storage"] = {}
+
 
 class Storage(ABC):
     scheme: str
 
     @classmethod
-    def get(cls, remote_path: str) -> Self:
+    def get(cls, remote_path: str, no_cache: bool = False) -> Self:
         parsed = urllib.parse.urlparse(remote_path)
         scheme = parsed.scheme
         for subcls in cls.__subclasses__():
             if scheme == subcls.scheme:
-                return subcls()
+                if scheme not in _storage_instances or no_cache:
+                    _storage_instances[scheme] = subcls()
+                return _storage_instances[scheme]
         raise ValueError(f"Invalid protocol: {parsed.scheme}")
 
     @abstractmethod
