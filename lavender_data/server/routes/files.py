@@ -55,7 +55,7 @@ def inspect_file_type(
     params: InspectFileTypeParams,
     background_worker: CurrentBackgroundWorker,
 ) -> dict:
-    background_worker.submit(
+    background_worker.threads_submit(
         _get_file,
         file_url=params.file_url,
         task_id=params.file_url,

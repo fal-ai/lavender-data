@@ -219,7 +219,7 @@ def create_dataset_preview(
     offset = params.offset
     limit = params.limit
     preview_id = str(uuid.uuid4())
-    background_worker.submit(
+    background_worker.threads_submit(
         preview_dataset,
         preview_id=preview_id,
         dataset_id=dataset_id,
@@ -606,7 +606,7 @@ def sync_shardset(
             detail="Shardset is already being synced. Please wait for the sync to complete.",
         )
 
-    background_worker.submit(
+    background_worker.threads_submit(
         sync_shardset_location,
         shardset_id=shardset.id,
         shardset_location=shardset.location,
@@ -741,7 +741,7 @@ def preprocess_dataset(
     ]
 
     task_id = f'{dataset.id}-{"-".join([p["name"] for p in preprocessors])}-{shardset_location}'
-    background_worker.submit(
+    background_worker.threads_submit(
         preprocess_shardset,
         task_id=task_id,
         shardset_location=shardset_location,

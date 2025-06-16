@@ -85,9 +85,15 @@ def _run_task(
     status_ex = 10 * 60
     try:
         set_task_status(task_id, status="running", ex=status_ex)
-        for status in func(*args, **kwargs):
+        generator = func(*args, **kwargs)
+        for status in generator:
+            if abort_event.is_set():
+                generator.close()
+                raise Aborted()
+
             if not isinstance(status, TaskStatus):
                 continue
+
             set_task_status(
                 task_id,
                 status=status.status,
@@ -95,12 +101,12 @@ def _run_task(
                 current=status.current,
                 ex=status_ex,
             )
-            if abort_event.is_set():
-                raise Aborted()
 
         set_task_status(task_id, status="completed", ex=status_ex)
+        logger.debug(f"Task {task_id} completed")
     except Aborted:
         set_task_status(task_id, status="aborted", ex=status_ex)
+        logger.info(f"Task {task_id} aborted")
     except Exception as e:
         set_task_status(task_id, status="failed", ex=status_ex)
         logger.exception(f"Error running task {task_id}: {e}")
@@ -173,7 +179,7 @@ class BackgroundWorker:
     def get_task_status(self, task_id: str) -> Optional[TaskStatus]:
         return get_task_status(task_id)
 
-    def submit(
+    def threads_submit(
         self,
         func: Callable,
         task_id: Optional[str] = None,
