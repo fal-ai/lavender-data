@@ -45,7 +45,6 @@ export default function DatasetPreviewPage({}: {}) {
   const preview_limit = 20;
   const preview_page = Number(searchParams.get('preview_page')) || 0;
   const currentPage = Number(preview_page);
-  const columnsParams = searchParams.get('columns') || '';
   const [totalPages, setTotalPages] = useState<number>(0);
 
   const [columns, setColumns] = useState<
@@ -85,24 +84,11 @@ export default function DatasetPreviewPage({}: {}) {
         const totalPages = Math.ceil(r.total / preview_limit);
         const fetchedColumns = r.columns.map((column) => column.name);
         const storedColumns = getColumnsFromLocalStorage(dataset_id);
-        const paramsColumns =
-          storedColumns.length > 0
-            ? storedColumns
-            : columnsParams
-                .split(',')
-                .filter((c) => c !== '')
-                .map((c) => {
-                  const [name, selected] = c.split('||');
-                  return {
-                    name: name,
-                    selected: selected === '1',
-                  };
-                });
 
         setPreview(r);
         setTotalPages(totalPages);
 
-        if (paramsColumns.length === 0) {
+        if (storedColumns.length === 0) {
           setColumns(
             fetchedColumns.map((c) => ({
               name: c,
@@ -110,7 +96,7 @@ export default function DatasetPreviewPage({}: {}) {
             }))
           );
         } else {
-          setColumns(paramsColumns);
+          setColumns(storedColumns);
         }
       })
       .catch((e) => {
@@ -125,9 +111,7 @@ export default function DatasetPreviewPage({}: {}) {
   useEffect(() => {
     if (columns.length > 0) {
       router.push(
-        `/datasets/${dataset_id}/preview?preview_page=${currentPage}&columns=${columns
-          .map((c) => `${c.name}||${c.selected ? '1' : '0'}`)
-          .join(',')}`
+        `/datasets/${dataset_id}/preview?preview_page=${currentPage}`
       );
       setColumnsToLocalStorage(dataset_id, columns);
     }

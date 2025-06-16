@@ -92,7 +92,6 @@ function FileCell({
     if (fileTypePollCount > 0) {
       getFileType(url)
         .then((r) => {
-          console.log('fileType', r);
           setFileType(r);
           setLoading(false);
         })
