@@ -3,6 +3,25 @@ title: Release Notes
 description: Release notes for Lavender Data
 ---
 
+## 0.1.5 (2025-06-16)
+
+### Added
+
+Preprocessors, collaters, categorizers, and filters are now auto-refreshed and does not require to restart the server.
+
+### Fixed
+
+`sync_shardset_location` overwrites even if `overwrite=False`
+
+S3 download fails if path prefix starts with `/` (e.g. `s3://bucket//path`)
+
+Next page button in dataset preview page does not work properly
+
+Invalidate reader cache after sync
+
+Hide video preview by default on dataset preview page
+
+
 ## 0.1.4 (2025-05-27)
 
 ### Fixed
