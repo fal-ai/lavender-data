@@ -178,7 +178,7 @@ class BackgroundWorker:
         func: Callable,
         task_id: Optional[str] = None,
         task_name: Optional[str] = None,
-        with_status: bool = True,
+        with_status: bool = False,
         **kwargs,
     ):
         task_id = task_id or str(uuid.uuid4())
