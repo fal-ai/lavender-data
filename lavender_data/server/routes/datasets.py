@@ -1,7 +1,5 @@
 import os
-import json
 from typing import Optional, Any
-from concurrent.futures import Future
 
 from fastapi import HTTPException, APIRouter, Depends
 from sqlmodel import select, delete
@@ -540,7 +538,6 @@ def sync_shardset(
         shardset_location=shardset.location,
         shardset_shard_samples=[s.samples for s in shardset.shards],
         shardset_shard_locations=[s.location for s in shardset.shards],
-        num_workers=10,
         overwrite=params.overwrite,
         task_id=task_id,
     )

@@ -1,5 +1,5 @@
 import os
-from typing import Generator
+from typing import Generator, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sqlmodel import update, insert, select
@@ -16,25 +16,31 @@ from lavender_data.server.reader import get_reader_instance, ShardInfo
 
 def inspect_shardset_location(
     shardset_location: str,
-    skip_basenames: list[str] = [],
-    num_workers: int = 10,
+    skip_locations: list[str] = [],
+    num_workers: Optional[int] = None,
 ) -> Generator[tuple[OrphanShardInfo, int, int], None, None]:
     logger = get_logger(__name__)
 
     def _inspect_shard(shard_location: str, shard_index: int):
         return inspect_shard(shard_location), shard_index
 
-    shard_index = 0
-
     try:
-        shard_basenames = sorted(list_files(shardset_location))
+        shard_index = 0
 
-        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+        shard_basenames = sorted(list_files(shardset_location))
+        shard_locations: list[str] = []
+        for shard_basename in shard_basenames:
+            shard_location = os.path.join(shardset_location, shard_basename)
+            if shard_location in skip_locations:
+                shard_index += 1
+                continue
+            shard_locations.append(shard_location)
+
+        with ThreadPoolExecutor(
+            max_workers=num_workers or min(32, (os.cpu_count() or 1) + 4)
+        ) as executor:
             futures = []
-            for shard_basename in shard_basenames:
-                if shard_basename in skip_basenames:
-                    continue
-                shard_location = os.path.join(shardset_location, shard_basename)
+            for shard_location in shard_locations:
                 future = executor.submit(
                     _inspect_shard,
                     shard_location=shard_location,
@@ -45,7 +51,7 @@ def inspect_shardset_location(
 
             for future in as_completed(futures):
                 orphan_shard, current_shard_index = future.result()
-                yield orphan_shard, current_shard_index, len(shard_basenames)
+                yield orphan_shard, current_shard_index, len(shard_locations)
 
     except ReaderException as e:
         logger.warning(f"Failed to inspect shardset {shardset_location}: {e}")
@@ -58,41 +64,37 @@ def sync_shardset_location(
     shardset_location: str,
     shardset_shard_samples: list[int],
     shardset_shard_locations: list[str],
-    num_workers: int = 10,
+    num_workers: Optional[int] = None,
     overwrite: bool = False,
 ) -> Generator[TaskStatus, None, None]:
     logger = get_logger(__name__)
-    session = next(get_session())
     cluster = get_cluster()
     reader = get_reader_instance()
 
     yield TaskStatus(status="list", current=0, total=0)
 
     done_count = 0
-    shard_and_index: list[tuple[OrphanShardInfo, int]] = []
-    for orphan_shard, current_shard_index, shard_count in inspect_shardset_location(
+    orphan_shard_infos: list[tuple[OrphanShardInfo, int]] = []
+    for orphan_shard, shard_index, shard_count in inspect_shardset_location(
         shardset_location,
-        skip_basenames=[] if overwrite else shardset_shard_locations,
+        skip_locations=[] if overwrite else shardset_shard_locations,
         num_workers=num_workers,
     ):
         done_count += 1
-        shard_and_index.append((orphan_shard, current_shard_index))
+        orphan_shard_infos.append((orphan_shard, shard_index))
         yield TaskStatus(status="inspect", current=done_count, total=shard_count)
 
-    shard_and_index.sort(key=lambda x: x[1])
-    orphan_shard_infos = [x[0] for x in shard_and_index]
+    orphan_shard_infos.sort(key=lambda x: x[1])
 
     if overwrite:
-        shard_index = 0
         total_samples = 0
     else:
-        shard_index = len(shardset_shard_samples)
         total_samples = sum(shardset_shard_samples)
 
     yield TaskStatus(status="reflect", current=done_count, total=shard_count)
 
-    current_shard_index = shard_index
-    for orphan_shard in orphan_shard_infos:
+    session = next(get_session())
+    for orphan_shard, shard_index in orphan_shard_infos:
         # TODO upsert https://github.com/fastapi/sqlmodel/issues/59
         updated = False
         if overwrite:
@@ -100,7 +102,7 @@ def sync_shardset_location(
                 update(Shard)
                 .where(
                     Shard.shardset_id == shardset_id,
-                    Shard.index == current_shard_index,
+                    Shard.index == shard_index,
                 )
                 .values(
                     location=orphan_shard.location,
@@ -120,19 +122,15 @@ def sync_shardset_location(
                     filesize=orphan_shard.filesize,
                     samples=orphan_shard.samples,
                     format=orphan_shard.format,
-                    index=current_shard_index,
+                    index=shard_index,
                 )
             )
 
-        current_shard_index += 1
         total_samples += orphan_shard.samples
-        logger.info(
-            f"Shard {current_shard_index}/{shard_index+len(orphan_shard_infos)} ({orphan_shard.location}) synced to {shardset_id}"
-        )
         reader.clear_cache(
             ShardInfo(
                 shardset_id=shardset_id,
-                index=current_shard_index,
+                index=shard_index,
                 **orphan_shard.model_dump(),
             )
         )
@@ -141,7 +139,7 @@ def sync_shardset_location(
         update(Shardset)
         .where(Shardset.id == shardset_id)
         .values(
-            shard_count=current_shard_index,
+            shard_count=shard_index,
             total_samples=total_samples,
         )
     )
