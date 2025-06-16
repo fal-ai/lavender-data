@@ -179,7 +179,7 @@ class BackgroundWorker:
     def get_task_status(self, task_id: str) -> Optional[TaskStatus]:
         return get_task_status(task_id)
 
-    def threads_submit(
+    def thread_pool_submit(
         self,
         func: Callable,
         task_id: Optional[str] = None,
@@ -215,6 +215,13 @@ class BackgroundWorker:
             )
 
         return task_id
+
+    def process_pool_submit(
+        self,
+        func: Callable,
+        **kwargs,
+    ):
+        return self.process_pool().submit(func, **kwargs)
 
     def abort(self, task_id: str):
         with self._tasks_lock:

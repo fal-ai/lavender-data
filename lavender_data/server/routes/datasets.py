@@ -1,6 +1,4 @@
 import os
-import uuid
-import json
 from typing import Optional, Any
 
 from fastapi import HTTPException, APIRouter, Depends
@@ -24,7 +22,7 @@ from lavender_data.server.db.models import (
     IterationPreprocessor,
     IterationCollater,
 )
-from lavender_data.server.cache import CacheClient
+from lavender_data.server.cache import CacheClient, get_cache
 from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.reader import (
     get_reader_instance,
@@ -36,8 +34,6 @@ from lavender_data.server.reader import (
 from lavender_data.server.background_worker import (
     TaskStatus,
     CurrentBackgroundWorker,
-    CurrentSharedMemory,
-    get_shared_memory,
 )
 from lavender_data.server.shardset import (
     get_main_shardset,
@@ -142,30 +138,21 @@ def read_dataset(
     )
 
 
-def preview_dataset(
-    preview_id: str,
+def _preview_dataset(
     dataset_id: str,
     offset: int,
     limit: int,
 ) -> list[dict[str, Any]]:
     session = next(get_session())
     reader = get_reader_instance()
-    memory = get_shared_memory()
 
-    logger = get_logger(__name__)
-
-    logger.info(
-        f"Previewing dataset {dataset_id} with offset {offset} and limit {limit}"
-    )
     try:
         dataset = session.get_one(Dataset, dataset_id)
     except NoResultFound:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+        raise ValueError(f"Dataset {dataset_id} not found")
 
-    logger.info(f"Reading dataset {dataset_id} with offset {offset} and limit {limit}")
     samples = []
     for index in range(offset, offset + limit):
-        logger.info(f"Reading sample {index} of {offset + limit}")
         try:
             sample = read_dataset(dataset, index, reader)
         except IndexError:
@@ -188,8 +175,28 @@ def preview_dataset(
 
         samples.append(sample)
 
-    # cache for 3 minutes
-    memory.set(f"preview:{preview_id}", serialize_list(samples), ex=3 * 60)
+    return samples
+
+
+def preview_dataset(
+    preview_id: str,
+    dataset_id: str,
+    offset: int,
+    limit: int,
+) -> list[dict[str, Any]]:
+    cache = next(get_cache())
+    logger = get_logger(__name__)
+    logger.info(
+        f"Previewing dataset {dataset_id} with offset {offset} and limit {limit}"
+    )
+    try:
+        samples = _preview_dataset(dataset_id, offset, limit)
+        # cache for 3 minutes
+        cache.set(f"preview:{preview_id}", serialize_list(samples), ex=3 * 60)
+    except Exception as e:
+        logger.exception(f"Failed to preview dataset {dataset_id}: {e}")
+        cache.set(f"preview:{preview_id}:error", str(e), ex=3 * 60)
+        raise e
     return samples
 
 
@@ -220,7 +227,7 @@ def create_dataset_preview(
     offset = params.offset
     limit = params.limit
     preview_id = dataset_id + ":" + str(params.offset) + ":" + str(params.limit)
-    background_worker.threads_submit(
+    background_worker.thread_pool_submit(
         preview_dataset,
         preview_id=preview_id,
         dataset_id=dataset_id,
@@ -242,7 +249,7 @@ class GetDatasetPreviewResponse(BaseModel):
 def get_dataset_preview(
     dataset_id: str,
     preview_id: str,
-    memory: CurrentSharedMemory,
+    cache: CacheClient,
     session: DbSession,
 ) -> GetDatasetPreviewResponse:
     try:
@@ -250,10 +257,15 @@ def get_dataset_preview(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    if not memory.exists(f"preview:{preview_id}"):
+    if cache.exists(f"preview:{preview_id}:error"):
+        raise HTTPException(
+            status_code=500, detail=cache.get(f"preview:{preview_id}:error")
+        )
+
+    if not cache.exists(f"preview:{preview_id}"):
         raise HTTPException(status_code=400, detail="Preview not found")
 
-    samples = deserialize_list(memory.get(f"preview:{preview_id}"))
+    samples = deserialize_list(cache.get(f"preview:{preview_id}"))
 
     return GetDatasetPreviewResponse(
         dataset=dataset,
@@ -607,7 +619,7 @@ def sync_shardset(
             detail="Shardset is already being synced. Please wait for the sync to complete.",
         )
 
-    background_worker.threads_submit(
+    background_worker.thread_pool_submit(
         sync_shardset_location,
         shardset_id=shardset.id,
         shardset_location=shardset.location,
@@ -742,7 +754,7 @@ def preprocess_dataset(
     ]
 
     task_id = f'{dataset.id}-{"-".join([p["name"] for p in preprocessors])}-{shardset_location}'
-    background_worker.threads_submit(
+    background_worker.thread_pool_submit(
         preprocess_shardset,
         task_id=task_id,
         shardset_location=shardset_location,
