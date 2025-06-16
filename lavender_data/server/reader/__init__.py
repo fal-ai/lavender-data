@@ -165,7 +165,7 @@ class ServerSideReader:
                 self.reader_cache[cache_key].clear()
                 del self.reader_cache[cache_key]
 
-    def get_sample(self, index: GlobalSampleIndex):
+    def _get_sample(self, index: GlobalSampleIndex):
         reader = self.get_reader(
             index.main_shard, index.uid_column_name, index.uid_column_type
         )
@@ -175,7 +175,14 @@ class ServerSideReader:
             raise IndexError(
                 f"Failed to read sample {index.main_shard.sample_index} from shard {index.main_shard.location} (shardset {index.main_shard.shardset_id}, {index.main_shard.samples} samples)"
             )
-        sample_uid = sample[index.uid_column_name]
+
+        try:
+            sample_uid = sample[index.uid_column_name]
+        except KeyError:
+            raise KeyError(
+                f"Sample does not have uid column {index.uid_column_name} (available columns: {','.join(sample.keys())}) "
+                f"in shard {index.main_shard.location} (shardset {index.main_shard.shardset_id}, {index.main_shard.samples} samples)"
+            )
 
         for feature_shard in index.feature_shards:
             reader = self.get_reader(
@@ -193,6 +200,13 @@ class ServerSideReader:
             sample.update(columns)
 
         return sample
+
+    def get_sample(self, index: GlobalSampleIndex):
+        try:
+            return self._get_sample(index)
+        except Exception as e:
+            self.clear_cache(index.main_shard, *index.feature_shards)
+            raise e
 
 
 reader = None
