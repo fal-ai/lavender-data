@@ -139,7 +139,7 @@ def sync_shardset_location(
         update(Shardset)
         .where(Shardset.id == shardset_id)
         .values(
-            shard_count=shard_index,
+            shard_count=shard_index + 1,
             total_samples=total_samples,
         )
     )
