@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Pagination } from '@/components/pagination';
 import { ErrorCard } from '@/components/error-card';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { getDatasetPreview } from '@/lib/client-side-api';
+import { createDatasetPreview, getDatasetPreview } from '@/lib/client-side-api';
 import type { components } from '@/lib/api/v1';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { LoaderCircle } from 'lucide-react';
@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button';
 import { MultiSelect } from '@/components/multiselect';
 import SamplesTable from '../samples-table';
 
-type DatasetPreviewResponse = components['schemas']['PreviewDatasetResponse'];
+type DatasetPreviewResponse =
+  components['schemas']['GetDatasetPreviewResponse'];
 
 const getColumnsFromLocalStorage = (
   dataset_id: string
@@ -55,9 +56,31 @@ export default function DatasetPreviewPage({}: {}) {
   >([]);
   const [preview, setPreview] = useState<DatasetPreviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewPollCount, setPreviewPollCount] = useState<number>(0);
 
   useEffect(() => {
-    getDatasetPreview(dataset_id, preview_page, preview_limit)
+    setPreview(null);
+    setError(null);
+    setPreviewId(null);
+    setPreviewPollCount(0);
+    setColumns([]);
+    setTotalPages(0);
+
+    createDatasetPreview(
+      dataset_id,
+      preview_page * preview_limit,
+      preview_limit
+    ).then((r) => {
+      setPreviewId(r.preview_id);
+    });
+  }, [dataset_id, preview_page, preview_limit]);
+
+  useEffect(() => {
+    if (!previewId) {
+      return;
+    }
+    getDatasetPreview(dataset_id, previewId)
       .then((r) => {
         const totalPages = Math.ceil(r.total / preview_limit);
         const fetchedColumns = r.columns.map((column) => column.name);
@@ -91,9 +114,15 @@ export default function DatasetPreviewPage({}: {}) {
         }
       })
       .catch((e) => {
-        setError(e.message);
+        if (e.message === 'Preview is not ready') {
+          setTimeout(() => {
+            setPreviewPollCount((c) => c + 1);
+          }, 100);
+        } else {
+          setError(e.message);
+        }
       });
-  }, [dataset_id, preview_page, preview_limit]);
+  }, [dataset_id, previewId, previewPollCount]);
 
   useEffect(() => {
     if (columns.length > 0) {

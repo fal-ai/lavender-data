@@ -5,6 +5,8 @@ from .cluster_operation_iterations_iteration_id_state_operation_post_params impo
     ClusterOperationIterationsIterationIdStateOperationPostParams,
 )
 from .create_dataset_params import CreateDatasetParams
+from .create_dataset_preview_params import CreateDatasetPreviewParams
+from .create_dataset_preview_response import CreateDatasetPreviewResponse
 from .create_iteration_params import CreateIterationParams
 from .create_shardset_params import CreateShardsetParams
 from .create_shardset_response import CreateShardsetResponse
@@ -14,8 +16,13 @@ from .dataset_public import DatasetPublic
 from .deregister_params import DeregisterParams
 from .file_type import FileType
 from .func_spec import FuncSpec
+from .get_dataset_preview_response import GetDatasetPreviewResponse
+from .get_dataset_preview_response_samples_item import GetDatasetPreviewResponseSamplesItem
 from .get_dataset_response import GetDatasetResponse
 from .get_iteration_response import GetIterationResponse
+from .get_next_preview_iterations_iteration_id_next_preview_get_response_get_next_preview_iterations_iteration_id_next_preview_get import (
+    GetNextPreviewIterationsIterationIdNextPreviewGetResponseGetNextPreviewIterationsIterationIdNextPreviewGet,
+)
 from .get_shardset_response import GetShardsetResponse
 from .heartbeat_params import HeartbeatParams
 from .http_validation_error import HTTPValidationError
@@ -33,8 +40,6 @@ from .iteration_shardset_link import IterationShardsetLink
 from .node_status import NodeStatus
 from .preprocess_dataset_params import PreprocessDatasetParams
 from .preprocess_dataset_response import PreprocessDatasetResponse
-from .preview_dataset_response import PreviewDatasetResponse
-from .preview_dataset_response_samples_item import PreviewDatasetResponseSamplesItem
 from .progress import Progress
 from .register_params import RegisterParams
 from .shard_public import ShardPublic
@@ -53,6 +58,8 @@ __all__ = (
     "ApiKeyPublic",
     "ClusterOperationIterationsIterationIdStateOperationPostParams",
     "CreateDatasetParams",
+    "CreateDatasetPreviewParams",
+    "CreateDatasetPreviewResponse",
     "CreateIterationParams",
     "CreateShardsetParams",
     "CreateShardsetResponse",
@@ -62,8 +69,11 @@ __all__ = (
     "DeregisterParams",
     "FileType",
     "FuncSpec",
+    "GetDatasetPreviewResponse",
+    "GetDatasetPreviewResponseSamplesItem",
     "GetDatasetResponse",
     "GetIterationResponse",
+    "GetNextPreviewIterationsIterationIdNextPreviewGetResponseGetNextPreviewIterationsIterationIdNextPreviewGet",
     "GetShardsetResponse",
     "HeartbeatParams",
     "HTTPValidationError",
@@ -81,8 +91,6 @@ __all__ = (
     "NodeStatus",
     "PreprocessDatasetParams",
     "PreprocessDatasetResponse",
-    "PreviewDatasetResponse",
-    "PreviewDatasetResponseSamplesItem",
     "Progress",
     "RegisterParams",
     "ShardPublic",

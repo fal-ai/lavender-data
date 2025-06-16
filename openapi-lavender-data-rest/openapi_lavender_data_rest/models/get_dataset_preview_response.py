@@ -7,25 +7,25 @@ from attrs import field as _attrs_field
 if TYPE_CHECKING:
     from ..models.dataset_column_public import DatasetColumnPublic
     from ..models.dataset_public import DatasetPublic
-    from ..models.preview_dataset_response_samples_item import PreviewDatasetResponseSamplesItem
+    from ..models.get_dataset_preview_response_samples_item import GetDatasetPreviewResponseSamplesItem
 
 
-T = TypeVar("T", bound="PreviewDatasetResponse")
+T = TypeVar("T", bound="GetDatasetPreviewResponse")
 
 
 @_attrs_define
-class PreviewDatasetResponse:
+class GetDatasetPreviewResponse:
     """
     Attributes:
         dataset (DatasetPublic):
         columns (list['DatasetColumnPublic']):
-        samples (list['PreviewDatasetResponseSamplesItem']):
+        samples (list['GetDatasetPreviewResponseSamplesItem']):
         total (int):
     """
 
     dataset: "DatasetPublic"
     columns: list["DatasetColumnPublic"]
-    samples: list["PreviewDatasetResponseSamplesItem"]
+    samples: list["GetDatasetPreviewResponseSamplesItem"]
     total: int
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -61,7 +61,7 @@ class PreviewDatasetResponse:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.dataset_column_public import DatasetColumnPublic
         from ..models.dataset_public import DatasetPublic
-        from ..models.preview_dataset_response_samples_item import PreviewDatasetResponseSamplesItem
+        from ..models.get_dataset_preview_response_samples_item import GetDatasetPreviewResponseSamplesItem
 
         d = dict(src_dict)
         dataset = DatasetPublic.from_dict(d.pop("dataset"))
@@ -76,21 +76,21 @@ class PreviewDatasetResponse:
         samples = []
         _samples = d.pop("samples")
         for samples_item_data in _samples:
-            samples_item = PreviewDatasetResponseSamplesItem.from_dict(samples_item_data)
+            samples_item = GetDatasetPreviewResponseSamplesItem.from_dict(samples_item_data)
 
             samples.append(samples_item)
 
         total = d.pop("total")
 
-        preview_dataset_response = cls(
+        get_dataset_preview_response = cls(
             dataset=dataset,
             columns=columns,
             samples=samples,
             total=total,
         )
 
-        preview_dataset_response.additional_properties = d
-        return preview_dataset_response
+        get_dataset_preview_response.additional_properties = d
+        return get_dataset_preview_response
 
     @property
     def additional_keys(self) -> list[str]:

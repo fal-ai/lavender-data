@@ -11,15 +11,21 @@ T = TypeVar("T", bound="FuncSpec")
 class FuncSpec:
     """
     Attributes:
+        registry (str):
         name (str):
         args (list[list[str]]):
+        md5 (str):
     """
 
+    registry: str
     name: str
     args: list[list[str]]
+    md5: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        registry = self.registry
+
         name = self.name
 
         args = []
@@ -32,12 +38,16 @@ class FuncSpec:
 
             args.append(args_item)
 
+        md5 = self.md5
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
+                "registry": registry,
                 "name": name,
                 "args": args,
+                "md5": md5,
             }
         )
 
@@ -46,6 +56,8 @@ class FuncSpec:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+        registry = d.pop("registry")
+
         name = d.pop("name")
 
         args = []
@@ -64,9 +76,13 @@ class FuncSpec:
 
             args.append(args_item)
 
+        md5 = d.pop("md5")
+
         func_spec = cls(
+            registry=registry,
             name=name,
             args=args,
+            md5=md5,
         )
 
         func_spec.additional_properties = d

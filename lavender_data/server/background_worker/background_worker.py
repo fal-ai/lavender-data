@@ -85,6 +85,8 @@ def _run_task(
     try:
         set_task_status(task_id, status="running", ex=24 * 60 * 60)
         for status in func(*args, **kwargs):
+            if not isinstance(status, TaskStatus):
+                continue
             set_task_status(
                 task_id,
                 status=status.status,

@@ -5,39 +5,38 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.create_dataset_preview_params import CreateDatasetPreviewParams
+from ...models.create_dataset_preview_response import CreateDatasetPreviewResponse
 from ...models.http_validation_error import HTTPValidationError
-from ...models.preview_dataset_response import PreviewDatasetResponse
-from ...types import UNSET, Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     dataset_id: str,
     *,
-    offset: Union[Unset, int] = 0,
-    limit: Union[Unset, int] = 10,
+    body: CreateDatasetPreviewParams,
 ) -> dict[str, Any]:
-    params: dict[str, Any] = {}
-
-    params["offset"] = offset
-
-    params["limit"] = limit
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+    headers: dict[str, Any] = {}
 
     _kwargs: dict[str, Any] = {
-        "method": "get",
+        "method": "post",
         "url": f"/datasets/{dataset_id}/preview",
-        "params": params,
     }
 
+    _body = body.to_dict()
+
+    _kwargs["json"] = _body
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[HTTPValidationError, PreviewDatasetResponse]]:
+) -> Optional[Union[CreateDatasetPreviewResponse, HTTPValidationError]]:
     if response.status_code == 200:
-        response_200 = PreviewDatasetResponse.from_dict(response.json())
+        response_200 = CreateDatasetPreviewResponse.from_dict(response.json())
 
         return response_200
     if response.status_code == 422:
@@ -52,7 +51,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[HTTPValidationError, PreviewDatasetResponse]]:
+) -> Response[Union[CreateDatasetPreviewResponse, HTTPValidationError]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -65,28 +64,25 @@ def sync_detailed(
     dataset_id: str,
     *,
     client: AuthenticatedClient,
-    offset: Union[Unset, int] = 0,
-    limit: Union[Unset, int] = 10,
-) -> Response[Union[HTTPValidationError, PreviewDatasetResponse]]:
-    """Preview Dataset
+    body: CreateDatasetPreviewParams,
+) -> Response[Union[CreateDatasetPreviewResponse, HTTPValidationError]]:
+    """Create Dataset Preview
 
     Args:
         dataset_id (str):
-        offset (Union[Unset, int]):  Default: 0.
-        limit (Union[Unset, int]):  Default: 10.
+        body (CreateDatasetPreviewParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[HTTPValidationError, PreviewDatasetResponse]]
+        Response[Union[CreateDatasetPreviewResponse, HTTPValidationError]]
     """
 
     kwargs = _get_kwargs(
         dataset_id=dataset_id,
-        offset=offset,
-        limit=limit,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -100,29 +96,26 @@ def sync(
     dataset_id: str,
     *,
     client: AuthenticatedClient,
-    offset: Union[Unset, int] = 0,
-    limit: Union[Unset, int] = 10,
-) -> Optional[Union[HTTPValidationError, PreviewDatasetResponse]]:
-    """Preview Dataset
+    body: CreateDatasetPreviewParams,
+) -> Optional[Union[CreateDatasetPreviewResponse, HTTPValidationError]]:
+    """Create Dataset Preview
 
     Args:
         dataset_id (str):
-        offset (Union[Unset, int]):  Default: 0.
-        limit (Union[Unset, int]):  Default: 10.
+        body (CreateDatasetPreviewParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[HTTPValidationError, PreviewDatasetResponse]
+        Union[CreateDatasetPreviewResponse, HTTPValidationError]
     """
 
     return sync_detailed(
         dataset_id=dataset_id,
         client=client,
-        offset=offset,
-        limit=limit,
+        body=body,
     ).parsed
 
 
@@ -130,28 +123,25 @@ async def asyncio_detailed(
     dataset_id: str,
     *,
     client: AuthenticatedClient,
-    offset: Union[Unset, int] = 0,
-    limit: Union[Unset, int] = 10,
-) -> Response[Union[HTTPValidationError, PreviewDatasetResponse]]:
-    """Preview Dataset
+    body: CreateDatasetPreviewParams,
+) -> Response[Union[CreateDatasetPreviewResponse, HTTPValidationError]]:
+    """Create Dataset Preview
 
     Args:
         dataset_id (str):
-        offset (Union[Unset, int]):  Default: 0.
-        limit (Union[Unset, int]):  Default: 10.
+        body (CreateDatasetPreviewParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[HTTPValidationError, PreviewDatasetResponse]]
+        Response[Union[CreateDatasetPreviewResponse, HTTPValidationError]]
     """
 
     kwargs = _get_kwargs(
         dataset_id=dataset_id,
-        offset=offset,
-        limit=limit,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -163,29 +153,26 @@ async def asyncio(
     dataset_id: str,
     *,
     client: AuthenticatedClient,
-    offset: Union[Unset, int] = 0,
-    limit: Union[Unset, int] = 10,
-) -> Optional[Union[HTTPValidationError, PreviewDatasetResponse]]:
-    """Preview Dataset
+    body: CreateDatasetPreviewParams,
+) -> Optional[Union[CreateDatasetPreviewResponse, HTTPValidationError]]:
+    """Create Dataset Preview
 
     Args:
         dataset_id (str):
-        offset (Union[Unset, int]):  Default: 0.
-        limit (Union[Unset, int]):  Default: 10.
+        body (CreateDatasetPreviewParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[HTTPValidationError, PreviewDatasetResponse]
+        Union[CreateDatasetPreviewResponse, HTTPValidationError]
     """
 
     return (
         await asyncio_detailed(
             dataset_id=dataset_id,
             client=client,
-            offset=offset,
-            limit=limit,
+            body=body,
         )
     ).parsed

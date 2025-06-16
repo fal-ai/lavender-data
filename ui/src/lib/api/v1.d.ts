@@ -64,8 +64,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Preview Dataset */
-        get: operations["preview_dataset_datasets__dataset_id__preview_get"];
+        get?: never;
+        put?: never;
+        /** Create Dataset Preview */
+        post: operations["create_dataset_preview_datasets__dataset_id__preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasets/{dataset_id}/preview/{preview_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dataset Preview */
+        get: operations["get_dataset_preview_datasets__dataset_id__preview__preview_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -607,6 +624,24 @@ export interface components {
             /** Shardset Location */
             shardset_location?: string | null;
         };
+        /** CreateDatasetPreviewParams */
+        CreateDatasetPreviewParams: {
+            /**
+             * Offset
+             * @default 0
+             */
+            offset: number;
+            /**
+             * Limit
+             * @default 10
+             */
+            limit: number;
+        };
+        /** CreateDatasetPreviewResponse */
+        CreateDatasetPreviewResponse: {
+            /** Preview Id */
+            preview_id: string;
+        };
         /** CreateIterationParams */
         CreateIterationParams: {
             /** Dataset Id */
@@ -731,6 +766,8 @@ export interface components {
         };
         /** FuncSpec */
         FuncSpec: {
+            /** Registry */
+            registry: string;
             /** Name */
             name: string;
             /** Args */
@@ -738,6 +775,20 @@ export interface components {
                 string,
                 string
             ][];
+            /** Md5 */
+            md5: string;
+        };
+        /** GetDatasetPreviewResponse */
+        GetDatasetPreviewResponse: {
+            dataset: components["schemas"]["DatasetPublic"];
+            /** Columns */
+            columns: components["schemas"]["DatasetColumnPublic"][];
+            /** Samples */
+            samples: {
+                [key: string]: unknown;
+            }[];
+            /** Total */
+            total: number;
         };
         /** GetDatasetResponse */
         GetDatasetResponse: {
@@ -970,18 +1021,6 @@ export interface components {
         PreprocessDatasetResponse: {
             /** Task Id */
             task_id: string;
-        };
-        /** PreviewDatasetResponse */
-        PreviewDatasetResponse: {
-            dataset: components["schemas"]["DatasetPublic"];
-            /** Columns */
-            columns: components["schemas"]["DatasetColumnPublic"][];
-            /** Samples */
-            samples: {
-                [key: string]: unknown;
-            }[];
-            /** Total */
-            total: number;
         };
         /** Progress */
         Progress: {
@@ -1311,15 +1350,48 @@ export interface operations {
             };
         };
     };
-    preview_dataset_datasets__dataset_id__preview_get: {
+    create_dataset_preview_datasets__dataset_id__preview_post: {
         parameters: {
-            query?: {
-                offset?: number;
-                limit?: number;
-            };
+            query?: never;
             header?: never;
             path: {
                 dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDatasetPreviewParams"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateDatasetPreviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dataset_preview_datasets__dataset_id__preview__preview_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+                preview_id: string;
             };
             cookie?: never;
         };
@@ -1331,7 +1403,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PreviewDatasetResponse"];
+                    "application/json": components["schemas"]["GetDatasetPreviewResponse"];
                 };
             };
             /** @description Validation Error */

@@ -4,11 +4,14 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="PreviewDatasetResponseSamplesItem")
+T = TypeVar(
+    "T",
+    bound="GetNextPreviewIterationsIterationIdNextPreviewGetResponseGetNextPreviewIterationsIterationIdNextPreviewGet",
+)
 
 
 @_attrs_define
-class PreviewDatasetResponseSamplesItem:
+class GetNextPreviewIterationsIterationIdNextPreviewGetResponseGetNextPreviewIterationsIterationIdNextPreviewGet:
     """ """
 
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -22,10 +25,10 @@ class PreviewDatasetResponseSamplesItem:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        preview_dataset_response_samples_item = cls()
+        get_next_preview_iterations_iteration_id_next_preview_get_response_get_next_preview_iterations_iteration_id_next_preview_get = cls()
 
-        preview_dataset_response_samples_item.additional_properties = d
-        return preview_dataset_response_samples_item
+        get_next_preview_iterations_iteration_id_next_preview_get_response_get_next_preview_iterations_iteration_id_next_preview_get.additional_properties = d
+        return get_next_preview_iterations_iteration_id_next_preview_get_response_get_next_preview_iterations_iteration_id_next_preview_get
 
     @property
     def additional_keys(self) -> list[str]:

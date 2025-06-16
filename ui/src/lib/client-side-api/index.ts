@@ -34,18 +34,45 @@ export const getBackgroundTasks = async (): Promise<TaskMetadata[]> => {
   return response.json();
 };
 
-type DatasetPreviewResponse = components['schemas']['PreviewDatasetResponse'];
+type CreateDatasetPreviewResponse =
+  components['schemas']['CreateDatasetPreviewResponse'];
+
+export const createDatasetPreview = async (
+  datasetId: string,
+  offset: number,
+  limit: number
+): Promise<CreateDatasetPreviewResponse> => {
+  const response = await fetch(`/api/datasets/${datasetId}/preview`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      offset,
+      limit,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch dataset preview: ${response.status}`);
+  }
+  return response.json();
+};
+
+type GetDatasetPreviewResponse =
+  components['schemas']['GetDatasetPreviewResponse'];
 
 export const getDatasetPreview = async (
   datasetId: string,
-  page: number,
-  limit: number
-): Promise<DatasetPreviewResponse> => {
+  previewId: string
+): Promise<GetDatasetPreviewResponse> => {
   const response = await fetch(
-    `/api/datasets/${datasetId}/preview?page=${page}&limit=${limit}`
+    `/api/datasets/${datasetId}/preview/${previewId}`
   );
   if (!response.ok) {
     throw new Error(`Failed to fetch dataset preview: ${response.status}`);
+  }
+  if (response.status === 202) {
+    throw new Error('Preview is not ready');
   }
   return response.json();
 };
