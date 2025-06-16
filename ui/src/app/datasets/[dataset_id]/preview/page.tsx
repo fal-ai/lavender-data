@@ -114,10 +114,8 @@ export default function DatasetPreviewPage({}: {}) {
         }
       })
       .catch((e) => {
-        if (e.message === 'Preview is not ready') {
-          setTimeout(() => {
-            setPreviewPollCount((c) => c + 1);
-          }, 100);
+        if (e.message.includes('400')) {
+          setTimeout(() => setPreviewPollCount((c) => c + 1), 100);
         } else {
           setError(e.message);
         }

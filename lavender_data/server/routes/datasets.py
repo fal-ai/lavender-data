@@ -221,7 +221,6 @@ def create_dataset_preview(
     preview_id = str(uuid.uuid4())
     background_worker.submit(
         preview_dataset,
-        task_id=preview_id,
         preview_id=preview_id,
         dataset_id=dataset_id,
         offset=offset,
@@ -244,22 +243,14 @@ def get_dataset_preview(
     preview_id: str,
     memory: CurrentSharedMemory,
     session: DbSession,
-    background_worker: CurrentBackgroundWorker,
 ) -> GetDatasetPreviewResponse:
     try:
         dataset = session.get_one(Dataset, dataset_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    status = background_worker.get_task_status(preview_id)
-    if status is None:
-        raise HTTPException(status_code=404, detail="Preview not found")
-    elif status.status in ["failed", "aborted"]:
-        raise HTTPException(status_code=400, detail="Preview failed")
-    elif status.status == "running":
-        raise HTTPException(status_code=202, detail="Preview is still being processed")
-    elif status.status != "completed":
-        raise HTTPException(status_code=500, detail="Unknown preview status")
+    if not memory.exists(f"preview:{preview_id}"):
+        raise HTTPException(status_code=400, detail="Preview not found")
 
     samples = deserialize_list(memory.get(f"preview:{preview_id}"))
 
@@ -623,6 +614,7 @@ def sync_shardset(
         shardset_shard_locations=[s.location for s in shardset.shards],
         overwrite=params.overwrite,
         task_id=task_id,
+        with_status=True,
     )
     return shardset
 
@@ -762,5 +754,6 @@ def preprocess_dataset(
         batch_size=params.batch_size,
         overwrite=params.overwrite,
         drop_last=params.drop_last,
+        with_status=True,
     )
     return PreprocessDatasetResponse(task_id=task_id)

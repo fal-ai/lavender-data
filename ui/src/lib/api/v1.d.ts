@@ -564,7 +564,8 @@ export interface paths {
         /** Get File Type */
         get: operations["get_file_type_files_type_get"];
         put?: never;
-        post?: never;
+        /** Inspect File Type */
+        post: operations["inspect_file_type_files_type_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -899,6 +900,11 @@ export interface components {
             rank: number;
             /** Started At */
             started_at: number;
+        };
+        /** InspectFileTypeParams */
+        InspectFileTypeParams: {
+            /** File Url */
+            file_url: string;
         };
         /** IterationCategorizer */
         IterationCategorizer: {
@@ -2379,6 +2385,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FileType"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inspect_file_type_files_type_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectFileTypeParams"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

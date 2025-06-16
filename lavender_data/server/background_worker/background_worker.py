@@ -82,8 +82,9 @@ def _run_task(
     **kwargs,
 ):
     logger = get_logger(__name__)
+    status_ex = 10 * 60
     try:
-        set_task_status(task_id, status="running", ex=24 * 60 * 60)
+        set_task_status(task_id, status="running", ex=status_ex)
         for status in func(*args, **kwargs):
             if not isinstance(status, TaskStatus):
                 continue
@@ -92,16 +93,32 @@ def _run_task(
                 status=status.status,
                 total=status.total,
                 current=status.current,
-                ex=24 * 60 * 60,
+                ex=status_ex,
             )
             if abort_event.is_set():
                 raise Aborted()
 
-        set_task_status(task_id, status="completed", ex=24 * 60 * 60)
+        set_task_status(task_id, status="completed", ex=status_ex)
     except Aborted:
-        set_task_status(task_id, status="aborted", ex=24 * 60 * 60)
+        set_task_status(task_id, status="aborted", ex=status_ex)
     except Exception as e:
-        set_task_status(task_id, status="failed", ex=24 * 60 * 60)
+        set_task_status(task_id, status="failed", ex=status_ex)
+        logger.exception(f"Error running task {task_id}: {e}")
+
+
+def _run_task_no_status(
+    func: Callable,
+    task_id: str,
+    abort_event: threading.Event,
+    *args,
+    **kwargs,
+):
+    logger = get_logger(__name__)
+    try:
+        for _ in func(*args, **kwargs):
+            if abort_event.is_set():
+                raise Aborted()
+    except Exception as e:
         logger.exception(f"Error running task {task_id}: {e}")
 
 
@@ -161,13 +178,14 @@ class BackgroundWorker:
         func: Callable,
         task_id: Optional[str] = None,
         task_name: Optional[str] = None,
+        with_status: bool = True,
         **kwargs,
     ):
         task_id = task_id or str(uuid.uuid4())
 
         abort_event = threading.Event()
         future = self._executor.submit(
-            _run_task,
+            _run_task if with_status else _run_task_no_status,
             func,
             task_id,
             abort_event,

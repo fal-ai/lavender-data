@@ -15,7 +15,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { getFileType } from '@/lib/client-side-api';
+import { inspectFileType, getFileType } from '@/lib/client-side-api';
 import type { components } from '@/lib/api/v1';
 import {
   Dialog,
@@ -75,16 +75,36 @@ function FileCell({
   const [show, setShow] = useState<boolean>(defaultShow);
   const [loading, setLoading] = useState<boolean>(true);
   const [contentLoading, setContentLoading] = useState<boolean>(true);
+
   const [fileType, setFileType] = useState<FileType | null>(null);
+  const [fileTypePollCount, setFileTypePollCount] = useState<number>(0);
 
   useEffect(() => {
     setShow(defaultShow);
     setLoading(true);
-    getFileType(url).then((r) => {
-      setFileType(r);
-      setLoading(false);
+    setFileTypePollCount(0);
+    inspectFileType(url).then((r) => {
+      setFileTypePollCount(fileTypePollCount + 1);
     });
   }, [url]);
+
+  useEffect(() => {
+    if (fileTypePollCount > 0) {
+      getFileType(url)
+        .then((r) => {
+          console.log('fileType', r);
+          setFileType(r);
+          setLoading(false);
+        })
+        .catch((e) => {
+          if (e.message.includes('400')) {
+            setTimeout(() => setFileTypePollCount(fileTypePollCount + 1), 100);
+          } else {
+            setLoading(false);
+          }
+        });
+    }
+  }, [url, fileTypePollCount]);
 
   if (loading) {
     return <Skeleton className="w-full h-[64px]" />;
@@ -94,7 +114,7 @@ function FileCell({
     return <div>{url}</div>;
   }
 
-  const src = `/api/files?file_url=${url}`;
+  const src = `/api/static?file_url=${url}`;
 
   if (fileType.image) {
     return (

@@ -4,7 +4,16 @@ import { getClient } from '@/lib/api';
 export async function GET(request: NextRequest) {
   const client = await getClient();
   const path = request.nextUrl.pathname.replace('/api', '');
-  const response = await client.GET(path as any, {});
+
+  const query: Record<string, string> = {};
+  for (const [key, value] of request.nextUrl.searchParams.entries()) {
+    query[key] = value;
+  }
+  const response = await client.GET(path as any, {
+    params: {
+      query,
+    },
+  });
 
   return new Response(JSON.stringify(response.data), {
     status: response.response.status,

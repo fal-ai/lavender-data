@@ -71,13 +71,21 @@ export const getDatasetPreview = async (
   if (!response.ok) {
     throw new Error(`Failed to fetch dataset preview: ${response.status}`);
   }
-  if (response.status === 202) {
-    throw new Error('Preview is not ready');
-  }
   return response.json();
 };
 
 type FileType = components['schemas']['FileType'];
+
+export const inspectFileType = async (fileUrl: string): Promise<FileType> => {
+  const response = await fetch(`/api/files/type`, {
+    method: 'POST',
+    body: JSON.stringify({ file_url: fileUrl }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch file: ${response.status}`);
+  }
+  return response.json();
+};
 
 export const getFileType = async (fileUrl: string): Promise<FileType> => {
   const response = await fetch(`/api/files/type?file_url=${fileUrl}`);
