@@ -188,6 +188,7 @@ def preview_dataset(
 
         samples.append(sample)
 
+    # cache for 3 minutes
     memory.set(f"preview:{preview_id}", serialize_list(samples), ex=3 * 60)
     return samples
 
@@ -218,7 +219,7 @@ def create_dataset_preview(
 
     offset = params.offset
     limit = params.limit
-    preview_id = str(uuid.uuid4())
+    preview_id = dataset_id + ":" + str(params.offset) + ":" + str(params.limit)
     background_worker.threads_submit(
         preview_dataset,
         preview_id=preview_id,
