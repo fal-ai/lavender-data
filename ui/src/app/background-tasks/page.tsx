@@ -36,28 +36,45 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
+import { Switch } from '@/components/ui/switch';
 
 type TaskMetadata = components['schemas']['TaskMetadata'];
 
 export default function BackgroundTasksPage() {
   const [loading, setLoading] = useState(true);
   const [backgroundTasks, setBackgroundTasks] = useState<TaskMetadata[]>([]);
+  const [refreshCount, setRefreshCount] = useState(0);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   const refreshBackgroundTasks = async () => {
-    setLoading(true);
     const backgroundTasks = await getBackgroundTasks();
     setBackgroundTasks(backgroundTasks);
-    setLoading(false);
   };
 
   useEffect(() => {
+    setLoading(true);
     refreshBackgroundTasks();
+    setTimeout(() => {
+      setRefreshCount((prev) => prev + 1);
+    }, 1000);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (autoRefresh) {
+      refreshBackgroundTasks();
+      setTimeout(() => {
+        setRefreshCount((prev) => prev + 1);
+      }, 1000);
+    }
+  }, [refreshCount, autoRefresh]);
 
   const abortTaskAction = async (taskId: string) => {
     const response = await abortTask(taskId);
     if (response.success) {
+      setLoading(true);
       refreshBackgroundTasks();
+      setLoading(false);
     }
   };
 
@@ -76,11 +93,9 @@ export default function BackgroundTasksPage() {
       </Breadcrumb>
       <div className="w-full flex flex-col gap-2">
         <div className="text-lg">Background Tasks</div>
-        <div className="flex flex-row gap-2">
-          <Button variant="outline" onClick={refreshBackgroundTasks}>
-            <RefreshCcw className="w-4 h-4" />
-            Refresh
-          </Button>
+        <div className="flex flex-row gap-2 items-center">
+          <RefreshCcw className="w-4 h-4" />
+          <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} />
         </div>
         {loading ? (
           <div className="text-center text-muted-foreground m-8">

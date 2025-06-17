@@ -1,6 +1,5 @@
 import { getClient } from '@/lib/api';
 import { ErrorCard } from '@/components/error-card';
-import { Breadcrumb } from './breadcrumb';
 import { DatasetNavTabs } from './nav-tabs';
 
 export default async function DatasetDetailPageLayout({
@@ -26,10 +25,8 @@ export default async function DatasetDetailPageLayout({
   const dataset = datasetResponse.data;
 
   return (
-    <main className="container flex w-full flex-1 flex-col items-center justify-center gap-8">
-      <Breadcrumb />
-
-      <div className="w-full flex flex-col gap-1">
+    <div className="w-full flex flex-col gap-2">
+      <div className="w-full flex flex-col gap-1 pb-4">
         <div className="text-lg">{dataset.name}</div>
         <div className="text-xs text-muted-foreground">{dataset.id}</div>
       </div>
@@ -38,6 +35,6 @@ export default async function DatasetDetailPageLayout({
         <DatasetNavTabs dataset_id={dataset_id} />
         <div className="w-full">{children}</div>
       </div>
-    </main>
+    </div>
   );
 }

@@ -33,61 +33,48 @@ export default async function DatasetsPage() {
   const datasets = datasetsResponse.data;
 
   return (
-    <main className="container flex w-full flex-1 flex-col items-center justify-center gap-8">
-      <Breadcrumb className="w-full pt-4">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/">Home</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>datasets</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-      <div className="w-full flex flex-col gap-2">
-        <div className="text-lg">Datasets</div>
-        {datasets.length > 0 ? (
-          <Card className="w-full">
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead className="min-w-[200px]">Name</TableHead>
-                    <TableHead>Created</TableHead>
+    <div className="w-full flex flex-col gap-2">
+      <div className="text-lg">Datasets</div>
+      {datasets.length > 0 ? (
+        <Card className="w-full">
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead className="min-w-[200px]">Name</TableHead>
+                  <TableHead>Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {datasets.map((dataset: any) => (
+                  <TableRow key={dataset.id}>
+                    <TableCell className="font-mono text-xs">
+                      <Link href={`/datasets/${dataset.id}/preview`}>
+                        {dataset.id}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{dataset.name}</TableCell>
+                    <TableCell>{utcToLocal(dataset.created_at)}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {datasets.map((dataset: any) => (
-                    <TableRow key={dataset.id}>
-                      <TableCell className="font-mono text-xs">
-                        <Link href={`/datasets/${dataset.id}/preview`}>
-                          {dataset.id}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{dataset.name}</TableCell>
-                      <TableCell>{utcToLocal(dataset.created_at)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="text-center text-muted-foreground m-8">
-            Nothing here yet.
-          </div>
-        )}
-        <div className="w-full flex justify-end gap-2">
-          <AddDatasetDialog>
-            <Button variant="outline">
-              <Plus />
-              Dataset
-            </Button>
-          </AddDatasetDialog>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="text-center text-muted-foreground m-8">
+          Nothing here yet.
         </div>
+      )}
+      <div className="w-full flex justify-end gap-2">
+        <AddDatasetDialog>
+          <Button variant="outline">
+            <Plus />
+            Dataset
+          </Button>
+        </AddDatasetDialog>
       </div>
-    </main>
+    </div>
   );
 }
