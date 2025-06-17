@@ -107,11 +107,11 @@ export function Pagination({
           </div>
           <div>/</div>
           <div>{totalPages}</div>
-          <Button variant="outline" size="icon">
-            <Link href={getPageHref(page)}>
+          <Link href={getPageHref(page)}>
+            <Button variant="outline" size="icon">
               <ArrowUpRight className="w-4" />
-            </Link>
-          </Button>
+            </Button>
+          </Link>
         </div>
       </PaginationContent>
     </PaginationComponent>

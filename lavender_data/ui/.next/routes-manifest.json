@@ -15,29 +15,20 @@
   "headers": [],
   "dynamicRoutes": [
     {
-      "page": "/api/datasets/[dataset_id]/preview",
-      "regex": "^/api/datasets/([^/]+?)/preview(?:/)?$",
+      "page": "/api/static/[...path]",
+      "regex": "^/api/static/(.+?)(?:/)?$",
       "routeKeys": {
-        "nxtPdataset_id": "nxtPdataset_id"
+        "nxtPpath": "nxtPpath"
       },
-      "namedRegex": "^/api/datasets/(?<nxtPdataset_id>[^/]+?)/preview(?:/)?$"
+      "namedRegex": "^/api/static/(?<nxtPpath>.+?)(?:/)?$"
     },
     {
-      "page": "/api/datasets/[dataset_id]/shardsets/[shardset_id]/sync",
-      "regex": "^/api/datasets/([^/]+?)/shardsets/([^/]+?)/sync(?:/)?$",
+      "page": "/api/[...path]",
+      "regex": "^/api/(.+?)(?:/)?$",
       "routeKeys": {
-        "nxtPdataset_id": "nxtPdataset_id",
-        "nxtPshardset_id": "nxtPshardset_id"
+        "nxtPpath": "nxtPpath"
       },
-      "namedRegex": "^/api/datasets/(?<nxtPdataset_id>[^/]+?)/shardsets/(?<nxtPshardset_id>[^/]+?)/sync(?:/)?$"
-    },
-    {
-      "page": "/api/iterations/[iteration_id]/next-preview",
-      "regex": "^/api/iterations/([^/]+?)/next\\-preview(?:/)?$",
-      "routeKeys": {
-        "nxtPiteration_id": "nxtPiteration_id"
-      },
-      "namedRegex": "^/api/iterations/(?<nxtPiteration_id>[^/]+?)/next\\-preview(?:/)?$"
+      "namedRegex": "^/api/(?<nxtPpath>.+?)(?:/)?$"
     },
     {
       "page": "/datasets/[dataset_id]",

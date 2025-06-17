@@ -34,15 +34,39 @@ export const getBackgroundTasks = async (): Promise<TaskMetadata[]> => {
   return response.json();
 };
 
-type DatasetPreviewResponse = components['schemas']['PreviewDatasetResponse'];
+type CreateDatasetPreviewResponse =
+  components['schemas']['CreateDatasetPreviewResponse'];
+
+export const createDatasetPreview = async (
+  datasetId: string,
+  offset: number,
+  limit: number
+): Promise<CreateDatasetPreviewResponse> => {
+  const response = await fetch(`/api/datasets/${datasetId}/preview`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      offset,
+      limit,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch dataset preview: ${response.status}`);
+  }
+  return response.json();
+};
+
+type GetDatasetPreviewResponse =
+  components['schemas']['GetDatasetPreviewResponse'];
 
 export const getDatasetPreview = async (
   datasetId: string,
-  page: number,
-  limit: number
-): Promise<DatasetPreviewResponse> => {
+  previewId: string
+): Promise<GetDatasetPreviewResponse> => {
   const response = await fetch(
-    `/api/datasets/${datasetId}/preview?page=${page}&limit=${limit}`
+    `/api/datasets/${datasetId}/preview/${previewId}`
   );
   if (!response.ok) {
     throw new Error(`Failed to fetch dataset preview: ${response.status}`);
@@ -52,12 +76,31 @@ export const getDatasetPreview = async (
 
 type FileType = components['schemas']['FileType'];
 
+export const inspectFileType = async (fileUrl: string): Promise<FileType> => {
+  const response = await fetch(`/api/files/type`, {
+    method: 'POST',
+    body: JSON.stringify({ file_url: fileUrl }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch file: ${response.status}`);
+  }
+  return response.json();
+};
+
 export const getFileType = async (fileUrl: string): Promise<FileType> => {
   const response = await fetch(`/api/files/type?file_url=${fileUrl}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch file: ${response.status}`);
   }
   return response.json();
+};
+
+const getError = async (response: Response) => {
+  try {
+    return (await response.json()).detail;
+  } catch (e) {
+    return await response.text();
+  }
 };
 
 export const createIteration = async (
@@ -69,7 +112,7 @@ export const createIteration = async (
     body: JSON.stringify({ dataset_id: datasetId, ...dataloaderParams }),
   });
   if (!response.ok) {
-    throw new Error(`Failed to start iteration: ${response.status}`);
+    throw new Error(`Failed to start iteration: ${await getError(response)}`);
   }
   return response.json();
 };
@@ -78,7 +121,7 @@ export const getIterationNextPreview = async (iterationId: string) => {
   const response = await fetch(`/api/iterations/${iterationId}/next-preview`);
   if (!response.ok) {
     throw new Error(
-      `Failed to fetch iteration next preview: ${response.status}`
+      `Failed to fetch iteration next preview: ${await getError(response)}`
     );
   }
   return response.json();

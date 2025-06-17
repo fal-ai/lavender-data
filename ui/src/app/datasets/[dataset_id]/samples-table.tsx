@@ -15,7 +15,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { getFileType } from '@/lib/client-side-api';
+import { inspectFileType, getFileType } from '@/lib/client-side-api';
 import type { components } from '@/lib/api/v1';
 import {
   Dialog,
@@ -29,6 +29,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Eye } from 'lucide-react';
+import { MultiSelect } from '@/components/multiselect';
 
 type FileType = components['schemas']['FileType'];
 
@@ -75,16 +76,35 @@ function FileCell({
   const [show, setShow] = useState<boolean>(defaultShow);
   const [loading, setLoading] = useState<boolean>(true);
   const [contentLoading, setContentLoading] = useState<boolean>(true);
+
   const [fileType, setFileType] = useState<FileType | null>(null);
+  const [fileTypePollCount, setFileTypePollCount] = useState<number>(0);
 
   useEffect(() => {
     setShow(defaultShow);
     setLoading(true);
-    getFileType(url).then((r) => {
-      setFileType(r);
-      setLoading(false);
+    setFileTypePollCount(0);
+    inspectFileType(url).then((r) => {
+      setFileTypePollCount(fileTypePollCount + 1);
     });
   }, [url]);
+
+  useEffect(() => {
+    if (fileTypePollCount > 0) {
+      getFileType(url)
+        .then((r) => {
+          setFileType(r);
+          setLoading(false);
+        })
+        .catch((e) => {
+          if (e.message.includes('400')) {
+            setTimeout(() => setFileTypePollCount(fileTypePollCount + 1), 100);
+          } else {
+            setLoading(false);
+          }
+        });
+    }
+  }, [url, fileTypePollCount]);
 
   if (loading) {
     return <Skeleton className="w-full h-[64px]" />;
@@ -94,7 +114,8 @@ function FileCell({
     return <div>{url}</div>;
   }
 
-  const src = `/api/files?file_url=${url}`;
+  const basename = url.split('/').pop();
+  const src = `/api/static/${basename}?file_url=${url}`;
 
   if (fileType.image) {
     return (
@@ -203,19 +224,70 @@ function FileCell({
   }
 }
 
+const getColumnsFromLocalStorage = (
+  dataset_id: string
+): { name: string; selected: boolean }[] => {
+  if (typeof window !== 'undefined') {
+    const storage = localStorage.getItem(`columns-${dataset_id}`);
+    if (storage) {
+      return JSON.parse(storage);
+    }
+  }
+  return [];
+};
+
+const setColumnsToLocalStorage = (
+  dataset_id: string,
+  columns: { name: string; selected: boolean }[]
+) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(`columns-${dataset_id}`, JSON.stringify(columns));
+  }
+};
+
 export default function SamplesTable({
+  datasetId,
   samples,
-  columns,
+  fetchedColumns,
 }: {
+  datasetId: string;
   samples: any[];
-  columns: string[];
+  fetchedColumns: string[];
 }) {
+  const [columns, setColumns] = useState<
+    {
+      name: string;
+      selected: boolean;
+    }[]
+  >([]);
+
+  useEffect(() => {
+    const storedColumns = getColumnsFromLocalStorage(datasetId);
+
+    if (storedColumns.length === 0) {
+      setColumns(
+        fetchedColumns.map((c) => ({
+          name: c,
+          selected: true,
+        }))
+      );
+    } else {
+      setColumns(storedColumns);
+    }
+  }, [datasetId, fetchedColumns]);
+
+  useEffect(() => {
+    if (columns.length > 0) {
+      setColumnsToLocalStorage(datasetId, columns);
+    }
+  }, [datasetId, columns]);
+
   const fileColumns = useMemo(
     () =>
       columns
         .filter((column) =>
           samples
-            .map((s) => s[column])
+            .map((s) => s[column.name])
             .every(
               (v) =>
                 typeof v === 'string' &&
@@ -231,61 +303,101 @@ export default function SamplesTable({
   );
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          {columns.map((column) => (
-            <TableHead key={column}>{column}</TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {samples.map((sample, index) => (
-          <TableRow key={`preview-sample-${index}`}>
-            {columns.map((column) => {
-              const value = sample[column];
-              if (fileColumns.includes(column)) {
+    <div>
+      <div className="w-full flex justify-start mb-4">
+        <div className="flex gap-2">
+          <MultiSelect
+            label="Columns"
+            placeholder="Search columns..."
+            emptyText="No columns found"
+            draggable={true}
+            value={columns.map((c) => ({
+              label: c.name,
+              value: c.name,
+              selected: c.selected,
+            }))}
+            onChange={(value) =>
+              setColumns(
+                value.map((v) => ({
+                  name: v.value,
+                  selected: v.selected,
+                }))
+              )
+            }
+          />
+          <Button
+            variant="outline"
+            onClick={() =>
+              setColumns(
+                fetchedColumns.map((name) => ({
+                  name,
+                  selected: true,
+                }))
+              )
+            }
+          >
+            Reset
+          </Button>
+        </div>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {columns.map((column) => (
+              <TableHead key={column.name}>{column.name}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {samples.map((sample, index) => (
+            <TableRow key={`preview-sample-${index}`}>
+              {columns.map((column) => {
+                const value = sample[column.name];
+                if (
+                  fileColumns.some((c) => c.name === column.name && c.selected)
+                ) {
+                  return (
+                    <TableCell key={column.name}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <FileCell
+                            defaultShow={false}
+                            url={value as string}
+                            sample={sample}
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
+                          {value as string}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TableCell>
+                  );
+                }
+
+                const sanitizedValue = sanitize(value);
+                const ellipsizedValue = ellipsize(sanitizedValue);
+
                 return (
-                  <TableCell key={column}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <FileCell
-                          defaultShow={false}
-                          url={value as string}
-                          sample={sample}
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
-                        {value as string}
-                      </TooltipContent>
-                    </Tooltip>
+                  <TableCell key={column.name}>
+                    {ellipsizedValue ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>{ellipsizedValue}</div>
+                        </TooltipTrigger>
+                        <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
+                          {sanitizedValue}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <div>{sanitizedValue}</div>
+                    )}
                   </TableCell>
                 );
-              }
-
-              const sanitizedValue = sanitize(value);
-              const ellipsizedValue = ellipsize(sanitizedValue);
-
-              return (
-                <TableCell key={column}>
-                  {ellipsizedValue ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div>{ellipsizedValue}</div>
-                      </TooltipTrigger>
-                      <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
-                        {sanitizedValue}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <div>{sanitizedValue}</div>
-                  )}
-                </TableCell>
-              );
-            })}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+              })}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

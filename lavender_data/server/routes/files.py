@@ -1,4 +1,5 @@
 import filetype
+import json
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -6,6 +7,11 @@ from pydantic import BaseModel
 from lavender_data.server.db import DbSession
 from lavender_data.server.reader import ReaderInstance
 from lavender_data.server.auth import AppAuth
+from lavender_data.server.reader import get_reader_instance
+from lavender_data.server.background_worker import (
+    CurrentBackgroundWorker,
+)
+from lavender_data.server.cache import CacheClient, get_cache
 
 router = APIRouter(
     prefix="/files",
@@ -29,17 +35,45 @@ def _get_file_type(file_path: str) -> FileType:
     )
 
 
+def _get_file(file_url: str):
+    reader = get_reader_instance()
+    cache = next(get_cache())
+    f = reader.get_file(file_url)
+    file_type = _get_file_type(f)
+
+    cache.set(f"file_type:{file_url}", file_type.model_dump_json(), ex=3 * 60)
+    return file_type
+
+
+class InspectFileTypeParams(BaseModel):
+    file_url: str
+
+
+@router.post("/type")
+def inspect_file_type(
+    params: InspectFileTypeParams,
+    background_worker: CurrentBackgroundWorker,
+) -> dict:
+    background_worker.thread_pool_submit(
+        _get_file,
+        file_url=params.file_url,
+        task_id=params.file_url,
+    )
+    return {}
+
+
 @router.get("/type")
 def get_file_type(
-    session: DbSession, file_url: str, reader: ReaderInstance, response: Response
+    file_url: str,
+    response: Response,
+    cache: CacheClient,
 ) -> FileType:
-    try:
-        f = reader.get_file(file_url)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Invalid file URL")
+    file_type = cache.get(f"file_type:{file_url}")
+    if file_type is None:
+        raise HTTPException(status_code=400, detail="File not found")
 
     response.headers["Cache-Control"] = "public, max-age=3600"
-    return _get_file_type(f)
+    return FileType(**json.loads(file_type))
 
 
 @router.get("/")

@@ -389,9 +389,9 @@
     ]
   },
   "../../node_modules/.pnpm/shiki@3.4.2/node_modules/shiki/dist/langs.mjs -> @shikijs/langs/erlang": {
-    "id": 84407,
+    "id": 6788,
     "files": [
-      "static/chunks/6788.c9fbb2c77bbefc36.js"
+      "static/chunks/6788.21a061f25926db3a.js"
     ]
   },
   "../../node_modules/.pnpm/shiki@3.4.2/node_modules/shiki/dist/langs.mjs -> @shikijs/langs/fennel": {

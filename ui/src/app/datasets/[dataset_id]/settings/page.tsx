@@ -2,9 +2,9 @@ import { Button } from '@/components/ui/button';
 import { getClient } from '@/lib/api';
 import { ErrorCard } from '@/components/error-card';
 import { Card, CardContent } from '@/components/ui/card';
-import { TabsContent } from '@/components/ui/tabs';
 import { DeleteDatasetDialog } from './delete-dataset-dialog';
 import { PreprocessDatasetDialog } from './preprocess-dataset-dialog';
+import { SyncDatasetButton } from './sync-dataset-button';
 
 export default async function DatasetSettingsPage({
   params,
@@ -37,6 +37,18 @@ export default async function DatasetSettingsPage({
     <div className="w-full max-w-[720px] flex flex-col gap-2 items-start">
       <Card className="w-full">
         <CardContent className="flex flex-col gap-2">
+          <div className="grid grid-cols-[1fr_200px] gap-2">
+            <div>
+              <div className="text-md">Sync shardsets</div>
+              <div className="text-xs text-muted-foreground">
+                Sync the all shardsets of this dataset to their locations.
+              </div>
+            </div>
+            <SyncDatasetButton
+              dataset_id={dataset_id}
+              shardsets={dataset.shardsets.map((s) => s.id as string)}
+            />
+          </div>
           <div className="grid grid-cols-[1fr_200px] gap-2">
             <div>
               <div className="text-md">Preprocess</div>

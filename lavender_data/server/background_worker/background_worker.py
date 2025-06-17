@@ -82,24 +82,49 @@ def _run_task(
     **kwargs,
 ):
     logger = get_logger(__name__)
+    status_ex = 10 * 60
     try:
-        set_task_status(task_id, status="running", ex=24 * 60 * 60)
-        for status in func(*args, **kwargs):
+        set_task_status(task_id, status="running", ex=status_ex)
+        generator = func(*args, **kwargs)
+        for status in generator:
+            if abort_event.is_set():
+                generator.close()
+                raise Aborted()
+
+            if not isinstance(status, TaskStatus):
+                continue
+
             set_task_status(
                 task_id,
                 status=status.status,
                 total=status.total,
                 current=status.current,
-                ex=24 * 60 * 60,
+                ex=status_ex,
             )
+
+        set_task_status(task_id, status="completed", ex=status_ex)
+        logger.debug(f"Task {task_id} completed")
+    except Aborted:
+        set_task_status(task_id, status="aborted", ex=status_ex)
+        logger.info(f"Task {task_id} aborted")
+    except Exception as e:
+        set_task_status(task_id, status="failed", ex=status_ex)
+        logger.exception(f"Error running task {task_id}: {e}")
+
+
+def _run_task_no_status(
+    func: Callable,
+    task_id: str,
+    abort_event: threading.Event,
+    *args,
+    **kwargs,
+):
+    logger = get_logger(__name__)
+    try:
+        for _ in func(*args, **kwargs):
             if abort_event.is_set():
                 raise Aborted()
-
-        set_task_status(task_id, status="completed", ex=24 * 60 * 60)
-    except Aborted:
-        set_task_status(task_id, status="aborted", ex=24 * 60 * 60)
     except Exception as e:
-        set_task_status(task_id, status="failed", ex=24 * 60 * 60)
         logger.exception(f"Error running task {task_id}: {e}")
 
 
@@ -154,18 +179,21 @@ class BackgroundWorker:
     def get_task_status(self, task_id: str) -> Optional[TaskStatus]:
         return get_task_status(task_id)
 
-    def submit(
+    def thread_pool_submit(
         self,
         func: Callable,
         task_id: Optional[str] = None,
         task_name: Optional[str] = None,
+        with_status: bool = False,
         **kwargs,
     ):
         task_id = task_id or str(uuid.uuid4())
+        if with_status and get_task_status(task_id) is not None:
+            self.abort(task_id)
 
         abort_event = threading.Event()
         future = self._executor.submit(
-            _run_task,
+            _run_task if with_status else _run_task_no_status,
             func,
             task_id,
             abort_event,
@@ -187,6 +215,13 @@ class BackgroundWorker:
             )
 
         return task_id
+
+    def process_pool_submit(
+        self,
+        func: Callable,
+        **kwargs,
+    ):
+        return self.process_pool().submit(func, **kwargs)
 
     def abort(self, task_id: str):
         with self._tasks_lock:
