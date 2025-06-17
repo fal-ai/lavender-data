@@ -760,7 +760,11 @@ dataloader = lavender.LavenderDataLoader(
       </Card>
       <Card>
         <CardContent>
-          <SamplesTable samples={samples} columns={columns} />
+          <SamplesTable
+            datasetId={dataset_id}
+            samples={samples}
+            fetchedColumns={columns}
+          />
         </CardContent>
         <CardFooter>
           {samples.length > 0 && (

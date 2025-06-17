@@ -9,10 +9,9 @@ from lavender_data.server.reader import ReaderInstance
 from lavender_data.server.auth import AppAuth
 from lavender_data.server.reader import get_reader_instance
 from lavender_data.server.background_worker import (
-    get_shared_memory,
     CurrentBackgroundWorker,
-    CurrentSharedMemory,
 )
+from lavender_data.server.cache import CacheClient, get_cache
 
 router = APIRouter(
     prefix="/files",
@@ -38,11 +37,11 @@ def _get_file_type(file_path: str) -> FileType:
 
 def _get_file(file_url: str):
     reader = get_reader_instance()
-    memory = get_shared_memory()
+    cache = next(get_cache())
     f = reader.get_file(file_url)
     file_type = _get_file_type(f)
 
-    memory.set(f"file_type:{file_url}", file_type.model_dump_json(), ex=3 * 60)
+    cache.set(f"file_type:{file_url}", file_type.model_dump_json(), ex=3 * 60)
     return file_type
 
 
@@ -67,9 +66,9 @@ def inspect_file_type(
 def get_file_type(
     file_url: str,
     response: Response,
-    memory: CurrentSharedMemory,
+    cache: CacheClient,
 ) -> FileType:
-    file_type = memory.get(f"file_type:{file_url}")
+    file_type = cache.get(f"file_type:{file_url}")
     if file_type is None:
         raise HTTPException(status_code=400, detail="File not found")
 
