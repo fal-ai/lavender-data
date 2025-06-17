@@ -1,5 +1,6 @@
 import os
 from typing import Optional, Any
+import time
 
 from fastapi import HTTPException, APIRouter, Depends
 from sqlmodel import select, delete
@@ -186,9 +187,8 @@ def preview_dataset(
 ) -> list[dict[str, Any]]:
     cache = next(get_cache())
     logger = get_logger(__name__)
-    logger.info(
-        f"Previewing dataset {dataset_id} with offset {offset} and limit {limit}"
-    )
+    logger.info(f"Previewing dataset {dataset_id} {offset}-{offset+limit-1}")
+    start_time = time.time()
     try:
         samples = _preview_dataset(dataset_id, offset, limit)
         # cache for 3 minutes
@@ -197,6 +197,10 @@ def preview_dataset(
         logger.exception(f"Failed to preview dataset {dataset_id}: {e}")
         cache.set(f"preview:{preview_id}:error", str(e), ex=3 * 60)
         raise e
+    end_time = time.time()
+    logger.info(
+        f"Previewed dataset {dataset_id} {offset}-{offset+limit-1} in {end_time - start_time:.2f}s"
+    )
     return samples
 
 

@@ -50,6 +50,7 @@ export default async function DatasetPreviewPage({
               preview_id,
             },
           },
+          cache: 'no-cache',
         }
       );
 
