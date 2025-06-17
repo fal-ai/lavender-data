@@ -551,8 +551,8 @@ export function Dataloader({
       onLoadMore(iteration.id);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Unknown error');
+      setLoading(false);
     }
-    setLoading(false);
   }, [dataloaderParams]);
 
   const onLoadMore = useCallback(async (iterationId: string) => {
