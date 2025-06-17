@@ -3,16 +3,16 @@
   "/_not-found/page": "/_not-found",
   "/api/static/route": "/api/static",
   "/background-tasks/page": "/background-tasks",
-  "/page": "/",
   "/set-api-key/page": "/set-api-key",
-  "/datasets/page": "/datasets",
+  "/page": "/",
   "/iterations/[iteration_id]/page": "/iterations/[iteration_id]",
+  "/datasets/page": "/datasets",
   "/iterations/page": "/iterations",
   "/datasets/[dataset_id]/dataloader/page": "/datasets/[dataset_id]/dataloader",
-  "/datasets/[dataset_id]/iterations/page": "/datasets/[dataset_id]/iterations",
-  "/datasets/[dataset_id]/preview/page": "/datasets/[dataset_id]/preview",
   "/datasets/[dataset_id]/shardsets/page": "/datasets/[dataset_id]/shardsets",
-  "/datasets/[dataset_id]/shardsets/[shardset_id]/page": "/datasets/[dataset_id]/shardsets/[shardset_id]",
   "/datasets/[dataset_id]/settings/page": "/datasets/[dataset_id]/settings",
-  "/datasets/[dataset_id]/page": "/datasets/[dataset_id]"
+  "/datasets/[dataset_id]/page": "/datasets/[dataset_id]",
+  "/datasets/[dataset_id]/iterations/page": "/datasets/[dataset_id]/iterations",
+  "/datasets/[dataset_id]/shardsets/[shardset_id]/page": "/datasets/[dataset_id]/shardsets/[shardset_id]",
+  "/datasets/[dataset_id]/preview/page": "/datasets/[dataset_id]/preview"
 }

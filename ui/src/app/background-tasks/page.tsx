@@ -46,34 +46,35 @@ export default function BackgroundTasksPage() {
   const [refreshCount, setRefreshCount] = useState(0);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  const refreshBackgroundTasks = async () => {
+  const refreshBackgroundTasks = async ({
+    more = false,
+  }: {
+    more?: boolean;
+  }) => {
     const backgroundTasks = await getBackgroundTasks();
     setBackgroundTasks(backgroundTasks);
-  };
-
-  useEffect(() => {
-    setLoading(true);
-    refreshBackgroundTasks();
-    setTimeout(() => {
-      setRefreshCount((prev) => prev + 1);
-    }, 1000);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    if (autoRefresh) {
-      refreshBackgroundTasks();
+    if (more) {
       setTimeout(() => {
         setRefreshCount((prev) => prev + 1);
       }, 1000);
     }
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    refreshBackgroundTasks({ more: true });
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    refreshBackgroundTasks({ more: autoRefresh });
   }, [refreshCount, autoRefresh]);
 
   const abortTaskAction = async (taskId: string) => {
     const response = await abortTask(taskId);
-    if (response.success) {
+    if (response.success && !autoRefresh) {
       setLoading(true);
-      refreshBackgroundTasks();
+      refreshBackgroundTasks({ more: false });
       setLoading(false);
     }
   };

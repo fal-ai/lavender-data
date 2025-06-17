@@ -25,30 +25,6 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/",
-      "dataRoute": "/index.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
     "/background-tasks": {
       "experimentalBypassFor": [
         {
@@ -72,13 +48,37 @@
         "x-next-revalidated-tags",
         "x-next-revalidate-tag-token"
       ]
+    },
+    "/": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/",
+      "dataRoute": "/index.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
     }
   },
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "723a28a4f8b4a11c7a0a06c3418b75da",
-    "previewModeSigningKey": "9e08646a506d91f39919500aa2264a20fbe5940c33ccca287c204c616ef27876",
-    "previewModeEncryptionKey": "1331d58f14a5f43c843744f5a5231b1c1ff460292873bff94a39b9167f8f03df"
+    "previewModeId": "832e6eb914a0070a8a76e5f3eb2d8610",
+    "previewModeSigningKey": "088fe1191e4031e2798d17d36b2a2f2e7995c43fd0b8f46014698019969c97c4",
+    "previewModeEncryptionKey": "e8a7e6e993a9e893fcc3e9efd7530155b8efe82a42b8761862c9865396ed1cd1"
   }
 }
