@@ -114,7 +114,8 @@ function FileCell({
     return <div>{url}</div>;
   }
 
-  const src = `/api/static?file_url=${url}`;
+  const basename = url.split('/').pop();
+  const src = `/api/static/${basename}?file_url=${url}`;
 
   if (fileType.image) {
     return (
