@@ -276,8 +276,10 @@ export default function SamplesTable({
   }, [datasetId, fetchedColumns]);
 
   useEffect(() => {
-    setColumnsToLocalStorage(datasetId, columns);
-  }, [columns]);
+    if (columns.length > 0) {
+      setColumnsToLocalStorage(datasetId, columns);
+    }
+  }, [datasetId, columns]);
 
   const fileColumns = useMemo(
     () =>

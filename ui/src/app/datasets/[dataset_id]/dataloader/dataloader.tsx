@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 import SamplesTable from '../samples-table';
 
 type FuncSpec = components['schemas']['FuncSpec'];
@@ -544,34 +545,34 @@ export function Dataloader({
     setLoading(true);
     setSamples([]);
     setColumns([]);
-    const iteration = await createIteration(dataset_id, dataloaderParams);
-    setIterationId(iteration.id);
+    try {
+      const iteration = await createIteration(dataset_id, dataloaderParams);
+      setIterationId(iteration.id);
+      onLoadMore(iteration.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Unknown error');
+    }
     setLoading(false);
-
-    onLoadMore(iteration.id);
   }, [dataloaderParams]);
 
   const onLoadMore = useCallback(async (iterationId: string) => {
     setLoading(true);
-    const samples = (
-      await Promise.allSettled(
-        Array.from({ length: numSamplesPerFetch }).map(() =>
-          getIterationNextPreview(iterationId)
-        )
-      )
-    )
-      .filter((s) => s.status === 'fulfilled')
-      .map((s) => s.value)
-      .map((s) => {
-        Object.keys(s).forEach((k) => {
-          if (k.startsWith('_lavender_data_')) {
-            delete s[k];
-          }
-        });
-        return s;
-      });
-    setSamples((prev) => [...prev, ...samples]);
-    setColumns(Object.keys(samples[0]));
+    await Promise.all(
+      Array.from({ length: numSamplesPerFetch }).map(async () => {
+        try {
+          const sample = await getIterationNextPreview(iterationId);
+          Object.keys(sample).forEach((k) => {
+            if (k.startsWith('_lavender_data_')) {
+              delete sample[k];
+            }
+          });
+          setColumns(Object.keys(sample).sort());
+          setSamples((prev) => [...prev, sample]);
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : 'Unknown error');
+        }
+      })
+    );
     setLoading(false);
   }, []);
 

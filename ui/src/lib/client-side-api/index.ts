@@ -95,6 +95,14 @@ export const getFileType = async (fileUrl: string): Promise<FileType> => {
   return response.json();
 };
 
+const getError = async (response: Response) => {
+  try {
+    return (await response.json()).detail;
+  } catch (e) {
+    return await response.text();
+  }
+};
+
 export const createIteration = async (
   datasetId: string,
   dataloaderParams: Record<string, any>
@@ -104,7 +112,7 @@ export const createIteration = async (
     body: JSON.stringify({ dataset_id: datasetId, ...dataloaderParams }),
   });
   if (!response.ok) {
-    throw new Error(`Failed to start iteration: ${response.status}`);
+    throw new Error(`Failed to start iteration: ${await getError(response)}`);
   }
   return response.json();
 };
@@ -113,7 +121,7 @@ export const getIterationNextPreview = async (iterationId: string) => {
   const response = await fetch(`/api/iterations/${iterationId}/next-preview`);
   if (!response.ok) {
     throw new Error(
-      `Failed to fetch iteration next preview: ${response.status}`
+      `Failed to fetch iteration next preview: ${await getError(response)}`
     );
   }
   return response.json();

@@ -1,9 +1,17 @@
 import type { NextRequest } from 'next/server';
 import { getClient } from '@/lib/api';
 
+const refinePath = (path: string) => {
+  let refinedPath = path.replace('/api', '');
+  if (refinedPath == '/iterations') {
+    refinedPath = '/iterations/';
+  }
+  return refinedPath;
+};
+
 export async function GET(request: NextRequest) {
   const client = await getClient();
-  const path = request.nextUrl.pathname.replace('/api', '');
+  const path = refinePath(request.nextUrl.pathname);
 
   const query: Record<string, string> = {};
   for (const [key, value] of request.nextUrl.searchParams.entries()) {
@@ -15,24 +23,25 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  return new Response(JSON.stringify(response.data), {
+  return new Response(JSON.stringify(response.data ?? response.error), {
     status: response.response.status,
   });
 }
 
 export async function POST(request: NextRequest) {
   const client = await getClient();
-  const path = request.nextUrl.pathname.replace('/api', '');
+  const path = refinePath(request.nextUrl.pathname);
 
   let body = {};
   try {
     body = await request.json();
   } catch (e) {}
+
   const response = await client.POST(path as any, {
     body,
   });
 
-  return new Response(JSON.stringify(response.data), {
+  return new Response(JSON.stringify(response.data ?? response.error), {
     status: response.response.status,
   });
 }
