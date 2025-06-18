@@ -8,7 +8,7 @@ from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 
 from lavender_data.logging import get_logger
-from lavender_data.server.db import DbSession, get_session
+from lavender_data.server.db import DbSession
 from lavender_data.server.db.models import (
     Dataset,
     Shardset,
@@ -25,20 +25,13 @@ from lavender_data.server.db.models import (
 )
 from lavender_data.server.cache import CacheClient, get_cache
 from lavender_data.server.distributed import CurrentCluster
-from lavender_data.server.reader import (
-    get_reader_instance,
-    ReaderInstance,
-    GlobalSampleIndex,
-    ShardInfo,
-    MainShardInfo,
-)
 from lavender_data.server.background_worker import (
     TaskStatus,
     CurrentBackgroundWorker,
 )
+from lavender_data.server.dataset import preview_dataset
 from lavender_data.server.shardset import (
     get_main_shardset,
-    span,
     sync_shardset_location,
     preprocess_shardset,
 )
@@ -76,110 +69,7 @@ def get_dataset(dataset_id: str, session: DbSession) -> GetDatasetResponse:
     return dataset
 
 
-def read_dataset(
-    dataset: Dataset, index: int, reader: ReaderInstance
-) -> GlobalSampleIndex:
-    main_shardset = get_main_shardset(dataset.shardsets)
-    shard_index, sample_index = span(
-        index,
-        [
-            shard.samples
-            for shard in sorted(main_shardset.shards, key=lambda s: s.index)
-        ],
-    )
-
-    main_shard = None
-    uid_column_type = None
-    feature_shards = []
-    for shardset in dataset.shardsets:
-        columns = {column.name: column.type for column in shardset.columns}
-        if dataset.uid_column_name in columns:
-            uid_column_type = columns[dataset.uid_column_name]
-
-        try:
-            shard = [
-                shard
-                for shard in sorted(shardset.shards, key=lambda s: s.index)
-                if shard.index == shard_index
-            ][0]
-        except IndexError:
-            # f"Shard index {shard_index} not found in shardset {shardset.id}",
-            continue
-
-        shard_info = ShardInfo(
-            shardset_id=shardset.id,
-            index=shard.index,
-            samples=shard.samples,
-            location=shard.location,
-            format=shard.format,
-            filesize=shard.filesize,
-            columns=columns,
-        )
-        if shardset.id == main_shardset.id:
-            main_shard = MainShardInfo(
-                **shard_info.model_dump(), sample_index=sample_index
-            )
-        else:
-            feature_shards.append(shard_info)
-
-    if uid_column_type is None:
-        raise HTTPException(status_code=400, detail="Dataset has no uid column")
-
-    if main_shard is None:
-        raise HTTPException(status_code=400, detail="Dataset has no shards")
-
-    return reader.get_sample(
-        GlobalSampleIndex(
-            index=index,
-            uid_column_name=dataset.uid_column_name,
-            uid_column_type=uid_column_type,
-            main_shard=main_shard,
-            feature_shards=feature_shards,
-        )
-    )
-
-
-def _preview_dataset(
-    dataset_id: str,
-    offset: int,
-    limit: int,
-) -> list[dict[str, Any]]:
-    session = next(get_session())
-    reader = get_reader_instance()
-
-    try:
-        dataset = session.get_one(Dataset, dataset_id)
-    except NoResultFound:
-        raise ValueError(f"Dataset {dataset_id} not found")
-
-    samples = []
-    for index in range(offset, offset + limit):
-        try:
-            sample = read_dataset(dataset, index, reader)
-        except IndexError:
-            break
-
-        for key in sample.keys():
-            if type(sample[key]) == bytes:
-                if len(sample[key]) > 0:
-                    local_path = reader.set_file(sample[key])
-                    sample[key] = f"file://{local_path}"
-                    # sample[key] = "<bytes>"
-                else:
-                    sample[key] = ""
-            if type(sample[key]) == dict:
-                if sample[key].get("bytes"):
-                    local_path = reader.set_file(sample[key]["bytes"])
-                    sample[key] = f"file://{local_path}"
-                else:
-                    sample[key] = str(sample[key])
-
-        samples.append(sample)
-
-    return samples
-
-
-def preview_dataset(
+def preview_dataset_and_cache(
     preview_id: str,
     dataset_id: str,
     offset: int,
@@ -190,7 +80,7 @@ def preview_dataset(
     logger.info(f"Previewing dataset {dataset_id} {offset}-{offset+limit-1}")
     start_time = time.time()
     try:
-        samples = _preview_dataset(dataset_id, offset, limit)
+        samples = preview_dataset(dataset_id, offset, limit)
         # cache for 3 minutes
         cache.set(f"preview:{preview_id}", serialize_list(samples), ex=3 * 60)
     except Exception as e:
@@ -232,7 +122,7 @@ def create_dataset_preview(
     limit = params.limit
     preview_id = dataset_id + ":" + str(params.offset) + ":" + str(params.limit)
     background_worker.thread_pool_submit(
-        preview_dataset,
+        preview_dataset_and_cache,
         preview_id=preview_id,
         dataset_id=dataset_id,
         offset=offset,
@@ -263,7 +153,7 @@ def get_dataset_preview(
 
     if cache.exists(f"preview:{preview_id}:error"):
         raise HTTPException(
-            status_code=500, detail=cache.get(f"preview:{preview_id}:error")
+            status_code=500, detail=cache.get(f"preview:{preview_id}:error").decode()
         )
 
     if not cache.exists(f"preview:{preview_id}"):

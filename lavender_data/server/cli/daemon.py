@@ -9,11 +9,11 @@ import daemon
 from daemon.pidfile import PIDLockFile
 
 from .run import run
-from lavender_data.server.settings import get_settings
+from lavender_data.server.settings import get_settings, root_dir
 
 PID_LOCK_FILE = "/tmp/lavender-data.pid"
-LOG_FILE = os.path.expanduser("~/.lavender-data/server.terminal.log")
-WORKING_DIRECTORY = os.path.expanduser("~/.lavender-data/")
+LOG_FILE = os.path.join(root_dir, "server.terminal.log")
+WORKING_DIRECTORY = root_dir
 
 os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 

@@ -1,0 +1,184 @@
+import os
+from typing import Any, Union
+
+from sqlalchemy.exc import NoResultFound
+import filetype
+import hashlib
+import numpy as np
+import json
+
+from lavender_data.server.settings import files_dir
+from lavender_data.server.db import get_session
+from lavender_data.server.db.models import Dataset, Shard
+from lavender_data.server.cache import CacheClient, get_cache
+from lavender_data.server.reader import (
+    get_reader_instance,
+    ReaderInstance,
+    GlobalSampleIndex,
+    ShardInfo,
+    MainShardInfo,
+)
+from lavender_data.server.shardset import get_main_shardset, span
+from lavender_data.storage import get_url
+
+try:
+    import torch
+except ImportError:
+    torch = None
+
+
+def _read_dataset(
+    dataset: Dataset,
+    index: int,
+    reader: ReaderInstance,
+    cache: CacheClient,
+) -> GlobalSampleIndex:
+    main_shardset = get_main_shardset(dataset.shardsets)
+
+    if cache.exists(f"preview-shards:{main_shardset.id}"):
+        shard_samples = json.loads(cache.get(f"preview-shards:{main_shardset.id}"))
+    else:
+        shard_samples = [
+            shard.samples
+            for shard in sorted(main_shardset.shards, key=lambda s: s.index)
+        ]
+        cache.set(
+            f"preview-shards:{main_shardset.id}",
+            json.dumps(shard_samples),
+            ex=3 * 60,
+        )
+
+    shard_index, sample_index = span(index, shard_samples)
+
+    main_shard = None
+    uid_column_type = None
+    feature_shards = []
+    for shardset in dataset.shardsets:
+        columns = {column.name: column.type for column in shardset.columns}
+        if dataset.uid_column_name in columns:
+            uid_column_type = columns[dataset.uid_column_name]
+
+        if cache.exists(f"preview-shards:{shardset.id}:{shard_index}"):
+            shard = Shard.model_validate_json(
+                cache.get(f"preview-shards:{shardset.id}:{shard_index}")
+            )
+        else:
+            try:
+                shard = next(
+                    (shard for shard in shardset.shards if shard.index == shard_index)
+                )
+            except StopIteration:
+                # f"Shard index {shard_index} not found in shardset {shardset.id}",
+                continue
+            cache.set(
+                f"preview-shards:{shardset.id}:{shard_index}",
+                shard.model_dump_json(),
+                ex=3 * 60,
+            )
+
+        shard_info = ShardInfo(
+            shardset_id=shardset.id,
+            index=shard.index,
+            samples=shard.samples,
+            location=shard.location,
+            format=shard.format,
+            filesize=shard.filesize,
+            columns=columns,
+        )
+        if shardset.id == main_shardset.id:
+            main_shard = MainShardInfo(
+                **shard_info.model_dump(), sample_index=sample_index
+            )
+        else:
+            feature_shards.append(shard_info)
+
+    if uid_column_type is None:
+        raise Exception(status_code=400, detail="Dataset has no uid column")
+
+    if main_shard is None:
+        raise Exception(status_code=400, detail="Dataset has no shards")
+
+    return reader.get_sample(
+        GlobalSampleIndex(
+            index=index,
+            uid_column_name=dataset.uid_column_name,
+            uid_column_type=uid_column_type,
+            main_shard=main_shard,
+            feature_shards=feature_shards,
+        )
+    )
+
+
+def _get_extension(obj: Union[str, bytes, bytearray]) -> str:
+    kind = filetype.guess(obj)
+    if kind is None:
+        raise ValueError(f"Failed to guess file type of {obj}")
+    return kind.extension
+
+
+def _set_file(content: bytes):
+    _hash = hashlib.md5(content).hexdigest()
+    filename = _hash + "." + _get_extension(content)
+    local_path = os.path.join(files_dir, filename)
+    with open(local_path, "wb") as f:
+        f.write(content)
+    return filename
+
+
+def refine_sample_previewable(sample: dict[str, Any]):
+    for key in sample.keys():
+        if type(sample[key]) == bytes:
+            if len(sample[key]) > 0:
+                local_path = _set_file(sample[key])
+                sample[key] = f"file://{local_path}"
+                # sample[key] = "<bytes>"
+            else:
+                sample[key] = ""
+        if type(sample[key]) == dict:
+            if sample[key].get("bytes"):
+                local_path = _set_file(sample[key]["bytes"])
+                sample[key] = f"file://{local_path}"
+            else:
+                sample[key] = str(sample[key])
+        if type(sample[key]) == str:
+            if any(
+                sample[key].startswith(prefix)
+                for prefix in ["s3://", "hf://", "http://", "https://"]
+            ):
+                sample[key] = get_url(sample[key])
+        if torch and isinstance(sample[key], torch.Tensor):
+            sample[key] = (
+                f"<torch.Tensor shape={sample[key].shape} dtype={sample[key].dtype}>"
+            )
+        if isinstance(sample[key], np.ndarray):
+            sample[key] = (
+                f"<numpy.ndarray shape={sample[key].shape} dtype={sample[key].dtype}>"
+            )
+    return sample
+
+
+def preview_dataset(
+    dataset_id: str,
+    offset: int,
+    limit: int,
+) -> list[dict[str, Any]]:
+    session = next(get_session())
+    cache = next(get_cache())
+    reader = get_reader_instance()
+
+    try:
+        dataset = session.get_one(Dataset, dataset_id)
+    except NoResultFound:
+        raise ValueError(f"Dataset {dataset_id} not found")
+
+    samples = []
+    for index in range(offset, offset + limit):
+        try:
+            sample = _read_dataset(dataset, index, reader, cache)
+        except IndexError:
+            break
+
+        sample = refine_sample_previewable(sample)
+        samples.append(sample)
+
+    return samples

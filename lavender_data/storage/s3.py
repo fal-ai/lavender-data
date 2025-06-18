@@ -139,3 +139,13 @@ class S3Storage(Storage):
                 break
 
         return keys
+
+    def get_url(self, remote_path: str):
+        parsed = urllib.parse.urlparse(remote_path)
+        bucket = parsed.netloc
+        prefix = parsed.path[1:]
+        return self.client.generate_presigned_url(
+            ClientMethod="get_object",
+            Params={"Bucket": bucket, "Key": prefix},
+            ExpiresIn=60 * 60,
+        )

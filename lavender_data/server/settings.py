@@ -1,9 +1,14 @@
+import os
 from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
 from pydantic_settings import BaseSettings
 from lavender_data.logging import get_logger
+
+root_dir = os.path.expanduser("~/.lavender-data")
+files_dir = os.path.join(root_dir, "files")
+os.makedirs(files_dir, exist_ok=True)
 
 
 class Settings(BaseSettings, extra="ignore"):
