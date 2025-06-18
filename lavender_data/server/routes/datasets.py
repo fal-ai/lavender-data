@@ -3,7 +3,7 @@ from typing import Optional, Any
 import time
 
 from fastapi import HTTPException, APIRouter, Depends
-from sqlmodel import select, delete, func
+from sqlmodel import select, delete, update, func
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 
@@ -450,6 +450,16 @@ def update_shardset(
         ).one()
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Shardset not found")
+
+    if params.is_main:
+        session.exec(
+            update(Shardset)
+            .where(
+                Shardset.dataset_id == dataset_id,
+                Shardset.id != shardset_id,
+            )
+            .values(is_main=False)
+        )
 
     shardset.is_main = params.is_main
     session.add(shardset)

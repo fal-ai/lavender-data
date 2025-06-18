@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeleteShardsetDialog } from './delete-shardset-dialog';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/pagination';
+import { SetAsMainSwitch } from './set-as-main-switch';
 
 const formatFileSize = (bytes: number) => {
   if (bytes < 1024) {
@@ -207,6 +208,26 @@ export default async function ShardsetDetailPage({
         >
           <Card className="w-full">
             <CardContent className="flex flex-col gap-2">
+              <div className="grid grid-cols-[1fr_200px] gap-2">
+                <div>
+                  <div className="text-md">Set as main shardset</div>
+                  <div className="text-xs text-muted-foreground">
+                    Set this shardset as the main shardset for the dataset.
+                    <a
+                      href="https://docs.lavenderdata.com/dataset/join-method/#main-shard-and-feature-shards"
+                      className="underline ml-1"
+                      target="_blank"
+                    >
+                      More info
+                    </a>
+                  </div>
+                </div>
+                <SetAsMainSwitch
+                  dataset_id={dataset_id}
+                  shardset_id={shardset_id}
+                  is_main={shardset.is_main}
+                />
+              </div>
               <div className="grid grid-cols-[1fr_200px] gap-2">
                 <div>
                   <div className="text-md">Sync shardset</div>

@@ -45,3 +45,21 @@ export async function POST(request: NextRequest) {
     status: response.response.status,
   });
 }
+
+export async function PUT(request: NextRequest) {
+  const client = await getClient();
+  const path = refinePath(request.nextUrl.pathname);
+
+  let body = {};
+  try {
+    body = await request.json();
+  } catch (e) {}
+
+  const response = await client.POST(path as any, {
+    body,
+  });
+
+  return new Response(JSON.stringify(response.data ?? response.error), {
+    status: response.response.status,
+  });
+}
