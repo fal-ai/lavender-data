@@ -1,6 +1,30 @@
 {
   "version": 4,
   "routes": {
+    "/set-api-key": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/set-api-key",
+      "dataRoute": "/set-api-key.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/": {
       "experimentalBypassFor": [
         {
@@ -48,37 +72,13 @@
         "x-next-revalidated-tags",
         "x-next-revalidate-tag-token"
       ]
-    },
-    "/set-api-key": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/set-api-key",
-      "dataRoute": "/set-api-key.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
     }
   },
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "7aa37580fbc9aba8e68b28b1311113a0",
-    "previewModeSigningKey": "59ddea7f3875ccd9e20c54fe92c1b7dad2d6918eef1e9582dc6ed4d5c014e128",
-    "previewModeEncryptionKey": "089c92e81316ccd916ba7926683f25c99ad5e2f481c977973a8f73298e0d99a5"
+    "previewModeId": "41f6cc784c4e4b8ef8e07296d8f94d8c",
+    "previewModeSigningKey": "656823e84305db0317fced55e86392120d0e62c0d02d183e5ded41d94126d673",
+    "previewModeEncryptionKey": "268e8d5528fc27d614a0fa7597e5fced7f527987895deb5ca180a229a190979e"
   }
 }
