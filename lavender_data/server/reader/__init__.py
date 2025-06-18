@@ -175,15 +175,16 @@ class ServerSideReader:
                 feature_shard, index.uid_column_name, index.uid_column_type
             )
             try:
-                columns = reader.get_item_by_uid(sample_uid)
+                sample_partial = reader.get_item_by_uid(sample_uid)
             except KeyError:
                 msg = f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({index.main_shard.sample_index} of {index.main_shard.location})'
-                columns = {
+                sample_partial = {
                     k: _default_null_type(t) for k, t in feature_shard.columns.items()
                 }
-            if index.uid_column_name in columns:
-                columns.pop(index.uid_column_name)
-            sample.update(columns)
+            for k, v in sample_partial.items():
+                if k == index.uid_column_name:
+                    continue
+                sample[k] = v
 
         return sample
 
