@@ -29,6 +29,8 @@ const pollPreview = async (
       if (error.message.includes('400')) {
         await new Promise((resolve) => setTimeout(resolve, 100));
         continue;
+      } else {
+        throw error;
       }
     }
   }
@@ -56,7 +58,7 @@ export function PreviewTable({
         setPreview(preview);
       })
       .catch((error) => {
-        setError(JSON.stringify(error));
+        setError(error.message);
       });
   }, [datasetId, previewId]);
 

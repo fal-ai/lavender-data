@@ -37,3 +37,6 @@ class LocalFileStorage(Storage):
     def list(self, remote_path: str, limit: Optional[int] = None) -> list[str]:
         _remote_path = remote_path.removeprefix("file://")
         return [f for f in os.listdir(_remote_path)][:limit]
+
+    def get_url(self, remote_path: str) -> str:
+        raise NotImplementedError("File storage does not support get_url")

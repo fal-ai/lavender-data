@@ -4,8 +4,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from lavender_data.logging import get_logger
+from lavender_data.server.settings import files_dir
 
 from .ui import setup_ui
 from .db import setup_db
@@ -25,7 +27,6 @@ from .routes import (
     cluster_router,
     root_router,
     background_tasks_router,
-    files_router,
 )
 
 from .registries import setup_registries
@@ -115,7 +116,7 @@ logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 app = FastAPI(lifespan=lifespan)
 
-
+app.mount("/files", StaticFiles(directory=files_dir), name="files")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -128,4 +129,3 @@ app.include_router(iterations_router)
 app.include_router(registries_router)
 app.include_router(cluster_router)
 app.include_router(background_tasks_router)
-app.include_router(files_router)

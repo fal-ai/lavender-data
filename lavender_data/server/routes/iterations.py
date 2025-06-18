@@ -31,6 +31,7 @@ from lavender_data.server.background_worker import (
 )
 from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.reader import ReaderInstance
+from lavender_data.server.dataset import refine_sample_previewable
 from lavender_data.server.iteration import (
     IterationState,
     CurrentIterationState,
@@ -332,24 +333,7 @@ def get_next_preview(
 
     # TODO decollate
     sample = batch
-    for key in sample.keys():
-        if type(sample[key]) == bytes:
-            local_path = reader.set_file(sample[key])
-            sample[key] = f"file://{local_path}"
-        if isinstance(sample[key], dict):
-            if sample[key].get("bytes"):
-                local_path = reader.set_file(sample[key]["bytes"])
-                sample[key] = f"file://{local_path}"
-            else:
-                sample[key] = str(sample[key])
-        if torch and isinstance(sample[key], torch.Tensor):
-            sample[key] = (
-                f"<torch.Tensor shape={sample[key].shape} dtype={sample[key].dtype}>"
-            )
-        if isinstance(sample[key], np.ndarray):
-            sample[key] = (
-                f"<numpy.ndarray shape={sample[key].shape} dtype={sample[key].dtype}>"
-            )
+    sample = refine_sample_previewable(sample)
 
     return sample
 

@@ -15,8 +15,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { inspectFileType, getFileType } from '@/lib/client-side-api';
-import type { components } from '@/lib/api/v1';
 import {
   Dialog,
   DialogContent,
@@ -28,10 +26,10 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Eye } from 'lucide-react';
+import { Eye, EyeClosed } from 'lucide-react';
 import { MultiSelect } from '@/components/multiselect';
-
-type FileType = components['schemas']['FileType'];
+import mime from 'mime-types';
+import { Switch } from '@/components/ui/switch';
 
 const sanitize = (value: any) => {
   if (typeof value === 'object' && value !== null) {
@@ -64,6 +62,28 @@ const ellipsize = (value: any) => {
   return ellipsizedValue;
 };
 
+const getFileType = (url: string) => {
+  const mimeType = mime.lookup(url.split('?')[0]);
+  if (!mimeType) {
+    return {
+      image: false,
+      video: false,
+    };
+  }
+  return {
+    image: mimeType.startsWith('image/'),
+    video: mimeType.startsWith('video/') || mimeType == 'application/mp4',
+  };
+};
+
+const getFileUrl = (url: string) => {
+  if (url.startsWith('file://')) {
+    const filename = url.replace('file://', '');
+    return `/api/files/${filename}`;
+  }
+  return url;
+};
+
 function FileCell({
   defaultShow,
   url,
@@ -74,48 +94,19 @@ function FileCell({
   sample: any;
 }) {
   const [show, setShow] = useState<boolean>(defaultShow);
-  const [loading, setLoading] = useState<boolean>(true);
   const [contentLoading, setContentLoading] = useState<boolean>(true);
-
-  const [fileType, setFileType] = useState<FileType | null>(null);
-  const [fileTypePollCount, setFileTypePollCount] = useState<number>(0);
 
   useEffect(() => {
     setShow(defaultShow);
-    setLoading(true);
-    setFileTypePollCount(0);
-    inspectFileType(url).then((r) => {
-      setFileTypePollCount(fileTypePollCount + 1);
-    });
+    setContentLoading(true);
   }, [url]);
 
   useEffect(() => {
-    if (fileTypePollCount > 0) {
-      getFileType(url)
-        .then((r) => {
-          setFileType(r);
-          setLoading(false);
-        })
-        .catch((e) => {
-          if (e.message.includes('400')) {
-            setTimeout(() => setFileTypePollCount(fileTypePollCount + 1), 100);
-          } else {
-            setLoading(false);
-          }
-        });
-    }
-  }, [url, fileTypePollCount]);
+    setShow(defaultShow);
+  }, [defaultShow]);
 
-  if (loading) {
-    return <Skeleton className="w-full h-[64px]" />;
-  }
-
-  if (!fileType) {
-    return <div>{url}</div>;
-  }
-
-  const basename = url.split('/').pop();
-  const src = `/api/static/${basename}?file_url=${url}`;
+  const src = getFileUrl(url);
+  const fileType = getFileType(url);
 
   if (fileType.image) {
     return (
@@ -254,6 +245,7 @@ export default function SamplesTable({
   samples: any[];
   fetchedColumns: string[];
 }) {
+  const [defaultShow, setDefaultShow] = useState<boolean>(false);
   const [columns, setColumns] = useState<
     {
       name: string;
@@ -293,8 +285,6 @@ export default function SamplesTable({
                 typeof v === 'string' &&
                 (v.startsWith('http://') ||
                   v.startsWith('https://') ||
-                  v.startsWith('s3://') ||
-                  v.startsWith('hf://') ||
                   v.startsWith('file://'))
             )
         )
@@ -304,7 +294,7 @@ export default function SamplesTable({
 
   return (
     <div>
-      <div className="w-full flex justify-start mb-4">
+      <div className="w-full flex justify-start items-center mb-4 gap-8">
         <div className="flex gap-2">
           <MultiSelect
             label="Columns"
@@ -339,6 +329,15 @@ export default function SamplesTable({
             Reset
           </Button>
         </div>
+        <div className="flex gap-2">
+          <EyeClosed className="w-5 h-5" />
+          <Switch
+            checked={defaultShow}
+            onCheckedChange={setDefaultShow}
+            aria-label="Default show"
+          />
+          <Eye className="w-5 h-5" />
+        </div>
       </div>
       <Table>
         <TableHeader>
@@ -361,7 +360,7 @@ export default function SamplesTable({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <FileCell
-                            defaultShow={false}
+                            defaultShow={defaultShow}
                             url={value as string}
                             sample={sample}
                           />

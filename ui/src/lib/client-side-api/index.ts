@@ -69,37 +69,18 @@ export const getDatasetPreview = async (
     `/api/datasets/${datasetId}/preview/${previewId}`
   );
   if (!response.ok) {
-    throw new Error(`Failed to fetch dataset preview: ${response.status}`);
-  }
-  return response.json();
-};
-
-type FileType = components['schemas']['FileType'];
-
-export const inspectFileType = async (fileUrl: string): Promise<FileType> => {
-  const response = await fetch(`/api/files/type`, {
-    method: 'POST',
-    body: JSON.stringify({ file_url: fileUrl }),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch file: ${response.status}`);
-  }
-  return response.json();
-};
-
-export const getFileType = async (fileUrl: string): Promise<FileType> => {
-  const response = await fetch(`/api/files/type?file_url=${fileUrl}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch file: ${response.status}`);
+    throw new Error(
+      `Failed to fetch dataset preview: ${await getError(response)}`
+    );
   }
   return response.json();
 };
 
 const getError = async (response: Response) => {
   try {
-    return (await response.json()).detail;
+    return `${response.status} ${(await response.json()).detail}`;
   } catch (e) {
-    return await response.text();
+    return `${response.status} ${await response.text()}`;
   }
 };
 

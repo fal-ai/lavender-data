@@ -74,3 +74,7 @@ class HuggingfaceStorage(Storage):
         repo_files = self._list(repo_id, path, repo_type="dataset")
         _path = path.rstrip("/") + "/"
         return [file.path.removeprefix(_path) for file in repo_files]
+
+    def get_url(self, remote_path: str) -> str:
+        repo_id, path = self._parse_remote_path(remote_path)
+        return f"https://huggingface.co/{repo_id}/resolve/{path}"

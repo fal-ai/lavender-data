@@ -5,6 +5,7 @@ from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
 
 from lavender_data.logging import get_logger
+from lavender_data.server.settings import root_dir
 from .models import Dataset, Shardset, DatasetColumn, Iteration, Shard
 
 
@@ -12,7 +13,7 @@ engine = None
 
 
 def default_db_url():
-    db_path = os.path.expanduser("~/.lavender-data/database.db")
+    db_path = os.path.join(root_dir, "database.db")
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
     return f"sqlite:///{db_path}"
 

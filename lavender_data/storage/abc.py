@@ -28,3 +28,6 @@ class Storage(ABC):
 
     @abstractmethod
     def list(self, remote_path: str, limit: Optional[int] = None) -> list[str]: ...
+
+    @abstractmethod
+    def get_url(self, remote_path: str) -> str: ...

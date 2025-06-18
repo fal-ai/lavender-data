@@ -51,3 +51,6 @@ class HttpsStorage(Storage):
         return [
             line.split(" ")[0] for line in response.text.split("\n") if line.strip()
         ]
+
+    def get_url(self, remote_path: str) -> str:
+        return remote_path

@@ -166,3 +166,8 @@ def list_files(remote_path: str, limit: Optional[int] = None) -> list[str]:
     # TODO timeout
     storage = Storage.get(remote_path)
     return storage.list(remote_path, limit)
+
+
+def get_url(remote_path: str) -> str:
+    storage = Storage.get(remote_path)
+    return storage.get_url(remote_path)

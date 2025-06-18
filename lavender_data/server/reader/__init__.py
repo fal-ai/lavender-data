@@ -1,12 +1,12 @@
 import os
 import hashlib
-from typing import Annotated
+from typing import Annotated, Optional
 
 import numpy as np
 from fastapi import Depends
 from pydantic import BaseModel
 
-from lavender_data.storage import download_file
+from lavender_data.server.settings import root_dir
 from lavender_data.shard import Reader
 
 
@@ -52,9 +52,12 @@ def _default_null_type(t: str) -> str:
 class ServerSideReader:
     reader_cache: dict[str, Reader] = {}
 
-    def __init__(self, disk_cache_size: int, dirname: str = ".cache"):
+    def __init__(self, disk_cache_size: int, dirname: Optional[str] = None):
         self.disk_cache_size = disk_cache_size
-        self.dirname = dirname
+        if dirname is None:
+            self.dirname = os.path.join(root_dir, ".cache")
+        else:
+            self.dirname = dirname
 
         if not os.path.exists(self.dirname):
             os.makedirs(self.dirname, exist_ok=True)
@@ -115,23 +118,6 @@ class ServerSideReader:
         while self._get_cache_size() >= self.disk_cache_size:
             oldest_file = self._get_oldest_cache_file()
             os.remove(oldest_file)
-
-    def set_file(self, content: bytes):
-        _hash = hashlib.md5(content).hexdigest()
-        local_path = os.path.join(self.dirname, "files", _hash)
-        with open(local_path, "wb") as f:
-            f.write(content)
-        self._ensure_cache_size()
-        return local_path
-
-    def get_file(self, file_url: str):
-        local_path = os.path.join(
-            self.dirname, "files", hashlib.md5(file_url.encode()).hexdigest()
-        )
-        if not os.path.exists(local_path):
-            download_file(file_url, local_path, retry=0)
-        self._ensure_cache_size()
-        return local_path
 
     def _get_reader_cache_key(self, shard: ShardInfo):
         return hashlib.md5(
