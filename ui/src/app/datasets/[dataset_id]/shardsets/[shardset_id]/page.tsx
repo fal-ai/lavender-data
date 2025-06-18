@@ -46,7 +46,7 @@ export default async function ShardsetDetailPage({
   }>;
 }) {
   const { dataset_id, shardset_id } = await params;
-  const { tab = 'columns', shards_page = '1' } = await searchParams;
+  const { tab = 'columns', shards_page = '0' } = await searchParams;
   const client = await getClient();
   const shardsetResponse = await client.GET(
     '/datasets/{dataset_id}/shardsets/{shardset_id}',
@@ -66,7 +66,7 @@ export default async function ShardsetDetailPage({
       params: {
         path: { dataset_id, shardset_id },
         query: {
-          offset: (Number(shards_page) - 1) * shardsLimit,
+          offset: Number(shards_page) * shardsLimit,
           limit: shardsLimit,
         },
       },
