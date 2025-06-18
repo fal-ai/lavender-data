@@ -6,12 +6,12 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePathname } from 'next/navigation';
 
 const getTab = (pathname: string) => {
-  const tab = pathname.split('/').pop();
-  if (tab === 'preview') return 'preview';
-  if (tab === 'shardsets') return 'shardsets';
-  if (tab === 'iterations') return 'iterations';
-  if (tab === 'dataloader') return 'dataloader';
-  if (tab === 'settings') return 'settings';
+  const parts = pathname.split('/');
+  if (parts.includes('preview')) return 'preview';
+  if (parts.includes('shardsets')) return 'shardsets';
+  if (parts.includes('iterations')) return 'iterations';
+  if (parts.includes('dataloader')) return 'dataloader';
+  if (parts.includes('settings')) return 'settings';
   return 'preview';
 };
 

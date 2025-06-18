@@ -22,20 +22,20 @@ class CreateShardsetResponse:
         dataset_id (str):
         location (str):
         created_at (datetime.datetime):
+        shard_count (int):
+        total_samples (int):
         columns (list['DatasetColumnPublic']):
         id (Union[Unset, str]):
-        shard_count (Union[Unset, int]):  Default: 0.
-        total_samples (Union[Unset, int]):  Default: 0.
         is_main (Union[Unset, bool]):  Default: False.
     """
 
     dataset_id: str
     location: str
     created_at: datetime.datetime
+    shard_count: int
+    total_samples: int
     columns: list["DatasetColumnPublic"]
     id: Union[Unset, str] = UNSET
-    shard_count: Union[Unset, int] = 0
-    total_samples: Union[Unset, int] = 0
     is_main: Union[Unset, bool] = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -46,16 +46,16 @@ class CreateShardsetResponse:
 
         created_at = self.created_at.isoformat()
 
+        shard_count = self.shard_count
+
+        total_samples = self.total_samples
+
         columns = []
         for columns_item_data in self.columns:
             columns_item = columns_item_data.to_dict()
             columns.append(columns_item)
 
         id = self.id
-
-        shard_count = self.shard_count
-
-        total_samples = self.total_samples
 
         is_main = self.is_main
 
@@ -66,15 +66,13 @@ class CreateShardsetResponse:
                 "dataset_id": dataset_id,
                 "location": location,
                 "created_at": created_at,
+                "shard_count": shard_count,
+                "total_samples": total_samples,
                 "columns": columns,
             }
         )
         if id is not UNSET:
             field_dict["id"] = id
-        if shard_count is not UNSET:
-            field_dict["shard_count"] = shard_count
-        if total_samples is not UNSET:
-            field_dict["total_samples"] = total_samples
         if is_main is not UNSET:
             field_dict["is_main"] = is_main
 
@@ -91,6 +89,10 @@ class CreateShardsetResponse:
 
         created_at = isoparse(d.pop("created_at"))
 
+        shard_count = d.pop("shard_count")
+
+        total_samples = d.pop("total_samples")
+
         columns = []
         _columns = d.pop("columns")
         for columns_item_data in _columns:
@@ -100,20 +102,16 @@ class CreateShardsetResponse:
 
         id = d.pop("id", UNSET)
 
-        shard_count = d.pop("shard_count", UNSET)
-
-        total_samples = d.pop("total_samples", UNSET)
-
         is_main = d.pop("is_main", UNSET)
 
         create_shardset_response = cls(
             dataset_id=dataset_id,
             location=location,
             created_at=created_at,
-            columns=columns,
-            id=id,
             shard_count=shard_count,
             total_samples=total_samples,
+            columns=columns,
+            id=id,
             is_main=is_main,
         )
 

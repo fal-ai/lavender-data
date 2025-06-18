@@ -23,6 +23,7 @@ from .get_next_preview_iterations_iteration_id_next_preview_get_response_get_nex
     GetNextPreviewIterationsIterationIdNextPreviewGetResponseGetNextPreviewIterationsIterationIdNextPreviewGet,
 )
 from .get_shardset_response import GetShardsetResponse
+from .get_shardset_shards_response import GetShardsetShardsResponse
 from .heartbeat_params import HeartbeatParams
 from .http_validation_error import HTTPValidationError
 from .in_progress_index import InProgressIndex
@@ -74,6 +75,7 @@ __all__ = (
     "GetIterationResponse",
     "GetNextPreviewIterationsIterationIdNextPreviewGetResponseGetNextPreviewIterationsIterationIdNextPreviewGet",
     "GetShardsetResponse",
+    "GetShardsetShardsResponse",
     "HeartbeatParams",
     "HTTPValidationError",
     "InProgressIndex",

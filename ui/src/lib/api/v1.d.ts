@@ -127,6 +127,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasets/{dataset_id}/shardsets/{shardset_id}/shards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Shardset Shards */
+        get: operations["get_shardset_shards_datasets__dataset_id__shardsets__shardset_id__shards_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasets/{dataset_id}/shardsets/{shardset_id}/sync": {
         parameters: {
             query?: never;
@@ -656,16 +673,6 @@ export interface components {
             /** Location */
             location: string;
             /**
-             * Shard Count
-             * @default 0
-             */
-            shard_count: number;
-            /**
-             * Total Samples
-             * @default 0
-             */
-            total_samples: number;
-            /**
              * Is Main
              * @default false
              */
@@ -675,6 +682,10 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Shard Count */
+            shard_count: number;
+            /** Total Samples */
+            total_samples: number;
             /** Columns */
             columns: components["schemas"]["DatasetColumnPublic"][];
         };
@@ -827,16 +838,6 @@ export interface components {
             /** Location */
             location: string;
             /**
-             * Shard Count
-             * @default 0
-             */
-            shard_count: number;
-            /**
-             * Total Samples
-             * @default 0
-             */
-            total_samples: number;
-            /**
              * Is Main
              * @default false
              */
@@ -846,10 +847,19 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Shards */
-            shards: components["schemas"]["ShardPublic"][];
+            /** Shard Count */
+            shard_count: number;
+            /** Total Samples */
+            total_samples: number;
             /** Columns */
             columns: components["schemas"]["DatasetColumnPublic"][];
+        };
+        /** GetShardsetShardsResponse */
+        GetShardsetShardsResponse: {
+            /** Shards */
+            shards: components["schemas"]["ShardPublic"][];
+            /** Total */
+            total: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1052,16 +1062,6 @@ export interface components {
             /** Location */
             location: string;
             /**
-             * Shard Count
-             * @default 0
-             */
-            shard_count: number;
-            /**
-             * Total Samples
-             * @default 0
-             */
-            total_samples: number;
-            /**
              * Is Main
              * @default false
              */
@@ -1071,6 +1071,10 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Shard Count */
+            shard_count: number;
+            /** Total Samples */
+            total_samples: number;
         };
         /** ShardsetWithShards */
         ShardsetWithShards: {
@@ -1081,16 +1085,6 @@ export interface components {
             /** Location */
             location: string;
             /**
-             * Shard Count
-             * @default 0
-             */
-            shard_count: number;
-            /**
-             * Total Samples
-             * @default 0
-             */
-            total_samples: number;
-            /**
              * Is Main
              * @default false
              */
@@ -1100,6 +1094,10 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Shard Count */
+            shard_count: number;
+            /** Total Samples */
+            total_samples: number;
             /** Shards */
             shards: components["schemas"]["ShardPublic"][];
             /** Columns */
@@ -1527,6 +1525,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShardsetPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_shardset_shards_datasets__dataset_id__shardsets__shardset_id__shards_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                dataset_id: string;
+                shardset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetShardsetShardsResponse"];
                 };
             };
             /** @description Validation Error */

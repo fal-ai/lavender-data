@@ -23,22 +23,22 @@ class ShardsetWithShards:
         dataset_id (str):
         location (str):
         created_at (datetime.datetime):
+        shard_count (int):
+        total_samples (int):
         shards (list['ShardPublic']):
         columns (list['DatasetColumnPublic']):
         id (Union[Unset, str]):
-        shard_count (Union[Unset, int]):  Default: 0.
-        total_samples (Union[Unset, int]):  Default: 0.
         is_main (Union[Unset, bool]):  Default: False.
     """
 
     dataset_id: str
     location: str
     created_at: datetime.datetime
+    shard_count: int
+    total_samples: int
     shards: list["ShardPublic"]
     columns: list["DatasetColumnPublic"]
     id: Union[Unset, str] = UNSET
-    shard_count: Union[Unset, int] = 0
-    total_samples: Union[Unset, int] = 0
     is_main: Union[Unset, bool] = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -48,6 +48,10 @@ class ShardsetWithShards:
         location = self.location
 
         created_at = self.created_at.isoformat()
+
+        shard_count = self.shard_count
+
+        total_samples = self.total_samples
 
         shards = []
         for shards_item_data in self.shards:
@@ -61,10 +65,6 @@ class ShardsetWithShards:
 
         id = self.id
 
-        shard_count = self.shard_count
-
-        total_samples = self.total_samples
-
         is_main = self.is_main
 
         field_dict: dict[str, Any] = {}
@@ -74,16 +74,14 @@ class ShardsetWithShards:
                 "dataset_id": dataset_id,
                 "location": location,
                 "created_at": created_at,
+                "shard_count": shard_count,
+                "total_samples": total_samples,
                 "shards": shards,
                 "columns": columns,
             }
         )
         if id is not UNSET:
             field_dict["id"] = id
-        if shard_count is not UNSET:
-            field_dict["shard_count"] = shard_count
-        if total_samples is not UNSET:
-            field_dict["total_samples"] = total_samples
         if is_main is not UNSET:
             field_dict["is_main"] = is_main
 
@@ -101,6 +99,10 @@ class ShardsetWithShards:
 
         created_at = isoparse(d.pop("created_at"))
 
+        shard_count = d.pop("shard_count")
+
+        total_samples = d.pop("total_samples")
+
         shards = []
         _shards = d.pop("shards")
         for shards_item_data in _shards:
@@ -117,21 +119,17 @@ class ShardsetWithShards:
 
         id = d.pop("id", UNSET)
 
-        shard_count = d.pop("shard_count", UNSET)
-
-        total_samples = d.pop("total_samples", UNSET)
-
         is_main = d.pop("is_main", UNSET)
 
         shardset_with_shards = cls(
             dataset_id=dataset_id,
             location=location,
             created_at=created_at,
+            shard_count=shard_count,
+            total_samples=total_samples,
             shards=shards,
             columns=columns,
             id=id,
-            shard_count=shard_count,
-            total_samples=total_samples,
             is_main=is_main,
         )
 

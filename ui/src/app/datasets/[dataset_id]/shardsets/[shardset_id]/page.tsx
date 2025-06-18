@@ -15,6 +15,7 @@ import { ChevronLeft, Columns, FileStack, Settings } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeleteShardsetDialog } from './delete-shardset-dialog';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/pagination';
 
 const formatFileSize = (bytes: number) => {
   if (bytes < 1024) {
@@ -40,21 +41,44 @@ export default async function ShardsetDetailPage({
   }>;
   searchParams: Promise<{
     tab: string;
+    shards_page: string;
   }>;
 }) {
   const { dataset_id, shardset_id } = await params;
-  const { tab = 'columns' } = await searchParams;
-  const shardsetResponse = await (
-    await getClient()
-  ).GET('/datasets/{dataset_id}/shardsets/{shardset_id}', {
-    params: { path: { dataset_id, shardset_id } },
-  });
+  const { tab = 'columns', shards_page = '1' } = await searchParams;
+  const client = await getClient();
+  const shardsetResponse = await client.GET(
+    '/datasets/{dataset_id}/shardsets/{shardset_id}',
+    {
+      params: { path: { dataset_id, shardset_id } },
+    }
+  );
 
   if (shardsetResponse.error) {
     return <ErrorCard error={shardsetResponse.error.detail} />;
   }
 
+  const shardsLimit = 10;
+  const shardsResponse = await client.GET(
+    '/datasets/{dataset_id}/shardsets/{shardset_id}/shards',
+    {
+      params: {
+        path: { dataset_id, shardset_id },
+        query: {
+          offset: (Number(shards_page) - 1) * shardsLimit,
+          limit: shardsLimit,
+        },
+      },
+    }
+  );
+
+  if (shardsResponse.error) {
+    return <ErrorCard error={shardsResponse.error.detail} />;
+  }
+
   const shardset = shardsetResponse.data;
+  const shards = shardsResponse.data.shards;
+  const shardsTotal = shardsResponse.data.total;
 
   return (
     <div className="py-4 flex w-full flex-1 flex-col gap-8">
@@ -134,7 +158,7 @@ export default async function ShardsetDetailPage({
         </TabsContent>
         <TabsContent value="shards" className="flex flex-col gap-2">
           <div className="text-xs text-muted-foreground">
-            {shardset.shard_count} shards, {shardset.total_samples} samples
+            {shardsTotal} shards, {shardset.total_samples} samples
           </div>
           <Card className="w-full">
             <CardContent>
@@ -150,7 +174,7 @@ export default async function ShardsetDetailPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {shardset.shards
+                  {shards
                     .sort((a, b) => a.index - b.index) // TODO server side sorting
                     .map((shard) => (
                       <TableRow key={shard.id}>
@@ -166,6 +190,14 @@ export default async function ShardsetDetailPage({
                     ))}
                 </TableBody>
               </Table>
+              <div className="w-full flex items-center pt-4">
+                <Pagination
+                  buttonCount={5}
+                  totalPages={Math.ceil(shardsTotal / shardsLimit)}
+                  currentPage={Number(shards_page)}
+                  pageHref={`/datasets/${dataset_id}/shardsets/${shardset_id}?tab=shards&shards_page={page}`}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

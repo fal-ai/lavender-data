@@ -3,7 +3,7 @@ from typing import Optional, Any
 import time
 
 from fastapi import HTTPException, APIRouter, Depends
-from sqlmodel import select, delete
+from sqlmodel import select, delete, func
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 
@@ -463,7 +463,6 @@ def update_shardset(
 
 
 class GetShardsetResponse(ShardsetPublic):
-    shards: list[ShardPublic]
     columns: list[DatasetColumnPublic]
 
 
@@ -484,6 +483,38 @@ def get_shardset(
         raise HTTPException(status_code=404, detail="Shardset not found")
 
     return shardset
+
+
+class GetShardsetShardsResponse(BaseModel):
+    shards: list[ShardPublic]
+    total: int
+
+
+@router.get("/{dataset_id}/shardsets/{shardset_id}/shards")
+def get_shardset_shards(
+    dataset_id: str,
+    shardset_id: str,
+    session: DbSession,
+    offset: int = 0,
+    limit: int = 10,
+) -> GetShardsetShardsResponse:
+    total = session.exec(
+        select(func.count(Shard.id)).where(Shard.shardset_id == shardset_id)
+    ).one()
+
+    if total == 0:
+        return GetShardsetShardsResponse(shards=[], total=0)
+
+    shards = session.exec(
+        select(Shard)
+        .where(
+            Shard.shardset_id == shardset_id,
+        )
+        .offset(offset)
+        .limit(limit)
+    ).all()
+
+    return GetShardsetShardsResponse(shards=shards, total=total)
 
 
 class SyncShardsetParams(BaseModel):
