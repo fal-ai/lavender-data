@@ -5,10 +5,12 @@ from sqlalchemy.exc import NoResultFound
 import filetype
 import hashlib
 import numpy as np
+import json
 
 from lavender_data.server.settings import files_dir
 from lavender_data.server.db import get_session
-from lavender_data.server.db.models import Dataset
+from lavender_data.server.db.models import Dataset, Shard
+from lavender_data.server.cache import CacheClient, get_cache
 from lavender_data.server.reader import (
     get_reader_instance,
     ReaderInstance,
@@ -26,16 +28,27 @@ except ImportError:
 
 
 def _read_dataset(
-    dataset: Dataset, index: int, reader: ReaderInstance
+    dataset: Dataset,
+    index: int,
+    reader: ReaderInstance,
+    cache: CacheClient,
 ) -> GlobalSampleIndex:
     main_shardset = get_main_shardset(dataset.shardsets)
-    shard_index, sample_index = span(
-        index,
-        [
+
+    if cache.exists(f"preview-shards:{main_shardset.id}"):
+        shard_samples = json.loads(cache.get(f"preview-shards:{main_shardset.id}"))
+    else:
+        shard_samples = [
             shard.samples
             for shard in sorted(main_shardset.shards, key=lambda s: s.index)
-        ],
-    )
+        ]
+        cache.set(
+            f"preview-shards:{main_shardset.id}",
+            json.dumps(shard_samples),
+            ex=3 * 60,
+        )
+
+    shard_index, sample_index = span(index, shard_samples)
 
     main_shard = None
     uid_column_type = None
@@ -45,15 +58,23 @@ def _read_dataset(
         if dataset.uid_column_name in columns:
             uid_column_type = columns[dataset.uid_column_name]
 
-        try:
-            shard = [
-                shard
-                for shard in sorted(shardset.shards, key=lambda s: s.index)
-                if shard.index == shard_index
-            ][0]
-        except IndexError:
-            # f"Shard index {shard_index} not found in shardset {shardset.id}",
-            continue
+        if cache.exists(f"preview-shards:{shardset.id}:{shard_index}"):
+            shard = Shard.model_validate_json(
+                cache.get(f"preview-shards:{shardset.id}:{shard_index}")
+            )
+        else:
+            try:
+                shard = next(
+                    (shard for shard in shardset.shards if shard.index == shard_index)
+                )
+            except StopIteration:
+                # f"Shard index {shard_index} not found in shardset {shardset.id}",
+                continue
+            cache.set(
+                f"preview-shards:{shardset.id}:{shard_index}",
+                shard.model_dump_json(),
+                ex=3 * 60,
+            )
 
         shard_info = ShardInfo(
             shardset_id=shardset.id,
@@ -142,6 +163,7 @@ def preview_dataset(
     limit: int,
 ) -> list[dict[str, Any]]:
     session = next(get_session())
+    cache = next(get_cache())
     reader = get_reader_instance()
 
     try:
@@ -152,7 +174,7 @@ def preview_dataset(
     samples = []
     for index in range(offset, offset + limit):
         try:
-            sample = _read_dataset(dataset, index, reader)
+            sample = _read_dataset(dataset, index, reader, cache)
         except IndexError:
             break
 
