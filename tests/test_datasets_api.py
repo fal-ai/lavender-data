@@ -102,9 +102,8 @@ class TestIterationAsync(unittest.TestCase):
         for column in response.columns:
             self.assertIn(column.name, ["id", "image_url", "caption"])
 
-        self.assertEqual(len(response.shards), shard_count)
-        for shard in response.shards:
-            self.assertEqual(shard.samples, samples_per_shard)
+        self.assertEqual(response.shard_count, shard_count)
+        self.assertEqual(response.total_samples, shard_count * samples_per_shard)
 
         # Delete shardset
         response = delete_shardset(dataset_id, shardset_id)
@@ -158,9 +157,8 @@ class TestIterationAsync(unittest.TestCase):
                 column.name, ["id", "image_url", "caption", "width", "height"]
             )
 
-        self.assertEqual(len(response.shards), shard_count)
-        for shard in response.shards:
-            self.assertEqual(shard.samples, samples_per_shard)
+        self.assertEqual(response.shard_count, shard_count)
+        self.assertEqual(response.total_samples, shard_count * samples_per_shard)
 
         # Clean up
         shutil.rmtree(f".cache/{dataset_name}")
