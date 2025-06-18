@@ -3,6 +3,22 @@ title: Release Notes
 description: Release notes for Lavender Data
 ---
 
+## 0.1.6 (2025-06-18)
+
+### Fixed
+
+#### Better media preview
+
+Media preview in dataset preview page now works better.
+Now it uses signed URL from the data source, instead of downloading the file to the server.
+`file://` will be served as static files, from a separated directory.
+
+
+#### Faster dataset preview
+
+Shard infomations are cached in server for faster dataset preview.
+
+
 ## 0.1.5 (2025-06-16)
 
 ### Added
