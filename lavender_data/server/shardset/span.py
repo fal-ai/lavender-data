@@ -5,26 +5,15 @@ def get_main_shardset(shardsets: list[Shardset]) -> Shardset:
     """Pick the main shardset for getting samples from.
     During the iteration, the samples are yielded as the order of the samples in the main shardset.
 
-    The main shardset is the one with the most samples.
-    If there are multiple shardsets with the same number of samples,
-    the one with the oldest creation date is picked.
+    The main shardset is configured by the user.
+    If there is no main shardset, the one with the oldest creation date is picked.
     """
-    shardset_with_most_samples = None
-    total_samples = shardsets[0].total_samples
-    for shardset in shardsets:
-        if total_samples < shardset.total_samples:
-            shardset_with_most_samples = shardset
-            total_samples = shardset.total_samples
-    if shardset_with_most_samples is not None:
-        return shardset_with_most_samples
+    main_shardset = next((shardset for shardset in shardsets if shardset.is_main), None)
+    if main_shardset is not None:
+        return main_shardset
 
-    oldest_shardset = shardsets[0]
-    oldest_shardset_created_at = shardsets[0].created_at
-    for shardset in shardsets:
-        if oldest_shardset_created_at > shardset.created_at:
-            oldest_shardset_created_at = shardset.created_at
-            oldest_shardset = shardset
-
+    # If there is no main shardset, pick the oldest one.
+    oldest_shardset = min(shardsets, key=lambda x: x.created_at)
     return oldest_shardset
 
 

@@ -16,18 +16,18 @@ from lavender_data.server.cache import CacheInterface, get_cache
 from lavender_data.server.db import DbSession, get_session
 from lavender_data.server.db.models import (
     Dataset,
-    DatasetPublic,
+    DatasetBase,
     DatasetColumn,
-    DatasetColumnPublic,
+    DatasetColumnBase,
     Shardset,
-    ShardsetPublic,
+    ShardsetBase,
     Shard,
-    ShardPublic,
+    ShardBase,
     Iteration,
-    IterationPublic,
+    IterationBase,
     IterationShardsetLink,
     ApiKey,
-    ApiKeyPublic,
+    ApiKeyBase,
 )
 
 
@@ -56,13 +56,13 @@ def only_worker(f):
 
 
 class SyncParams(BaseModel):
-    datasets: list[DatasetPublic]
-    dataset_columns: list[DatasetColumnPublic]
-    shardsets: list[ShardsetPublic]
-    shards: list[ShardPublic]
-    iterations: list[IterationPublic]
+    datasets: list[DatasetBase]
+    dataset_columns: list[DatasetColumnBase]
+    shardsets: list[ShardsetBase]
+    shards: list[ShardBase]
+    iterations: list[IterationBase]
     iteration_shardset_links: list[IterationShardsetLink]
-    api_keys: list[ApiKeyPublic]
+    api_keys: list[ApiKeyBase]
 
 
 class NodeStatus(BaseModel):
@@ -89,19 +89,19 @@ def _get_table_and_rows(
 
 
 def _table_name(entity: SQLModel) -> str:
-    if isinstance(entity, Dataset) or isinstance(entity, DatasetPublic):
+    if isinstance(entity, Dataset) or isinstance(entity, DatasetBase):
         return "datasets"
-    elif isinstance(entity, DatasetColumn) or isinstance(entity, DatasetColumnPublic):
+    elif isinstance(entity, DatasetColumn) or isinstance(entity, DatasetColumnBase):
         return "dataset_columns"
-    elif isinstance(entity, Shardset) or isinstance(entity, ShardsetPublic):
+    elif isinstance(entity, Shardset) or isinstance(entity, ShardsetBase):
         return "shardsets"
-    elif isinstance(entity, Shard) or isinstance(entity, ShardPublic):
+    elif isinstance(entity, Shard) or isinstance(entity, ShardBase):
         return "shards"
-    elif isinstance(entity, Iteration) or isinstance(entity, IterationPublic):
+    elif isinstance(entity, Iteration) or isinstance(entity, IterationBase):
         return "iterations"
     elif isinstance(entity, IterationShardsetLink):
         return "iteration_shardset_links"
-    elif isinstance(entity, ApiKey) or isinstance(entity, ApiKeyPublic):
+    elif isinstance(entity, ApiKey) or isinstance(entity, ApiKeyBase):
         return "api_keys"
     else:
         raise ValueError(f"Unknown table: {entity.__class__.__name__}")
@@ -406,7 +406,6 @@ class Cluster:
     @only_worker
     def on_sync_initial(self, params: SyncParams):
         session = self._db()
-        session.begin()
 
         for table, _ in reversed(_get_table_and_rows(params)):
             if isinstance(table, Shard):
@@ -431,7 +430,7 @@ class Cluster:
         delete: bool = False,
         target_node_url: Optional[str] = None,
     ):
-        json = {
+        d = {
             "datasets": [],
             "dataset_columns": [],
             "shardsets": [],
@@ -442,18 +441,16 @@ class Cluster:
         }
 
         for entity in resources:
-            json[_table_name(entity)].append(self._model_to_dict(entity))
+            d[_table_name(entity)].append(self._model_to_dict(entity))
 
         _delete = "true" if delete else "false"
         if target_node_url is None:
             if self.is_head:
-                self.broadcast_post(f"/cluster/sync-changes?delete={_delete}", json)
+                self.broadcast_post(f"/cluster/sync-changes?delete={_delete}", d)
             else:
-                self._post(
-                    self.head_url, f"/cluster/sync-changes?delete={_delete}", json
-                )
+                self._post(self.head_url, f"/cluster/sync-changes?delete={_delete}", d)
         else:
-            self._post(target_node_url, f"/cluster/sync-changes?delete={_delete}", json)
+            self._post(target_node_url, f"/cluster/sync-changes?delete={_delete}", d)
 
     def on_sync_changes(
         self,
@@ -461,7 +458,6 @@ class Cluster:
         delete: bool = False,
     ):
         session = self._db()
-        session.begin()
 
         for table, rows in _get_table_and_rows(params):
             if isinstance(table, Shard):

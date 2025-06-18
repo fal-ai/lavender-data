@@ -14,6 +14,7 @@ import type { components } from '@/lib/api/v1';
 import { AddShardsetDialog } from './add-shardset-dialog';
 import { ErrorCard } from '@/components/error-card';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 function ShardSetInfo({ shardset }: { shardset: any }) {
   if (!shardset) {
@@ -22,7 +23,10 @@ function ShardSetInfo({ shardset }: { shardset: any }) {
 
   return (
     <Link href={`/datasets/${shardset.dataset_id}/shardsets/${shardset.id}`}>
-      <div className="font-mono text-xs">{shardset.id}</div>
+      <div className="flex items-center gap-2">
+        <div className="font-mono text-xs">{shardset.id}</div>
+        {shardset.is_main ? <Badge>Main</Badge> : null}
+      </div>
       <div className="text-xs text-muted-foreground">{shardset.location}</div>
       <div className="text-xs text-muted-foreground">
         total {shardset.total_samples} samples, {shardset.shard_count} shards

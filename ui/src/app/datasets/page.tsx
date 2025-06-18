@@ -14,14 +14,6 @@ import { Button } from '@/components/ui/button';
 import { AddDatasetDialog } from './add-dataset-dialog';
 import { ErrorCard } from '@/components/error-card';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
 
 export default async function DatasetsPage() {
   const datasetsResponse = await (await getClient()).GET('/datasets/');

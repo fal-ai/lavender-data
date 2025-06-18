@@ -14,7 +14,6 @@ from .dataset_column_options import DatasetColumnOptions
 from .dataset_column_public import DatasetColumnPublic
 from .dataset_public import DatasetPublic
 from .deregister_params import DeregisterParams
-from .file_type import FileType
 from .func_spec import FuncSpec
 from .get_dataset_preview_response import GetDatasetPreviewResponse
 from .get_dataset_preview_response_samples_item import GetDatasetPreviewResponseSamplesItem
@@ -24,6 +23,7 @@ from .get_next_preview_iterations_iteration_id_next_preview_get_response_get_nex
     GetNextPreviewIterationsIterationIdNextPreviewGetResponseGetNextPreviewIterationsIterationIdNextPreviewGet,
 )
 from .get_shardset_response import GetShardsetResponse
+from .get_shardset_shards_response import GetShardsetShardsResponse
 from .heartbeat_params import HeartbeatParams
 from .http_validation_error import HTTPValidationError
 from .in_progress_index import InProgressIndex
@@ -51,6 +51,7 @@ from .sync_shardset_params import SyncShardsetParams
 from .task_metadata import TaskMetadata
 from .task_metadata_kwargs import TaskMetadataKwargs
 from .task_status import TaskStatus
+from .update_shardset_params import UpdateShardsetParams
 from .validation_error import ValidationError
 from .version_response import VersionResponse
 
@@ -67,7 +68,6 @@ __all__ = (
     "DatasetColumnPublic",
     "DatasetPublic",
     "DeregisterParams",
-    "FileType",
     "FuncSpec",
     "GetDatasetPreviewResponse",
     "GetDatasetPreviewResponseSamplesItem",
@@ -75,6 +75,7 @@ __all__ = (
     "GetIterationResponse",
     "GetNextPreviewIterationsIterationIdNextPreviewGetResponseGetNextPreviewIterationsIterationIdNextPreviewGet",
     "GetShardsetResponse",
+    "GetShardsetShardsResponse",
     "HeartbeatParams",
     "HTTPValidationError",
     "InProgressIndex",
@@ -102,6 +103,7 @@ __all__ = (
     "TaskMetadata",
     "TaskMetadataKwargs",
     "TaskStatus",
+    "UpdateShardsetParams",
     "ValidationError",
     "VersionResponse",
 )

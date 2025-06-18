@@ -1,54 +1,46 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="FileType")
+from ..types import UNSET, Unset
+
+T = TypeVar("T", bound="UpdateShardsetParams")
 
 
 @_attrs_define
-class FileType:
+class UpdateShardsetParams:
     """
     Attributes:
-        video (bool):
-        image (bool):
+        is_main (Union[Unset, bool]):  Default: False.
     """
 
-    video: bool
-    image: bool
+    is_main: Union[Unset, bool] = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        video = self.video
-
-        image = self.image
+        is_main = self.is_main
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update(
-            {
-                "video": video,
-                "image": image,
-            }
-        )
+        field_dict.update({})
+        if is_main is not UNSET:
+            field_dict["is_main"] = is_main
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        video = d.pop("video")
+        is_main = d.pop("is_main", UNSET)
 
-        image = d.pop("image")
-
-        file_type = cls(
-            video=video,
-            image=image,
+        update_shardset_params = cls(
+            is_main=is_main,
         )
 
-        file_type.additional_properties = d
-        return file_type
+        update_shardset_params.additional_properties = d
+        return update_shardset_params
 
     @property
     def additional_keys(self) -> list[str]:

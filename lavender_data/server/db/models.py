@@ -68,8 +68,7 @@ class ShardsetBase(SQLModel):
     id: str = Field(primary_key=True, default_factory=generate_uid("ss"))
     dataset_id: str = Field(foreign_key="dataset.id")
     location: str = Field()
-    shard_count: int = Field(default=0)
-    total_samples: int = Field(default=0)
+    is_main: bool = Field(default=False)
     created_at: datetime = CreatedAtField()
 
 
@@ -78,13 +77,22 @@ class Shardset(ShardsetBase, table=True):
     dataset: "Dataset" = Relationship(back_populates="shardsets")
     shards: list["Shard"] = Relationship(back_populates="shardset")
 
+    @property
+    def shard_count(self) -> int:
+        return len(self.shards)
+
+    @property
+    def total_samples(self) -> int:
+        return sum(shard.samples for shard in self.shards)
+
     __table_args__ = (
         UniqueConstraint("dataset_id", "location", name="unique_dataset_location"),
     )
 
 
 class ShardsetPublic(ShardsetBase):
-    pass
+    shard_count: int
+    total_samples: int
 
 
 class ShardBase(SQLModel):

@@ -5,24 +5,29 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.file_type import FileType
+from ...models.get_shardset_shards_response import GetShardsetShardsResponse
 from ...models.http_validation_error import HTTPValidationError
-from ...types import UNSET, Response
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
+    dataset_id: str,
+    shardset_id: str,
     *,
-    file_url: str,
+    offset: Union[Unset, int] = 0,
+    limit: Union[Unset, int] = 10,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
 
-    params["file_url"] = file_url
+    params["offset"] = offset
+
+    params["limit"] = limit
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/files/type",
+        "url": f"/datasets/{dataset_id}/shardsets/{shardset_id}/shards",
         "params": params,
     }
 
@@ -31,9 +36,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[FileType, HTTPValidationError]]:
+) -> Optional[Union[GetShardsetShardsResponse, HTTPValidationError]]:
     if response.status_code == 200:
-        response_200 = FileType.from_dict(response.json())
+        response_200 = GetShardsetShardsResponse.from_dict(response.json())
 
         return response_200
     if response.status_code == 422:
@@ -48,7 +53,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[FileType, HTTPValidationError]]:
+) -> Response[Union[GetShardsetShardsResponse, HTTPValidationError]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -58,25 +63,34 @@ def _build_response(
 
 
 def sync_detailed(
+    dataset_id: str,
+    shardset_id: str,
     *,
     client: AuthenticatedClient,
-    file_url: str,
-) -> Response[Union[FileType, HTTPValidationError]]:
-    """Get File Type
+    offset: Union[Unset, int] = 0,
+    limit: Union[Unset, int] = 10,
+) -> Response[Union[GetShardsetShardsResponse, HTTPValidationError]]:
+    """Get Shardset Shards
 
     Args:
-        file_url (str):
+        dataset_id (str):
+        shardset_id (str):
+        offset (Union[Unset, int]):  Default: 0.
+        limit (Union[Unset, int]):  Default: 10.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[FileType, HTTPValidationError]]
+        Response[Union[GetShardsetShardsResponse, HTTPValidationError]]
     """
 
     kwargs = _get_kwargs(
-        file_url=file_url,
+        dataset_id=dataset_id,
+        shardset_id=shardset_id,
+        offset=offset,
+        limit=limit,
     )
 
     response = client.get_httpx_client().request(
@@ -87,49 +101,67 @@ def sync_detailed(
 
 
 def sync(
+    dataset_id: str,
+    shardset_id: str,
     *,
     client: AuthenticatedClient,
-    file_url: str,
-) -> Optional[Union[FileType, HTTPValidationError]]:
-    """Get File Type
+    offset: Union[Unset, int] = 0,
+    limit: Union[Unset, int] = 10,
+) -> Optional[Union[GetShardsetShardsResponse, HTTPValidationError]]:
+    """Get Shardset Shards
 
     Args:
-        file_url (str):
+        dataset_id (str):
+        shardset_id (str):
+        offset (Union[Unset, int]):  Default: 0.
+        limit (Union[Unset, int]):  Default: 10.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[FileType, HTTPValidationError]
+        Union[GetShardsetShardsResponse, HTTPValidationError]
     """
 
     return sync_detailed(
+        dataset_id=dataset_id,
+        shardset_id=shardset_id,
         client=client,
-        file_url=file_url,
+        offset=offset,
+        limit=limit,
     ).parsed
 
 
 async def asyncio_detailed(
+    dataset_id: str,
+    shardset_id: str,
     *,
     client: AuthenticatedClient,
-    file_url: str,
-) -> Response[Union[FileType, HTTPValidationError]]:
-    """Get File Type
+    offset: Union[Unset, int] = 0,
+    limit: Union[Unset, int] = 10,
+) -> Response[Union[GetShardsetShardsResponse, HTTPValidationError]]:
+    """Get Shardset Shards
 
     Args:
-        file_url (str):
+        dataset_id (str):
+        shardset_id (str):
+        offset (Union[Unset, int]):  Default: 0.
+        limit (Union[Unset, int]):  Default: 10.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[FileType, HTTPValidationError]]
+        Response[Union[GetShardsetShardsResponse, HTTPValidationError]]
     """
 
     kwargs = _get_kwargs(
-        file_url=file_url,
+        dataset_id=dataset_id,
+        shardset_id=shardset_id,
+        offset=offset,
+        limit=limit,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -138,26 +170,35 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    dataset_id: str,
+    shardset_id: str,
     *,
     client: AuthenticatedClient,
-    file_url: str,
-) -> Optional[Union[FileType, HTTPValidationError]]:
-    """Get File Type
+    offset: Union[Unset, int] = 0,
+    limit: Union[Unset, int] = 10,
+) -> Optional[Union[GetShardsetShardsResponse, HTTPValidationError]]:
+    """Get Shardset Shards
 
     Args:
-        file_url (str):
+        dataset_id (str):
+        shardset_id (str):
+        offset (Union[Unset, int]):  Default: 0.
+        limit (Union[Unset, int]):  Default: 10.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[FileType, HTTPValidationError]
+        Union[GetShardsetShardsResponse, HTTPValidationError]
     """
 
     return (
         await asyncio_detailed(
+            dataset_id=dataset_id,
+            shardset_id=shardset_id,
             client=client,
-            file_url=file_url,
+            offset=offset,
+            limit=limit,
         )
     ).parsed

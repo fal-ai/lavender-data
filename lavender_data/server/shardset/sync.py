@@ -86,11 +86,6 @@ def sync_shardset_location(
 
     orphan_shard_infos.sort(key=lambda x: x[1])
 
-    if overwrite:
-        total_samples = 0
-    else:
-        total_samples = sum(shardset_shard_samples)
-
     yield TaskStatus(status="reflect", current=done_count, total=shard_count)
 
     session = next(get_session())
@@ -126,7 +121,6 @@ def sync_shardset_location(
                 )
             )
 
-        total_samples += orphan_shard.samples
         reader.clear_cache(
             ShardInfo(
                 shardset_id=shardset_id,
@@ -135,23 +129,17 @@ def sync_shardset_location(
             )
         )
 
-    session.exec(
-        update(Shardset)
-        .where(Shardset.id == shardset_id)
-        .values(
-            shard_count=shard_index + 1,
-            total_samples=total_samples,
-        )
-    )
     session.commit()
 
-    shardset = session.exec(select(Shardset).where(Shardset.id == shardset_id)).one()
+    shardset_shards = session.exec(
+        select(Shard).where(Shard.shardset_id == shardset_id)
+    ).all()
     if cluster is not None and cluster.is_head:
         try:
             logger.debug(
-                f"Syncing shardset {shardset.id} to cluster nodes ({len(shardset.shards)} shards)"
+                f"Syncing shardset {shardset_id} to cluster nodes ({len(shardset_shards)} shards)"
             )
-            cluster.sync_changes([shardset, *shardset.shards])
+            cluster.sync_changes(shardset_shards)
         except Exception as e:
             logger.exception(e)
 

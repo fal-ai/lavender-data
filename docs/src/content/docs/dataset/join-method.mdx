@@ -16,8 +16,8 @@ The joining mechanism in Lavender Data is based on a two-level architecture:
 
 <Steps>
 1. **Main Shard**: This is the primary data source that contains the core information and serves as the reference point for joining. 
-    The shardset with the most samples is chosen as the main shard. If there are multiple shardsets with the same number of samples,
-    the one with the oldest creation date is chosen as the main shard.
+    Main shardset can be configured in the shardset settings page in the UI. If there is no main shardset configured,
+    the one with the oldest creation date is chosen as the main shardset.
 2. **Feature Shards**: These are additional data sources that contain supplementary information that can be joined with the main shard.
 </Steps>
 

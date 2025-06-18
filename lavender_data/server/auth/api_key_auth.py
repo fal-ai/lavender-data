@@ -17,7 +17,6 @@ def api_key_auth(auth: AuthorizationHeader, session: DbSession, settings: AppSet
     api_key_id = auth.username
     api_key_secret = auth.password
 
-    session.begin()
     api_key = session.exec(
         select(ApiKey).where(
             ApiKey.id == api_key_id,
@@ -43,7 +42,6 @@ def api_key_auth(auth: AuthorizationHeader, session: DbSession, settings: AppSet
         .where(ApiKey.id == api_key_id)
         .values(last_accessed_at=datetime.now())
     )
-    session.commit()
     session.close()
 
     return api_key
