@@ -15,12 +15,12 @@
   "headers": [],
   "dynamicRoutes": [
     {
-      "page": "/api/static/[...path]",
-      "regex": "^/api/static/(.+?)(?:/)?$",
+      "page": "/api/files/[...path]",
+      "regex": "^/api/files/(.+?)(?:/)?$",
       "routeKeys": {
         "nxtPpath": "nxtPpath"
       },
-      "namedRegex": "^/api/static/(?<nxtPpath>.+?)(?:/)?$"
+      "namedRegex": "^/api/files/(?<nxtPpath>.+?)(?:/)?$"
     },
     {
       "page": "/api/[...path]",
