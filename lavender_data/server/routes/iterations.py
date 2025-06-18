@@ -53,6 +53,7 @@ from lavender_data.server.registries import (
 )
 from lavender_data.server.settings import AppSettings
 from lavender_data.server.auth import AppAuth
+from lavender_data.server.shardset.span import get_main_shardset
 
 try:
     import torch
@@ -193,9 +194,7 @@ def create_iteration(
                 detail="No shardsets found for the dataset. Please create a shardset first.",
             )
 
-    total_samples = shardsets[0].total_samples
-    for shardset in shardsets:
-        total_samples = min(total_samples, shardset.total_samples)
+    total_samples = get_main_shardset(shardsets).total_samples
 
     cluster_sync = (
         params.cluster_sync
