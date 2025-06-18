@@ -1,5 +1,4 @@
 import random
-import numpy as np
 from typing import Optional
 
 from fastapi import HTTPException, APIRouter, Response, Depends
