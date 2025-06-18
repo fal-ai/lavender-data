@@ -28,6 +28,7 @@ class GetShardsetResponse:
         id (Union[Unset, str]):
         shard_count (Union[Unset, int]):  Default: 0.
         total_samples (Union[Unset, int]):  Default: 0.
+        is_main (Union[Unset, bool]):  Default: False.
     """
 
     dataset_id: str
@@ -38,6 +39,7 @@ class GetShardsetResponse:
     id: Union[Unset, str] = UNSET
     shard_count: Union[Unset, int] = 0
     total_samples: Union[Unset, int] = 0
+    is_main: Union[Unset, bool] = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -63,6 +65,8 @@ class GetShardsetResponse:
 
         total_samples = self.total_samples
 
+        is_main = self.is_main
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -80,6 +84,8 @@ class GetShardsetResponse:
             field_dict["shard_count"] = shard_count
         if total_samples is not UNSET:
             field_dict["total_samples"] = total_samples
+        if is_main is not UNSET:
+            field_dict["is_main"] = is_main
 
         return field_dict
 
@@ -115,6 +121,8 @@ class GetShardsetResponse:
 
         total_samples = d.pop("total_samples", UNSET)
 
+        is_main = d.pop("is_main", UNSET)
+
         get_shardset_response = cls(
             dataset_id=dataset_id,
             location=location,
@@ -124,6 +132,7 @@ class GetShardsetResponse:
             id=id,
             shard_count=shard_count,
             total_samples=total_samples,
+            is_main=is_main,
         )
 
         get_shardset_response.additional_properties = d

@@ -14,7 +14,6 @@ from .dataset_column_options import DatasetColumnOptions
 from .dataset_column_public import DatasetColumnPublic
 from .dataset_public import DatasetPublic
 from .deregister_params import DeregisterParams
-from .file_type import FileType
 from .func_spec import FuncSpec
 from .get_dataset_preview_response import GetDatasetPreviewResponse
 from .get_dataset_preview_response_samples_item import GetDatasetPreviewResponseSamplesItem
@@ -51,6 +50,7 @@ from .sync_shardset_params import SyncShardsetParams
 from .task_metadata import TaskMetadata
 from .task_metadata_kwargs import TaskMetadataKwargs
 from .task_status import TaskStatus
+from .update_shardset_params import UpdateShardsetParams
 from .validation_error import ValidationError
 from .version_response import VersionResponse
 
@@ -67,7 +67,6 @@ __all__ = (
     "DatasetColumnPublic",
     "DatasetPublic",
     "DeregisterParams",
-    "FileType",
     "FuncSpec",
     "GetDatasetPreviewResponse",
     "GetDatasetPreviewResponseSamplesItem",
@@ -102,6 +101,7 @@ __all__ = (
     "TaskMetadata",
     "TaskMetadataKwargs",
     "TaskStatus",
+    "UpdateShardsetParams",
     "ValidationError",
     "VersionResponse",
 )

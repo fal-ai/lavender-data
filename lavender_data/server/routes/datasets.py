@@ -429,29 +429,37 @@ def create_shardset(
     return shardset
 
 
-class CreateShardParams(BaseModel):
-    location: str
-    filesize: int
-    samples: int
-    format: str
-    index: int
+class UpdateShardsetParams(BaseModel):
+    is_main: bool = False
 
-    overwrite: bool = False
 
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "location": "s3://bucket/path/to/shard/",
-                    "filesize": 1024 * 1024 * 10,
-                    "samples": 100,
-                    "format": "parquet",
-                    "index": 0,
-                    "overwrite": True,
-                },
-            ]
-        }
-    }
+@router.put("/{dataset_id}/shardsets/{shardset_id}")
+def update_shardset(
+    dataset_id: str,
+    shardset_id: str,
+    params: UpdateShardsetParams,
+    session: DbSession,
+    cluster: CurrentCluster,
+) -> ShardsetPublic:
+    try:
+        shardset = session.exec(
+            select(Shardset).where(
+                Shardset.id == shardset_id,
+                Shardset.dataset_id == dataset_id,
+            )
+        ).one()
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Shardset not found")
+
+    shardset.is_main = params.is_main
+    session.add(shardset)
+    session.commit()
+    session.refresh(shardset)
+
+    if cluster:
+        cluster.sync_changes([shardset])
+
+    return shardset
 
 
 class GetShardsetResponse(ShardsetPublic):

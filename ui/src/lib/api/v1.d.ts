@@ -117,7 +117,8 @@ export interface paths {
         };
         /** Get Shardset */
         get: operations["get_shardset_datasets__dataset_id__shardsets__shardset_id__get"];
-        put?: never;
+        /** Update Shardset */
+        put: operations["update_shardset_datasets__dataset_id__shardsets__shardset_id__put"];
         post?: never;
         /** Delete Shardset */
         delete: operations["delete_shardset_datasets__dataset_id__shardsets__shardset_id__delete"];
@@ -554,41 +555,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/files/type": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get File Type */
-        get: operations["get_file_type_files_type_get"];
-        put?: never;
-        /** Inspect File Type */
-        post: operations["inspect_file_type_files_type_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/files/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get File */
-        get: operations["get_file_files__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -700,6 +666,11 @@ export interface components {
              */
             total_samples: number;
             /**
+             * Is Main
+             * @default false
+             */
+            is_main: boolean;
+            /**
              * Created At
              * Format: date-time
              */
@@ -757,13 +728,6 @@ export interface components {
         DeregisterParams: {
             /** Node Url */
             node_url: string;
-        };
-        /** FileType */
-        FileType: {
-            /** Video */
-            video: boolean;
-            /** Image */
-            image: boolean;
         };
         /** FuncSpec */
         FuncSpec: {
@@ -873,6 +837,11 @@ export interface components {
              */
             total_samples: number;
             /**
+             * Is Main
+             * @default false
+             */
+            is_main: boolean;
+            /**
              * Created At
              * Format: date-time
              */
@@ -900,11 +869,6 @@ export interface components {
             rank: number;
             /** Started At */
             started_at: number;
-        };
-        /** InspectFileTypeParams */
-        InspectFileTypeParams: {
-            /** File Url */
-            file_url: string;
         };
         /** IterationCategorizer */
         IterationCategorizer: {
@@ -1098,6 +1062,11 @@ export interface components {
              */
             total_samples: number;
             /**
+             * Is Main
+             * @default false
+             */
+            is_main: boolean;
+            /**
              * Created At
              * Format: date-time
              */
@@ -1121,6 +1090,11 @@ export interface components {
              * @default 0
              */
             total_samples: number;
+            /**
+             * Is Main
+             * @default false
+             */
+            is_main: boolean;
             /**
              * Created At
              * Format: date-time
@@ -1186,6 +1160,14 @@ export interface components {
             current: number;
             /** Total */
             total: number;
+        };
+        /** UpdateShardsetParams */
+        UpdateShardsetParams: {
+            /**
+             * Is Main
+             * @default false
+             */
+            is_main: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -1477,6 +1459,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetShardsetResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_shardset_datasets__dataset_id__shardsets__shardset_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+                shardset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateShardsetParams"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShardsetPublic"];
                 };
             };
             /** @description Validation Error */
@@ -2343,103 +2361,6 @@ export interface operations {
             path: {
                 task_uid: string;
             };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_file_type_files_type_get: {
-        parameters: {
-            query: {
-                file_url: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FileType"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    inspect_file_type_files_type_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InspectFileTypeParams"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_file_files__get: {
-        parameters: {
-            query: {
-                file_url: string;
-            };
-            header?: never;
-            path?: never;
             cookie?: never;
         };
         requestBody?: never;

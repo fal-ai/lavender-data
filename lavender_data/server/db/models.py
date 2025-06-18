@@ -70,6 +70,7 @@ class ShardsetBase(SQLModel):
     location: str = Field()
     shard_count: int = Field(default=0)
     total_samples: int = Field(default=0)
+    is_main: bool = Field(default=False)
     created_at: datetime = CreatedAtField()
 
 
