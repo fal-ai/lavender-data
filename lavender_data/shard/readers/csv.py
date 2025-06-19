@@ -1,11 +1,14 @@
 import os
 import csv
+import sys
 import ast
 from typing import Any
 
 from .abc import UntypedReader
 
 __all__ = ["CsvReader"]
+
+csv.field_size_limit(sys.maxsize)
 
 
 class CsvReader(UntypedReader):
