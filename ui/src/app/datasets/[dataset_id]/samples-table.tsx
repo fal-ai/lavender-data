@@ -342,57 +342,63 @@ export default function SamplesTable({
       <Table>
         <TableHeader>
           <TableRow>
-            {columns.map((column) => (
-              <TableHead key={column.name}>{column.name}</TableHead>
-            ))}
+            {columns
+              .filter((column) => column.selected)
+              .map((column) => (
+                <TableHead key={column.name}>{column.name}</TableHead>
+              ))}
           </TableRow>
         </TableHeader>
         <TableBody>
           {samples.map((sample, index) => (
             <TableRow key={`preview-sample-${index}`}>
-              {columns.map((column) => {
-                const value = sample[column.name];
-                if (
-                  fileColumns.some((c) => c.name === column.name && c.selected)
-                ) {
+              {columns
+                .filter((column) => column.selected)
+                .map((column) => {
+                  const value = sample[column.name];
+                  if (
+                    fileColumns.some(
+                      (c) => c.name === column.name && c.selected
+                    )
+                  ) {
+                    return (
+                      <TableCell key={column.name}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <FileCell
+                              defaultShow={defaultShow}
+                              url={value as string}
+                              sample={sample}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
+                            {value as string}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                    );
+                  }
+
+                  const sanitizedValue = sanitize(value);
+                  const ellipsizedValue = ellipsize(sanitizedValue);
+
                   return (
                     <TableCell key={column.name}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <FileCell
-                            defaultShow={defaultShow}
-                            url={value as string}
-                            sample={sample}
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
-                          {value as string}
-                        </TooltipContent>
-                      </Tooltip>
+                      {ellipsizedValue ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div>{ellipsizedValue}</div>
+                          </TooltipTrigger>
+                          <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
+                            {sanitizedValue}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <div>{sanitizedValue}</div>
+                      )}
                     </TableCell>
                   );
-                }
-
-                const sanitizedValue = sanitize(value);
-                const ellipsizedValue = ellipsize(sanitizedValue);
-
-                return (
-                  <TableCell key={column.name}>
-                    {ellipsizedValue ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div>{ellipsizedValue}</div>
-                        </TooltipTrigger>
-                        <TooltipContent className="w-auto max-w-[500px] text-wrap break-all">
-                          {sanitizedValue}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <div>{sanitizedValue}</div>
-                    )}
-                  </TableCell>
-                );
-              })}
+                })}
             </TableRow>
           ))}
         </TableBody>
