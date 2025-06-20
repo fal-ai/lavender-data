@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from typing import Any, Literal, TypedDict, Union
+from typing import Any, Literal, Optional, TypedDict, Union
 
 
 class Histogram(TypedDict):
@@ -130,7 +130,13 @@ def _get_numeric_statistics(values: list[Any]) -> NumericShardStatistics:
 
 def get_shard_column_statistics(
     values: list[Any],
+    statistics_type: Optional[Literal["numeric", "categorical"]] = None,
 ) -> ShardColumnStatistics:
+    if statistics_type == "categorical":
+        return _get_categorical_statistics(values)
+    elif statistics_type == "numeric":
+        return _get_numeric_statistics(values)
+
     if _is_categorical_column(values):
         return _get_categorical_statistics(values)
 
@@ -140,6 +146,7 @@ def get_shard_column_statistics(
 def get_shard_statistics(
     samples: list[dict[str, Any]],
     columns: dict[str, str],
+    statistics_types: Optional[dict[str, Literal["numeric", "categorical"]]] = None,
 ) -> ShardStatistics:
     samples_by_column = {
         column_name: [sample[column_name] for sample in samples]
@@ -148,6 +155,11 @@ def get_shard_statistics(
 
     column_statistics = {}
     for column_name, values in samples_by_column.items():
-        column_statistics[column_name] = get_shard_column_statistics(values)
+        statistics_type = (
+            statistics_types.get(column_name) if statistics_types else None
+        )
+        column_statistics[column_name] = get_shard_column_statistics(
+            values, statistics_type=statistics_type
+        )
 
     return column_statistics

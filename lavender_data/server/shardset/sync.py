@@ -22,13 +22,16 @@ def inspect_shardset_location(
 ) -> Generator[tuple[OrphanShardInfo, int, int], None, None]:
     logger = get_logger(__name__)
 
-    def _inspect_shard(shard_location: str, shard_index: int):
-        return inspect_shard(shard_location), shard_index
+    def _inspect_shard(
+        shard_location: str, shard_index: int, statistics_types: dict[str, str]
+    ):
+        return inspect_shard(shard_location, statistics_types), shard_index
 
     try:
         shard_index = 0
 
         shard_basenames = sorted(list_files(shardset_location))
+
         shard_locations: list[str] = []
         for shard_basename in shard_basenames:
             shard_location = os.path.join(shardset_location, shard_basename)
@@ -36,9 +39,21 @@ def inspect_shardset_location(
                 shard_index += 1
                 continue
             shard_locations.append(shard_location)
+        total_shards = len(shard_locations)
+
+        first_shard_location = os.path.join(shardset_location, shard_basenames[0])
+        first_shard = inspect_shard(first_shard_location)
+        statistics_types = {
+            column_name: s["type"] for column_name, s in first_shard.statistics.items()
+        }
+
+        if first_shard_location in shard_locations:
+            yield first_shard, shard_index, total_shards
+            shard_locations.remove(first_shard_location)
+            shard_index += 1
 
         with ThreadPoolExecutor(
-            max_workers=num_workers or min(32, (os.cpu_count() or 1) + 4)
+            max_workers=num_workers or (os.cpu_count() or 1) + 4
         ) as executor:
             futures = []
             for shard_location in shard_locations:
@@ -46,13 +61,14 @@ def inspect_shardset_location(
                     _inspect_shard,
                     shard_location=shard_location,
                     shard_index=shard_index,
+                    statistics_types=statistics_types,
                 )
                 shard_index += 1
                 futures.append(future)
 
             for future in as_completed(futures):
                 orphan_shard, current_shard_index = future.result()
-                yield orphan_shard, current_shard_index, len(shard_locations)
+                yield orphan_shard, current_shard_index, total_shards
 
     except ReaderException as e:
         logger.warning(f"Failed to inspect shardset {shardset_location}: {e}")

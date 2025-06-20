@@ -1,5 +1,6 @@
 import os
 import tempfile
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -16,7 +17,10 @@ class OrphanShardInfo(BaseModel):
     statistics: ShardStatistics
 
 
-def inspect_shard(shard_location: str) -> OrphanShardInfo:
+def inspect_shard(
+    shard_location: str,
+    statistics_types: Optional[dict[str, Literal["numeric", "categorical"]]] = None,
+) -> OrphanShardInfo:
     shard_format = os.path.splitext(shard_location)[1].lstrip(".")
 
     with tempfile.NamedTemporaryFile() as f:
@@ -31,6 +35,7 @@ def inspect_shard(shard_location: str) -> OrphanShardInfo:
         statistics = get_shard_statistics(
             samples=samples,
             columns=columns,
+            statistics_types=statistics_types,
         )
 
     return OrphanShardInfo(
