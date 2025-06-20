@@ -634,6 +634,11 @@ export interface components {
         };
         /** CategoricalShardStatistics */
         CategoricalShardStatistics: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "categorical";
             /** Nan Count */
             nan_count: number;
             /** N Unique */
@@ -1132,6 +1137,11 @@ export interface components {
         };
         /** NumericShardStatistics */
         NumericShardStatistics: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "numeric";
             histogram: components["schemas"]["Histogram"];
             /** Nan Count */
             nan_count: number;
