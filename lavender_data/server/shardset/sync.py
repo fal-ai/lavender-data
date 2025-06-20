@@ -9,7 +9,7 @@ from lavender_data.storage import list_files
 from lavender_data.shard.inspect import OrphanShardInfo, inspect_shard
 from lavender_data.shard.readers.exceptions import ReaderException
 from lavender_data.server.background_worker import TaskStatus
-from lavender_data.server.db import Shardset, Shard, get_session
+from lavender_data.server.db import Shard, get_session
 from lavender_data.server.distributed import get_cluster
 from lavender_data.server.reader import get_reader_instance, ShardInfo
 
@@ -104,6 +104,7 @@ def sync_shardset_location(
                     filesize=orphan_shard.filesize,
                     samples=orphan_shard.samples,
                     format=orphan_shard.format,
+                    statistics=orphan_shard.statistics,
                 )
             )
             if result.rowcount > 0:
@@ -113,11 +114,12 @@ def sync_shardset_location(
             session.exec(
                 insert(Shard).values(
                     shardset_id=shardset_id,
+                    index=shard_index,
                     location=orphan_shard.location,
                     filesize=orphan_shard.filesize,
                     samples=orphan_shard.samples,
                     format=orphan_shard.format,
-                    index=shard_index,
+                    statistics=orphan_shard.statistics,
                 )
             )
 

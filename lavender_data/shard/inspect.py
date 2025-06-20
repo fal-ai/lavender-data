@@ -4,6 +4,7 @@ import tempfile
 from pydantic import BaseModel
 
 from .readers import Reader
+from .statistics import get_shard_statistics, ShardStatistics
 
 
 class OrphanShardInfo(BaseModel):
@@ -12,6 +13,7 @@ class OrphanShardInfo(BaseModel):
     format: str
     filesize: int
     columns: dict[str, str]
+    statistics: ShardStatistics
 
 
 def inspect_shard(shard_location: str) -> OrphanShardInfo:
@@ -24,13 +26,18 @@ def inspect_shard(shard_location: str) -> OrphanShardInfo:
             filepath=f.name,
         )
         filesize = os.path.getsize(f.name)
-        samples = len(reader)
         columns = reader.columns
+        samples = [s for s in reader]
+        statistics = get_shard_statistics(
+            samples=samples,
+            columns=columns,
+        )
 
     return OrphanShardInfo(
-        samples=samples,
+        samples=len(samples),
         location=shard_location,
         format=shard_format,
         filesize=filesize,
         columns=columns,
+        statistics=statistics,
     )

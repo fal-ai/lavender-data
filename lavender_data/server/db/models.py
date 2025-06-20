@@ -15,6 +15,8 @@ from sqlmodel import (
 from sqlalchemy import Column, DateTime, func
 from numpy import base_repr
 
+from lavender_data.shard import ShardStatistics
+
 
 def generate_uid(prefix: str, length: int = 20):
     def generate_uid_inner():
@@ -104,6 +106,7 @@ class ShardBase(SQLModel):
     index: int = Field(default=0)
     format: str = Field()
     created_at: datetime = CreatedAtField()
+    statistics: Optional[ShardStatistics] = Field(default=None, sa_type=JSON)
 
     __table_args__ = (
         UniqueConstraint("shardset_id", "index", name="unique_shardset_index"),

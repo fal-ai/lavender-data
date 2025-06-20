@@ -166,6 +166,9 @@ class Reader(ABC):
             self._load()
         return self.cache[str(uid)]
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        return self.get_item_by_index(idx)
+
     def __iter__(self) -> Iterator[dict[str, Any]]:
         for i in range(len(self)):
             yield self[i]
