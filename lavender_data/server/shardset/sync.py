@@ -12,6 +12,7 @@ from lavender_data.server.background_worker import TaskStatus
 from lavender_data.server.db import Shard, get_session
 from lavender_data.server.distributed import get_cluster
 from lavender_data.server.reader import get_reader_instance, ShardInfo
+from lavender_data.server.cache import get_cache
 
 
 def inspect_shardset_location(
@@ -62,7 +63,6 @@ def inspect_shardset_location(
 def sync_shardset_location(
     shardset_id: str,
     shardset_location: str,
-    shardset_shard_samples: list[int],
     shardset_shard_locations: list[str],
     num_workers: Optional[int] = None,
     overwrite: bool = False,
@@ -132,6 +132,9 @@ def sync_shardset_location(
         )
 
     session.commit()
+
+    cache = get_cache()
+    cache.delete(f"dataset-statistics:{shardset_id}")
 
     shardset_shards = session.exec(
         select(Shard).where(Shard.shardset_id == shardset_id)

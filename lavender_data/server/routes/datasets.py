@@ -1,4 +1,5 @@
 import os
+import json
 from typing import Optional, Any
 import time
 
@@ -179,17 +180,26 @@ class GetDatasetStatisticsResponse(BaseModel):
 
 @router.get("/{dataset_id}/statistics")
 def get_dataset_statistics(
-    dataset_id: str, session: DbSession
+    dataset_id: str,
+    session: DbSession,
+    cache: CacheClient,
 ) -> GetDatasetStatisticsResponse:
     logger = get_logger(__name__)
     dataset = session.get_one(Dataset, dataset_id)
 
-    statistics = {}
-    for column in dataset.columns:
-        try:
-            statistics[column.name] = get_column_statistics(column)
-        except Exception as e:
-            logger.exception(f"Failed to get statistics for column {column.name}: {e}")
+    cache_key = f"dataset-statistics:{dataset_id}"
+    if cache.exists(cache_key):
+        statistics = json.loads(cache.get(cache_key))
+    else:
+        statistics = {}
+        for column in dataset.columns:
+            try:
+                statistics[column.name] = get_column_statistics(column)
+            except Exception as e:
+                logger.exception(
+                    f"Failed to get statistics for column {column.name}: {e}"
+                )
+        cache.set(cache_key, json.dumps(statistics), ex=3 * 60)
 
     return GetDatasetStatisticsResponse(statistics=statistics)
 
@@ -591,7 +601,6 @@ def sync_shardset(
         sync_shardset_location,
         shardset_id=shardset.id,
         shardset_location=shardset.location,
-        shardset_shard_samples=[s.samples for s in shardset.shards],
         shardset_shard_locations=[s.location for s in shardset.shards],
         overwrite=params.overwrite,
         task_id=task_id,
