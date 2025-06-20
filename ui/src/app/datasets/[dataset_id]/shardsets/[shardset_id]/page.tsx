@@ -239,7 +239,7 @@ export default async function ShardsetDetailPage({
                                                   max: value.max,
                                                   min: value.min,
                                                   mean: value.sum / value.count,
-                                                  median: -1, // TODO
+                                                  median: value.median,
                                                   std: Math.sqrt(
                                                     value.sum_squared /
                                                       value.count -

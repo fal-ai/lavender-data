@@ -1153,6 +1153,8 @@ export interface components {
             min: number;
             /** Sum */
             sum: number;
+            /** Median */
+            median: number;
             /** Sum Squared */
             sum_squared: number;
         };

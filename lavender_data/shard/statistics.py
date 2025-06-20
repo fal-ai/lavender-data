@@ -16,6 +16,7 @@ class NumericShardStatistics(TypedDict):
     max: float
     min: float
     sum: float
+    median: float
     sum_squared: float
 
 
@@ -122,6 +123,7 @@ def _get_numeric_statistics(values: list[Any]) -> NumericShardStatistics:
         max=_max,
         min=_min,
         sum=_sum,
+        median=np.median(numeric_values).item(),
         sum_squared=_sum_squared,
     )
 
