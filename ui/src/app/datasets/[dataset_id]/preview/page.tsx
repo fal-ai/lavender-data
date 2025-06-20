@@ -37,10 +37,24 @@ export default async function DatasetPreviewPage({
 
   const { preview_id } = createPreviewResponse.data;
 
+  const statisticsResponse = await client.GET(
+    '/datasets/{dataset_id}/statistics',
+    {
+      params: {
+        path: { dataset_id },
+      },
+    }
+  );
+
+  const statistics = statisticsResponse.data
+    ? statisticsResponse.data
+    : undefined;
+
   return (
     <PreviewTable
       datasetId={dataset_id}
       previewId={preview_id}
+      statistics={statistics}
       page={currentPage}
       limit={limit}
     />

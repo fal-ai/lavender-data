@@ -93,10 +93,10 @@ def _read_dataset(
             feature_shards.append(shard_info)
 
     if uid_column_type is None:
-        raise Exception(status_code=400, detail="Dataset has no uid column")
+        raise ValueError("Dataset has no uid column")
 
     if main_shard is None:
-        raise Exception(status_code=400, detail="Dataset has no shards")
+        raise ValueError("Dataset has no shards")
 
     return reader.get_sample(
         GlobalSampleIndex(

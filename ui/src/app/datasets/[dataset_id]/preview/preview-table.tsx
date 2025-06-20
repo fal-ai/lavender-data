@@ -41,11 +41,13 @@ export function PreviewTable({
   previewId,
   page,
   limit,
+  statistics,
 }: {
   datasetId: string;
   previewId: string;
   page: number;
   limit: number;
+  statistics?: components['schemas']['GetDatasetStatisticsResponse'];
 }) {
   const [preview, setPreview] = useState<
     components['schemas']['GetDatasetPreviewResponse'] | null
@@ -77,6 +79,7 @@ export function PreviewTable({
           datasetId={datasetId}
           samples={preview.samples}
           fetchedColumns={preview.columns.map((column) => column.name)}
+          statistics={statistics}
         />
       </CardContent>
       <CardFooter className="w-full flex justify-center">

@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from typing import Any, TypedDict, Union
+from typing import Any, Literal, TypedDict, Union
 
 
 class Histogram(TypedDict):
@@ -9,6 +9,7 @@ class Histogram(TypedDict):
 
 
 class NumericShardStatistics(TypedDict):
+    type: Literal["numeric"]
     histogram: Histogram
     nan_count: int
     count: int
@@ -19,6 +20,7 @@ class NumericShardStatistics(TypedDict):
 
 
 class CategoricalShardStatistics(TypedDict):
+    type: Literal["categorical"]
     nan_count: int
     n_unique: int
     frequencies: dict[str, int]
@@ -46,7 +48,7 @@ def _is_categorical_column(values: list[Any]) -> bool:
         return False
 
     unique_values = set(values)
-    return len(unique_values) <= len(values) * 0.5
+    return len(unique_values) <= max(len(values) * 0.1, 1)
 
 
 def _get_categorical_statistics(values: list[Any]) -> CategoricalShardStatistics:
@@ -59,6 +61,7 @@ def _get_categorical_statistics(values: list[Any]) -> CategoricalShardStatistics
         frequencies[value] = frequencies.get(value, 0) + 1
 
     return CategoricalShardStatistics(
+        type="categorical",
         frequencies=frequencies,
         n_unique=len(frequencies.keys()),
         nan_count=nan_count,
@@ -66,7 +69,7 @@ def _get_categorical_statistics(values: list[Any]) -> CategoricalShardStatistics
 
 
 def _get_histogram(values: list[Union[int, float]]) -> Histogram:
-    num_unique_values = len(set([int(v) for v in values if v is not None]))
+    num_unique_values = len(set([int(v * 100) for v in values if v is not None]))
     hist, bin_edges = np.histogram(values, bins=min(num_unique_values, 10))
     return Histogram(hist=hist.tolist(), bin_edges=bin_edges.tolist())
 
@@ -110,6 +113,7 @@ def _get_numeric_statistics(values: list[Any]) -> NumericShardStatistics:
         _min = min(_min, _value)
 
     return NumericShardStatistics(
+        type="numeric",
         histogram=_get_histogram(numeric_values),
         nan_count=_nan_count,
         count=len(numeric_values),

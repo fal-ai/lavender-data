@@ -29,7 +29,11 @@ from lavender_data.server.background_worker import (
     TaskStatus,
     CurrentBackgroundWorker,
 )
-from lavender_data.server.dataset import preview_dataset
+from lavender_data.server.dataset import (
+    preview_dataset,
+    get_column_statistics,
+    ColumnStatistics,
+)
 from lavender_data.server.shardset import (
     get_main_shardset,
     sync_shardset_location,
@@ -167,6 +171,27 @@ def get_dataset_preview(
         samples=samples,
         total=get_main_shardset(dataset.shardsets).total_samples,
     )
+
+
+class GetDatasetStatisticsResponse(BaseModel):
+    statistics: dict[str, ColumnStatistics]
+
+
+@router.get("/{dataset_id}/statistics")
+def get_dataset_statistics(
+    dataset_id: str, session: DbSession
+) -> GetDatasetStatisticsResponse:
+    logger = get_logger(__name__)
+    dataset = session.get_one(Dataset, dataset_id)
+
+    statistics = {}
+    for column in dataset.columns:
+        try:
+            statistics[column.name] = get_column_statistics(column)
+        except Exception as e:
+            logger.exception(f"Failed to get statistics for column {column.name}: {e}")
+
+    return GetDatasetStatisticsResponse(statistics=statistics)
 
 
 class CreateDatasetParams(BaseModel):

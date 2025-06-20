@@ -91,6 +91,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasets/{dataset_id}/statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dataset Statistics */
+        get: operations["get_dataset_statistics_datasets__dataset_id__statistics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasets/{dataset_id}/shardsets": {
         parameters: {
             query?: never;
@@ -576,8 +593,8 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** ApiKeyPublic */
-        ApiKeyPublic: {
+        /** ApiKeyBase */
+        ApiKeyBase: {
             /** Id */
             id?: string;
             /** Note */
@@ -598,6 +615,33 @@ export interface components {
             expires_at: string | null;
             /** Last Accessed At */
             last_accessed_at: string | null;
+        };
+        /** CategoricalColumnStatistics */
+        CategoricalColumnStatistics: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "categorical";
+            /** Frequencies */
+            frequencies: {
+                [key: string]: number;
+            };
+            /** N Unique */
+            n_unique: number;
+            /** Nan Count */
+            nan_count: number;
+        };
+        /** CategoricalShardStatistics */
+        CategoricalShardStatistics: {
+            /** Nan Count */
+            nan_count: number;
+            /** N Unique */
+            n_unique: number;
+            /** Frequencies */
+            frequencies: {
+                [key: string]: number;
+            };
         };
         /** CreateDatasetParams */
         CreateDatasetParams: {
@@ -688,6 +732,43 @@ export interface components {
             total_samples: number;
             /** Columns */
             columns: components["schemas"]["DatasetColumnPublic"][];
+        };
+        /** DatasetBase */
+        DatasetBase: {
+            /** Id */
+            id?: string;
+            /** Name */
+            name: string;
+            /**
+             * Uid Column Name
+             * @default uid
+             */
+            uid_column_name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** DatasetColumnBase */
+        DatasetColumnBase: {
+            /** Id */
+            id?: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Shardset Id */
+            shardset_id: string;
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** DatasetColumnOptions */
         DatasetColumnOptions: {
@@ -787,6 +868,13 @@ export interface components {
             /** Shardsets */
             shardsets: components["schemas"]["ShardsetPublic"][];
         };
+        /** GetDatasetStatisticsResponse */
+        GetDatasetStatisticsResponse: {
+            /** Statistics */
+            statistics: {
+                [key: string]: components["schemas"]["NumericColumnStatistics"] | components["schemas"]["CategoricalColumnStatistics"];
+            };
+        };
         /** GetIterationResponse */
         GetIterationResponse: {
             /** Id */
@@ -871,6 +959,13 @@ export interface components {
             /** Node Url */
             node_url: string;
         };
+        /** Histogram */
+        Histogram: {
+            /** Hist */
+            hist: number[];
+            /** Bin Edges */
+            bin_edges: number[];
+        };
         /** InProgressIndex */
         InProgressIndex: {
             /** Index */
@@ -879,6 +974,45 @@ export interface components {
             rank: number;
             /** Started At */
             started_at: number;
+        };
+        /** IterationBase */
+        IterationBase: {
+            /** Id */
+            id?: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /** Filters */
+            filters?: components["schemas"]["IterationFilter"][] | null;
+            categorizer?: components["schemas"]["IterationCategorizer"] | null;
+            collater?: components["schemas"]["IterationCollater"] | null;
+            /** Preprocessors */
+            preprocessors?: components["schemas"]["IterationPreprocessor"][] | null;
+            /**
+             * Shuffle
+             * @default false
+             */
+            shuffle: boolean;
+            /** Shuffle Seed */
+            shuffle_seed?: number | null;
+            /** Shuffle Block Size */
+            shuffle_block_size?: number | null;
+            /**
+             * Batch Size
+             * @default 0
+             */
+            batch_size: number;
+            /** Replication Pg */
+            replication_pg?: number[][] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** IterationCategorizer */
         IterationCategorizer: {
@@ -971,6 +1105,47 @@ export interface components {
             /** Last Heartbeat */
             last_heartbeat: number | null;
         };
+        /**
+         * NumericColumnStatistics
+         * @description int, float -> value
+         *     string, bytes -> length
+         */
+        NumericColumnStatistics: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "numeric";
+            histogram: components["schemas"]["Histogram"];
+            /** Nan Count */
+            nan_count: number;
+            /** Max */
+            max: number;
+            /** Min */
+            min: number;
+            /** Mean */
+            mean: number;
+            /** Median */
+            median: number;
+            /** Std */
+            std: number;
+        };
+        /** NumericShardStatistics */
+        NumericShardStatistics: {
+            histogram: components["schemas"]["Histogram"];
+            /** Nan Count */
+            nan_count: number;
+            /** Count */
+            count: number;
+            /** Max */
+            max: number;
+            /** Min */
+            min: number;
+            /** Sum */
+            sum: number;
+            /** Sum Squared */
+            sum_squared: number;
+        };
         /** PreprocessDatasetParams */
         PreprocessDatasetParams: {
             /** Shardset Location */
@@ -1022,6 +1197,41 @@ export interface components {
             /** Node Url */
             node_url: string;
         };
+        /** ShardBase */
+        ShardBase: {
+            /** Id */
+            id?: string;
+            /** Shardset Id */
+            shardset_id: string;
+            /** Location */
+            location: string;
+            /**
+             * Filesize
+             * @default 0
+             */
+            filesize: number;
+            /**
+             * Samples
+             * @default 0
+             */
+            samples: number;
+            /**
+             * Index
+             * @default 0
+             */
+            index: number;
+            /** Format */
+            format: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Statistics */
+            statistics?: {
+                [key: string]: components["schemas"]["NumericShardStatistics"] | components["schemas"]["CategoricalShardStatistics"];
+            } | null;
+        };
         /** ShardPublic */
         ShardPublic: {
             /** Id */
@@ -1047,6 +1257,29 @@ export interface components {
             index: number;
             /** Format */
             format: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Statistics */
+            statistics?: {
+                [key: string]: components["schemas"]["NumericShardStatistics"] | components["schemas"]["CategoricalShardStatistics"];
+            } | null;
+        };
+        /** ShardsetBase */
+        ShardsetBase: {
+            /** Id */
+            id?: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Location */
+            location: string;
+            /**
+             * Is Main
+             * @default false
+             */
+            is_main: boolean;
             /**
              * Created At
              * Format: date-time
@@ -1111,19 +1344,19 @@ export interface components {
         /** SyncParams */
         SyncParams: {
             /** Datasets */
-            datasets: components["schemas"]["DatasetPublic"][];
+            datasets: components["schemas"]["DatasetBase"][];
             /** Dataset Columns */
-            dataset_columns: components["schemas"]["DatasetColumnPublic"][];
+            dataset_columns: components["schemas"]["DatasetColumnBase"][];
             /** Shardsets */
-            shardsets: components["schemas"]["ShardsetPublic"][];
+            shardsets: components["schemas"]["ShardsetBase"][];
             /** Shards */
-            shards: components["schemas"]["ShardPublic"][];
+            shards: components["schemas"]["ShardBase"][];
             /** Iterations */
-            iterations: components["schemas"]["IterationPublic"][];
+            iterations: components["schemas"]["IterationBase"][];
             /** Iteration Shardset Links */
             iteration_shardset_links: components["schemas"]["IterationShardsetLink"][];
             /** Api Keys */
-            api_keys: components["schemas"]["ApiKeyPublic"][];
+            api_keys: components["schemas"]["ApiKeyBase"][];
         };
         /** SyncShardsetParams */
         SyncShardsetParams: {
@@ -1390,6 +1623,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetDatasetPreviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dataset_statistics_datasets__dataset_id__statistics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDatasetStatisticsResponse"];
                 };
             };
             /** @description Validation Error */
