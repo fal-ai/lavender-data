@@ -76,8 +76,8 @@ def _get_histogram(values: list[Union[int, float]]) -> Histogram:
 
 def _get_numeric_statistics(values: list[Any]) -> NumericShardStatistics:
     _nan_count = 0
-    _max = 0
-    _min = 0
+    _max = None
+    _min = None
     _sum = 0
     _sum_squared = 0
 
@@ -109,8 +109,10 @@ def _get_numeric_statistics(values: list[Any]) -> NumericShardStatistics:
         numeric_values.append(_value)
         _sum += _value
         _sum_squared += _value**2
-        _max = max(_max, _value)
-        _min = min(_min, _value)
+        if _max is None or _value > _max:
+            _max = _value
+        if _min is None or _value < _min:
+            _min = _value
 
     return NumericShardStatistics(
         type="numeric",

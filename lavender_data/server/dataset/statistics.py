@@ -90,8 +90,8 @@ def aggregate_numeric_statistics(
     _all_hist = []
     _all_bin_edges = []
     _nan_count = 0
-    _max = 0
-    _min = 0
+    _max = None
+    _min = None
     _sum = 0
     _sum_squared = 0
     _count = 0
@@ -99,8 +99,10 @@ def aggregate_numeric_statistics(
         _all_hist.extend(shard_statistic["histogram"]["hist"])
         _all_bin_edges.extend(shard_statistic["histogram"]["bin_edges"])
         _nan_count += shard_statistic["nan_count"]
-        _max = max(_max, shard_statistic["max"])
-        _min = min(_min, shard_statistic["min"])
+        if _max is None or shard_statistic["max"] > _max:
+            _max = shard_statistic["max"]
+        if _min is None or shard_statistic["min"] < _min:
+            _min = shard_statistic["min"]
         _sum += shard_statistic["sum"]
         _sum_squared += shard_statistic["sum_squared"]
         _count += shard_statistic["count"]
