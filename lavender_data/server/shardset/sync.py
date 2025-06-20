@@ -1,4 +1,5 @@
 import os
+import json
 from typing import Generator, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -11,6 +12,7 @@ from lavender_data.shard.readers.exceptions import ReaderException
 from lavender_data.server.background_worker import TaskStatus
 from lavender_data.server.db import Shard, get_session
 from lavender_data.server.distributed import get_cluster
+from lavender_data.server.dataset.statistics import get_dataset_statistics
 from lavender_data.server.reader import get_reader_instance, ShardInfo
 from lavender_data.server.cache import get_cache
 
@@ -149,12 +151,19 @@ def sync_shardset_location(
 
     session.commit()
 
-    cache = get_cache()
-    cache.delete(f"dataset-statistics:{shardset_id}")
-
     shardset_shards = session.exec(
         select(Shard).where(Shard.shardset_id == shardset_id)
     ).all()
+
+    if len(shardset_shards) == 0:
+        logger.warning(f"Shardset {shardset_id} has no shards")
+        return
+
+    dataset = shardset_shards[0].shardset.dataset
+    dataset_statistics = get_dataset_statistics(dataset)
+    cache = next(get_cache())
+    cache.set(f"dataset-statistics:{dataset.id}", json.dumps(dataset_statistics))
+
     if cluster is not None and cluster.is_head:
         try:
             logger.debug(
@@ -163,5 +172,3 @@ def sync_shardset_location(
             cluster.sync_changes(shardset_shards)
         except Exception as e:
             logger.exception(e)
-
-    yield TaskStatus(status="done", current=done_count, total=shard_count)

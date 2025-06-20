@@ -6,7 +6,8 @@ from lavender_data.shard.statistics import (
     CategoricalShardStatistics,
     NumericShardStatistics,
 )
-from lavender_data.server.db.models import DatasetColumn
+from lavender_data.server.db.models import DatasetColumn, Dataset
+from lavender_data.logging import get_logger
 
 
 class Histogram(TypedDict):
@@ -149,3 +150,14 @@ def get_column_statistics(column: DatasetColumn) -> ColumnStatistics:
         return aggregate_numeric_statistics(shard_statistics)
     else:
         raise ValueError(f"Unknown column statistics: {column.name} {shard_statistics}")
+
+
+def get_dataset_statistics(dataset: Dataset) -> dict[str, ColumnStatistics]:
+    logger = get_logger(__name__)
+    statistics = {}
+    for column in dataset.columns:
+        try:
+            statistics[column.name] = get_column_statistics(column)
+        except Exception as e:
+            logger.exception(f"Failed to get statistics for column {column.name}: {e}")
+    return statistics

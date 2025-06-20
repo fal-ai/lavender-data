@@ -31,9 +31,9 @@ from lavender_data.server.background_worker import (
     CurrentBackgroundWorker,
 )
 from lavender_data.server.dataset import (
-    preview_dataset,
-    get_column_statistics,
     ColumnStatistics,
+    preview_dataset,
+    get_dataset_statistics as _get_dataset_statistics,
 )
 from lavender_data.server.shardset import (
     get_main_shardset,
@@ -184,22 +184,14 @@ def get_dataset_statistics(
     session: DbSession,
     cache: CacheClient,
 ) -> GetDatasetStatisticsResponse:
-    logger = get_logger(__name__)
     dataset = session.get_one(Dataset, dataset_id)
 
     cache_key = f"dataset-statistics:{dataset_id}"
     if cache.exists(cache_key):
         statistics = json.loads(cache.get(cache_key))
     else:
-        statistics = {}
-        for column in dataset.columns:
-            try:
-                statistics[column.name] = get_column_statistics(column)
-            except Exception as e:
-                logger.exception(
-                    f"Failed to get statistics for column {column.name}: {e}"
-                )
-        cache.set(cache_key, json.dumps(statistics), ex=3 * 60)
+        statistics = _get_dataset_statistics(dataset)
+        cache.set(cache_key, json.dumps(statistics))
 
     return GetDatasetStatisticsResponse(statistics=statistics)
 
