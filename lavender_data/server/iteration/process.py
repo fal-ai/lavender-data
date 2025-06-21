@@ -12,7 +12,7 @@ except ImportError:
 
 from lavender_data.logging import get_logger
 from lavender_data.serialize import serialize_sample
-from lavender_data.server.background_worker import SharedMemory
+from lavender_data.server.background_worker import SharedMemory, pool_task
 from lavender_data.server.db.models import (
     IterationPreprocessor,
     IterationCollater,
@@ -160,6 +160,7 @@ def process_next_samples(
                 raise error
 
 
+@pool_task()
 def process_next_samples_task(
     params: ProcessNextSamplesParams,
     max_retry_count: int,

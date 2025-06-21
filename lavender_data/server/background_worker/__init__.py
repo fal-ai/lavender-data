@@ -15,7 +15,7 @@ from .memory import (
     get_shared_memory,
     shutdown_shared_memory,
 )
-from .process_pool import ProcessPool
+from .process_pool import ProcessPool, pool_task
 
 __all__ = [
     "TaskStatus",
@@ -32,6 +32,7 @@ __all__ = [
     "shutdown_shared_memory",
     "ProcessPool",
     "get_process_pool",
+    "pool_task",
 ]
 
 
