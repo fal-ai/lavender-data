@@ -159,5 +159,5 @@ def get_dataset_statistics(dataset: Dataset) -> dict[str, ColumnStatistics]:
         try:
             statistics[column.name] = get_column_statistics(column)
         except Exception as e:
-            logger.exception(f"Failed to get statistics for column {column.name}: {e}")
+            logger.warning(f"Failed to get statistics for column {column.name}: {e}")
     return statistics
