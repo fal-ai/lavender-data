@@ -13,6 +13,7 @@ from sqlmodel import (
     JSON,
 )
 from sqlalchemy import Column, DateTime, func, select
+from sqlalchemy.exc import NoResultFound
 from numpy import base_repr
 
 from lavender_data.shard import ShardStatistics
@@ -82,19 +83,28 @@ class Shardset(ShardsetBase, table=True):
 
     @property
     def shard_count(self) -> int:
-        return (
-            next(get_session())
-            .exec(select(func.count(Shard.id)).where(Shard.shardset_id == self.id))
-            .one()[0]
-        )
+        try:
+            return (
+                next(get_session())
+                .exec(select(func.count(Shard.id)).where(Shard.shardset_id == self.id))
+                .one()[0]
+            )
+        except NoResultFound:
+            return 0
 
     @property
     def total_samples(self) -> int:
-        return (
-            next(get_session())
-            .exec(select(func.sum(Shard.samples)).where(Shard.shardset_id == self.id))
-            .one()[0]
-        )
+        try:
+            total_samples = (
+                next(get_session())
+                .exec(
+                    select(func.sum(Shard.samples)).where(Shard.shardset_id == self.id)
+                )
+                .one()[0]
+            ) or 0
+        except NoResultFound:
+            return 0
+        return total_samples
 
     __table_args__ = (
         UniqueConstraint("dataset_id", "location", name="unique_dataset_location"),
