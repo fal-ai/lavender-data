@@ -78,7 +78,6 @@ def _worker_process(
 
     logger = get_logger(__name__)
 
-    i = 0
     while not kill_switch.is_set():
         work_item = None
         try:
@@ -89,13 +88,11 @@ def _worker_process(
             logger.debug("Call queue closed, exiting worker process")
             break
 
-        i += 1
-        logger.debug(f"Processing work {i}")
-
         try:
             result = _tasks[work_item.func](**work_item.kwargs)
             result_item = ResultItem(work_id=work_item.work_id, result=result)
         except Exception as e:
+            logger.exception(f"Error processing work {work_item.work_id}: {e}")
             result_item = ResultItem(
                 work_id=work_item.work_id,
                 exception="".join(

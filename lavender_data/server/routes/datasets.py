@@ -29,10 +29,11 @@ from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.background_worker import (
     TaskStatus,
     CurrentBackgroundWorker,
+    CurrentSharedMemory,
 )
 from lavender_data.server.dataset import (
     ColumnStatistics,
-    preview_dataset,
+    preview_dataset_task,
     get_dataset_statistics as _get_dataset_statistics,
 )
 from lavender_data.server.shardset import (
@@ -43,7 +44,7 @@ from lavender_data.server.shardset import (
 from lavender_data.server.auth import AppAuth
 from lavender_data.storage import list_files
 from lavender_data.shard import inspect_shard
-from lavender_data.serialize import serialize_list, deserialize_list
+from lavender_data.serialize import deserialize_list
 
 router = APIRouter(
     prefix="/datasets",
@@ -74,31 +75,6 @@ def get_dataset(dataset_id: str, session: DbSession) -> GetDatasetResponse:
     return dataset
 
 
-def preview_dataset_and_cache(
-    preview_id: str,
-    dataset_id: str,
-    offset: int,
-    limit: int,
-) -> list[dict[str, Any]]:
-    cache = next(get_cache())
-    logger = get_logger(__name__)
-    logger.info(f"Previewing dataset {dataset_id} {offset}-{offset+limit-1}")
-    start_time = time.time()
-    try:
-        samples = preview_dataset(dataset_id, offset, limit)
-        # cache for 3 minutes
-        cache.set(f"preview:{preview_id}", serialize_list(samples), ex=3 * 60)
-    except Exception as e:
-        logger.exception(f"Failed to preview dataset {dataset_id}: {e}")
-        cache.set(f"preview:{preview_id}:error", str(e), ex=3 * 60)
-        raise e
-    end_time = time.time()
-    logger.info(
-        f"Previewed dataset {dataset_id} {offset}-{offset+limit-1} in {end_time - start_time:.2f}s"
-    )
-    return samples
-
-
 class CreateDatasetPreviewParams(BaseModel):
     offset: int = 0
     limit: int = 10
@@ -114,6 +90,7 @@ def create_dataset_preview(
     session: DbSession,
     params: CreateDatasetPreviewParams,
     background_worker: CurrentBackgroundWorker,
+    shared_memory: CurrentSharedMemory,
 ) -> CreateDatasetPreviewResponse:
     try:
         dataset = session.get_one(Dataset, dataset_id)
@@ -126,12 +103,13 @@ def create_dataset_preview(
     offset = params.offset
     limit = params.limit
     preview_id = dataset_id + ":" + str(params.offset) + ":" + str(params.limit)
-    background_worker.thread_pool_submit(
-        preview_dataset_and_cache,
+    background_worker.process_pool_submit(
+        preview_dataset_task,
         preview_id=preview_id,
         dataset_id=dataset_id,
         offset=offset,
         limit=limit,
+        shared_memory=shared_memory,
     )
 
     return CreateDatasetPreviewResponse(preview_id=preview_id)
@@ -148,7 +126,7 @@ class GetDatasetPreviewResponse(BaseModel):
 def get_dataset_preview(
     dataset_id: str,
     preview_id: str,
-    cache: CacheClient,
+    shared_memory: CurrentSharedMemory,
     session: DbSession,
 ) -> GetDatasetPreviewResponse:
     try:
@@ -156,15 +134,16 @@ def get_dataset_preview(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    if cache.exists(f"preview:{preview_id}:error"):
+    if shared_memory.exists(f"preview:{preview_id}:error"):
         raise HTTPException(
-            status_code=500, detail=cache.get(f"preview:{preview_id}:error").decode()
+            status_code=500,
+            detail=shared_memory.get(f"preview:{preview_id}:error").decode(),
         )
 
-    if not cache.exists(f"preview:{preview_id}"):
+    if not shared_memory.exists(f"preview:{preview_id}"):
         raise HTTPException(status_code=400, detail="Preview not found")
 
-    samples = deserialize_list(cache.get(f"preview:{preview_id}"))
+    samples = deserialize_list(shared_memory.get(f"preview:{preview_id}"))
 
     return GetDatasetPreviewResponse(
         dataset=dataset,
