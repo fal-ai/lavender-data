@@ -737,3 +737,40 @@ def preprocess_dataset(
         with_status=True,
     )
     return PreprocessDatasetResponse(task_id=task_id)
+
+
+class UpdateDatasetColumnParams(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    description: Optional[str] = None
+
+
+@router.put("/{dataset_id}/columns/{column_id}")
+def update_dataset_column(
+    dataset_id: str,
+    column_id: str,
+    params: UpdateDatasetColumnParams,
+    session: DbSession,
+) -> DatasetColumnPublic:
+    try:
+        column = session.exec(
+            select(DatasetColumn).where(
+                DatasetColumn.id == column_id,
+                DatasetColumn.dataset_id == dataset_id,
+            )
+        ).one()
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Column not found")
+
+    if params.name is not None:
+        column.name = params.name
+    if params.type is not None:
+        column.type = params.type
+    if params.description is not None:
+        column.description = params.description
+
+    session.add(column)
+    session.commit()
+    session.refresh(column)
+
+    return column

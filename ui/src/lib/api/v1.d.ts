@@ -196,6 +196,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasets/{dataset_id}/columns/{column_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Dataset Column */
+        put: operations["update_dataset_column_datasets__dataset_id__columns__column_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/iterations/": {
         parameters: {
             query?: never;
@@ -1404,6 +1421,15 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** UpdateDatasetColumnParams */
+        UpdateDatasetColumnParams: {
+            /** Name */
+            name?: string | null;
+            /** Type */
+            type?: string | null;
+            /** Description */
+            description?: string | null;
+        };
         /** UpdateShardsetParams */
         UpdateShardsetParams: {
             /**
@@ -1939,6 +1965,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreprocessDatasetResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_dataset_column_datasets__dataset_id__columns__column_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+                column_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDatasetColumnParams"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetColumnPublic"];
                 };
             };
             /** @description Validation Error */

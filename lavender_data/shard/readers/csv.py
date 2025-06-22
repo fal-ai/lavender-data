@@ -16,27 +16,22 @@ class CsvReader(UntypedReader):
     typed_columns = False
 
     def resolve_type(self, value: Any, typestr: str) -> type:
-        if typestr == "int":
+        if typestr in ["int32", "int64"]:
             return int(value)
-        elif typestr == "float":
+        elif typestr in ["float", "double"]:
             return float(value)
-        elif typestr == "str":
+        elif typestr in ["string"]:
             return str(value)
-        elif (
-            typestr == "list"
-            or typestr == "tuple"
-            or typestr == "set"
-            or typestr == "dict"
-            or typestr == "bytes"
-            or typestr == "ndarray"  # stored in bytes, use serializer
-        ):
+        elif typestr in ["boolean"]:
+            return value.lower() in ["true", "t", "yes", "y", "1"]
+        elif typestr in ["list", "map", "binary"]:
             return ast.literal_eval(value)
         return value
 
     def read_columns(self) -> dict[str, str]:
         with open(self.filepath, "r") as f:
             reader = csv.DictReader(f)
-            return {name: "str" for name in reader.fieldnames}
+            return {name: "string" for name in reader.fieldnames}
 
     def read_samples(self) -> list[dict[str, Any]]:
         samples = []
