@@ -189,8 +189,11 @@ class BackgroundWorker:
         **kwargs,
     ):
         task_id = task_id or str(uuid.uuid4())
-        if with_status and get_task_status(task_id) is not None and abort_on_duplicate:
-            self.abort(task_id)
+        if with_status and get_task_status(task_id) is not None:
+            if abort_on_duplicate:
+                self.abort(task_id)
+            else:
+                return task_id
 
         abort_event = threading.Event()
         future = self._executor.submit(

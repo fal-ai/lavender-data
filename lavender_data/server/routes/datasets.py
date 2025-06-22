@@ -103,8 +103,13 @@ def create_dataset_preview(
     offset = params.offset
     limit = params.limit
     preview_id = dataset_id + ":" + str(params.offset) + ":" + str(params.limit)
+
+    if shared_memory.exists(f"preview:{preview_id}"):
+        return CreateDatasetPreviewResponse(preview_id=preview_id)
+
     background_worker.process_pool_submit(
         preview_dataset_task,
+        work_id=preview_id,
         preview_id=preview_id,
         dataset_id=dataset_id,
         offset=offset,

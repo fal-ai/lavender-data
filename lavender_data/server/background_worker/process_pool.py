@@ -264,12 +264,20 @@ class ProcessPool:
     def submit(
         self,
         func,
+        work_id: Optional[str] = None,
+        cancel_on_duplicate: bool = False,
         **kwargs,
     ):
         if not hasattr(func, "_task_name") or func._task_name not in _tasks:
             raise ValueError(f"Function {func.__name__} is not a pool task")
 
-        work_id = str(uuid.uuid4())
+        work_id = work_id or str(uuid.uuid4())
+        if work_id in self._tasks_completed:
+            if cancel_on_duplicate:
+                self.cancel(work_id)
+            else:
+                return work_id
+
         work_item = WorkItem(work_id=work_id, func=func._task_name, kwargs=kwargs)
 
         self._tasks_completed[work_item.work_id] = threading.Event()
