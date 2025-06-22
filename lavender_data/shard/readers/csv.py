@@ -22,7 +22,7 @@ class CsvReader(UntypedReader):
             return float(value)
         elif typestr in ["string"]:
             return str(value)
-        elif typestr in ["boolean"]:
+        elif typestr in ["bool", "boolean"]:
             return value.lower() in ["true", "t", "yes", "y", "1"]
         elif typestr in ["list", "map", "binary"]:
             return ast.literal_eval(value)

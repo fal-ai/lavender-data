@@ -27,7 +27,7 @@ const typeOptions: { value: string; label: string }[] = [
   { value: 'int32', label: 'int32' },
   { value: 'float', label: 'float' },
   { value: 'double', label: 'double' },
-  { value: 'boolean', label: 'boolean' },
+  { value: 'bool', label: 'bool' },
   { value: 'binary', label: 'binary' },
   { value: 'list', label: 'list' },
   { value: 'map', label: 'map' },

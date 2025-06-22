@@ -45,11 +45,12 @@ def _is_text_column(values: list[Any]) -> bool:
 
 
 def _is_categorical_column(values: list[Any]) -> bool:
-    if not _is_text_column(values):
-        return False
+    if _is_numeric_column(values):
+        # boolean
+        return len(set(values)) <= 2
 
     unique_values = set(values)
-    return len(unique_values) <= max(len(values) * 0.1, 1)
+    return len(unique_values) <= max(len(values) * 0.1, 2)
 
 
 def _get_categorical_statistics(values: list[Any]) -> CategoricalShardStatistics:
