@@ -7,7 +7,6 @@ from sqlalchemy.pool import StaticPool
 
 from lavender_data.logging import get_logger
 from lavender_data.server.settings import root_dir
-from .models import Dataset, Shardset, DatasetColumn, Iteration, Shard
 
 
 engine = None

@@ -13,7 +13,8 @@ from lavender_data.server.background_worker import (
     get_background_worker,
     pool_task,
 )
-from lavender_data.server.db import Shard, get_session
+from lavender_data.server.db.models import Shard
+from lavender_data.server.db import get_session
 from lavender_data.server.distributed import get_cluster
 from lavender_data.server.dataset.statistics import get_dataset_statistics
 from lavender_data.server.reader import get_reader_instance, ShardInfo
@@ -48,6 +49,10 @@ def inspect_shardset_location(
                 continue
             shard_locations.append(shard_location)
         total_shards = len(shard_locations)
+
+        if total_shards == 0:
+            yield None, shard_index, total_shards
+            return
 
         first_shard_location = os.path.join(shardset_location, shard_basenames[0])
         first_shard = inspect_shard(first_shard_location)
@@ -104,6 +109,9 @@ def sync_shardset_location(
             shardset_location,
             skip_locations=[] if overwrite else shardset_shard_locations,
         ):
+            if shard_count == 0:
+                return
+
             done_count += 1
             orphan_shard_infos.append((orphan_shard, shard_index))
             logger.debug(

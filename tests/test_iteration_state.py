@@ -74,8 +74,6 @@ class TestIterationState(unittest.TestCase):
                     id=f"test:ss-{uid}-1",
                     dataset_id=f"test:ds-{uid}",
                     location="test_location_1",
-                    shard_count=self.num_shards,
-                    total_samples=self.total_samples,
                     shards=[
                         Shard(
                             id=f"test:sd-{uid}-1",
