@@ -183,7 +183,7 @@ def get_dataset_statistics(
             _get_dataset_statistics_task,
             dataset_id=dataset_id,
             task_id=cache_key,
-            with_status=True,
+            with_status=False,
             abort_on_duplicate=False,
         )
         raise HTTPException(
