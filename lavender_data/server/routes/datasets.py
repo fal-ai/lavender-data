@@ -29,7 +29,6 @@ from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.background_worker import (
     TaskStatus,
     CurrentBackgroundWorker,
-    CurrentSharedMemory,
 )
 from lavender_data.server.dataset import (
     ColumnStatistics,
@@ -89,8 +88,8 @@ def create_dataset_preview(
     dataset_id: str,
     session: DbSession,
     params: CreateDatasetPreviewParams,
+    cache: CacheClient,
     background_worker: CurrentBackgroundWorker,
-    shared_memory: CurrentSharedMemory,
 ) -> CreateDatasetPreviewResponse:
     try:
         dataset = session.get_one(Dataset, dataset_id)
@@ -104,17 +103,16 @@ def create_dataset_preview(
     limit = params.limit
     preview_id = dataset_id + ":" + str(params.offset) + ":" + str(params.limit)
 
-    if shared_memory.exists(f"preview:{preview_id}"):
+    if cache.exists(f"preview:{preview_id}"):
         return CreateDatasetPreviewResponse(preview_id=preview_id)
 
-    background_worker.process_pool_submit(
+    background_worker.thread_pool_submit(
         preview_dataset_task,
-        work_id=preview_id,
+        task_id=preview_id,
         preview_id=preview_id,
         dataset_id=dataset_id,
         offset=offset,
         limit=limit,
-        shared_memory=shared_memory,
     )
 
     return CreateDatasetPreviewResponse(preview_id=preview_id)
@@ -131,7 +129,7 @@ class GetDatasetPreviewResponse(BaseModel):
 def get_dataset_preview(
     dataset_id: str,
     preview_id: str,
-    shared_memory: CurrentSharedMemory,
+    cache: CacheClient,
     session: DbSession,
 ) -> GetDatasetPreviewResponse:
     try:
@@ -139,16 +137,16 @@ def get_dataset_preview(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    if shared_memory.exists(f"preview:{preview_id}:error"):
+    if cache.exists(f"preview:{preview_id}:error"):
         raise HTTPException(
             status_code=500,
-            detail=shared_memory.get(f"preview:{preview_id}:error").decode(),
+            detail=cache.get(f"preview:{preview_id}:error").decode(),
         )
 
-    if not shared_memory.exists(f"preview:{preview_id}"):
+    if not cache.exists(f"preview:{preview_id}"):
         raise HTTPException(status_code=400, detail="Preview not found")
 
-    samples = deserialize_list(shared_memory.get(f"preview:{preview_id}"))
+    samples = deserialize_list(cache.get(f"preview:{preview_id}"))
 
     return GetDatasetPreviewResponse(
         dataset=dataset,

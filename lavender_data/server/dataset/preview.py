@@ -21,7 +21,6 @@ from lavender_data.server.reader import (
 )
 from lavender_data.server.shardset import get_main_shardset, span
 from lavender_data.storage import get_url
-from lavender_data.server.background_worker import pool_task, SharedMemory
 from lavender_data.serialize import serialize_list
 from lavender_data.logging import get_logger
 
@@ -188,24 +187,23 @@ def preview_dataset(
     return samples
 
 
-@pool_task()
 def preview_dataset_task(
     preview_id: str,
     dataset_id: str,
     offset: int,
     limit: int,
-    shared_memory: SharedMemory,
 ) -> list[dict[str, Any]]:
+    cache = next(get_cache())
     logger = get_logger(__name__)
     logger.info(f"Previewing dataset {dataset_id} {offset}-{offset+limit-1}")
     start_time = time.time()
     try:
         samples = preview_dataset(dataset_id, offset, limit)
         # cache for 3 minutes
-        shared_memory.set(f"preview:{preview_id}", serialize_list(samples), ex=3 * 60)
+        cache.set(f"preview:{preview_id}", serialize_list(samples), ex=3 * 60)
     except Exception as e:
         logger.exception(f"Failed to preview dataset {dataset_id}: {e}")
-        shared_memory.set(f"preview:{preview_id}:error", str(e), ex=3 * 60)
+        cache.set(f"preview:{preview_id}:error", str(e), ex=3 * 60)
         raise e
     end_time = time.time()
     logger.info(
