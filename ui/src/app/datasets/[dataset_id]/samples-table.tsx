@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeClosed } from 'lucide-react';
+import { Eye, EyeClosed, Info } from 'lucide-react';
 import { MultiSelect } from '@/components/multiselect';
 import mime from 'mime-types';
 import { Switch } from '@/components/ui/switch';
@@ -343,6 +343,11 @@ export default function SamplesTable({
           <Eye className="w-5 h-5" />
         </div>
       </div>
+      {!statistics && (
+        <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground mb-4">
+          <Info className="w-4 h-4" /> Dataset statistics are not ready yet.
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow>

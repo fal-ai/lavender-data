@@ -185,10 +185,11 @@ class BackgroundWorker:
         task_id: Optional[str] = None,
         task_name: Optional[str] = None,
         with_status: bool = False,
+        abort_on_duplicate: bool = False,
         **kwargs,
     ):
         task_id = task_id or str(uuid.uuid4())
-        if with_status and get_task_status(task_id) is not None:
+        if with_status and get_task_status(task_id) is not None and abort_on_duplicate:
             self.abort(task_id)
 
         abort_event = threading.Event()

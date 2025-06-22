@@ -9,7 +9,7 @@ from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 
 from lavender_data.logging import get_logger
-from lavender_data.server.db import DbSession
+from lavender_data.server.db import DbSession, get_session
 from lavender_data.server.db.models import (
     Dataset,
     Shardset,
@@ -178,20 +178,36 @@ class GetDatasetStatisticsResponse(BaseModel):
     statistics: dict[str, ColumnStatistics]
 
 
+def _get_dataset_statistics_task(dataset_id: str) -> dict[str, ColumnStatistics]:
+    session = next(get_session())
+    cache = next(get_cache())
+    dataset = session.get_one(Dataset, dataset_id)
+    statistics = _get_dataset_statistics(dataset)
+    cache.set(f"dataset-statistics:{dataset_id}", json.dumps(statistics))
+    return statistics
+
+
 @router.get("/{dataset_id}/statistics")
 def get_dataset_statistics(
     dataset_id: str,
-    session: DbSession,
     cache: CacheClient,
+    background_worker: CurrentBackgroundWorker,
 ) -> GetDatasetStatisticsResponse:
-    dataset = session.get_one(Dataset, dataset_id)
-
     cache_key = f"dataset-statistics:{dataset_id}"
     if cache.exists(cache_key):
         statistics = json.loads(cache.get(cache_key))
     else:
-        statistics = _get_dataset_statistics(dataset)
-        cache.set(cache_key, json.dumps(statistics))
+        background_worker.thread_pool_submit(
+            _get_dataset_statistics_task,
+            dataset_id=dataset_id,
+            task_id=cache_key,
+            with_status=True,
+            abort_on_duplicate=False,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Dataset statistics are being computed. Please try again later.",
+        )
 
     return GetDatasetStatisticsResponse(statistics=statistics)
 
