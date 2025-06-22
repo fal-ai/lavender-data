@@ -138,6 +138,7 @@ def _process_next_samples(params: ProcessNextSamplesParams) -> dict:
     return batch
 
 
+@pool_task()
 def process_next_samples(
     params: ProcessNextSamplesParams,
     max_retry_count: int,
@@ -161,7 +162,7 @@ def process_next_samples(
 
 
 @pool_task()
-def process_next_samples_task(
+def process_next_samples_and_store(
     params: ProcessNextSamplesParams,
     max_retry_count: int,
     cache_key: str,

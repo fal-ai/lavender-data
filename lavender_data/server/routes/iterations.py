@@ -37,7 +37,7 @@ from lavender_data.server.iteration import (
     Progress,
     ProcessNextSamplesException,
     process_next_samples,
-    process_next_samples_task,
+    process_next_samples_and_store,
     set_cluster_sync,
     get_iteration_hash,
     set_iteration_hash,
@@ -365,7 +365,7 @@ def get_next(
     if shared_memory.exists(cache_key):
         shared_memory.expire(cache_key, cache_ttl)
     else:
-        process_next_samples_task(
+        process_next_samples_and_store(
             params=params,
             max_retry_count=max_retry_count,
             cache_key=cache_key,
@@ -410,8 +410,8 @@ def submit_next(
     if shared_memory.exists(cache_key):
         shared_memory.expire(cache_key, cache_ttl)
     else:
-        background_worker.process_pool().submit(
-            process_next_samples_task,
+        background_worker.process_pool_submit(
+            process_next_samples_and_store,
             params=params,
             max_retry_count=max_retry_count,
             cache_key=cache_key,
