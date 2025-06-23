@@ -3,7 +3,6 @@ from typing import Annotated, Optional
 
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
-from sqlalchemy.pool import SingletonThreadPool
 
 from lavender_data.logging import get_logger
 from lavender_data.server.settings import root_dir
@@ -29,7 +28,8 @@ def setup_db(db_url: Optional[str] = None):
         get_logger(__name__).debug(f"LAVENDER_DATA_DB_URL is not set, using {db_url}")
 
     if db_url.startswith("sqlite"):
-        kwargs["poolclass"] = SingletonThreadPool
+        connect_args["check_same_thread"] = False
+        # kwargs["poolclass"] = SingletonThreadPool
 
     if db_url.startswith("postgres"):
         try:
