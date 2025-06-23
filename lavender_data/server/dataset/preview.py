@@ -170,28 +170,33 @@ def preview_dataset(
     cache = next(get_cache())
     reader = get_reader_instance()
 
-    with db_manual_session() as session:
-        dataset: Dataset = session.exec(
-            select(Dataset)
-            .where(Dataset.id == dataset_id)
-            .options(
-                selectinload(Dataset.shardsets).options(
-                    selectinload(Shardset.columns),
-                    selectinload(Shardset.shards).options(
-                        load_only(
-                            Shard.id,
-                            Shard.shardset_id,
-                            Shard.location,
-                            Shard.filesize,
-                            Shard.samples,
-                            Shard.index,
-                            Shard.format,
-                            Shard.created_at,
-                        )
-                    ),
+    cached_dataset = cache.hget(f"preview:{dataset_id}", "dataset")
+    if cached_dataset is None:
+        with db_manual_session() as session:
+            dataset: Dataset = session.exec(
+                select(Dataset)
+                .where(Dataset.id == dataset_id)
+                .options(
+                    selectinload(Dataset.shardsets).options(
+                        selectinload(Shardset.columns),
+                        selectinload(Shardset.shards).options(
+                            load_only(
+                                Shard.id,
+                                Shard.shardset_id,
+                                Shard.location,
+                                Shard.filesize,
+                                Shard.samples,
+                                Shard.index,
+                                Shard.format,
+                                Shard.created_at,
+                            )
+                        ),
+                    )
                 )
-            )
-        ).one()
+            ).one()
+        cache.hset(f"preview:{dataset_id}", "dataset", dataset.model_dump_json())
+    else:
+        dataset = Dataset.model_validate_json(cached_dataset)
 
     if dataset is None:
         raise ValueError(f"Dataset {dataset_id} not found")
