@@ -163,7 +163,8 @@ def get_shardset_statistics(shardset_id: str) -> dict[str, ColumnStatistics]:
 
     for shard in shardset.shards:
         for column in shardset.columns:
-            column_statistics[column.name].append(shard.statistics[column.name])
+            if shard.statistics is not None:
+                column_statistics[column.name].append(shard.statistics[column.name])
 
     aggregated_statistics = {}
     for column_name, statistics in column_statistics.items():
