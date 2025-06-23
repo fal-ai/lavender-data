@@ -43,15 +43,23 @@ ColumnStatistics = Union[NumericColumnStatistics, CategoricalColumnStatistics]
 
 
 def _merge_histograms(hist: list[float], bin_edges: list[float]) -> Histogram:
-    _map = {}
-    for v, bin_edge in zip(hist, bin_edges):
-        _map[bin_edge] = _map.get(bin_edge, 0) + v
-
     _restored_values = []
-    _bin_edges = sorted(_map.keys())
-    for _value in _bin_edges:
-        h = _map[_value]
-        _restored_values.extend([_value] * int(h))
+    for i in range(len(hist)):
+        _min = bin_edges[i]
+        _max = bin_edges[i + 1]
+        _count = int(hist[i])
+        if _count == 0:
+            continue
+        elif _count == 1:
+            if i == len(hist) - 1:
+                _restored_values.append(_max)
+            else:
+                _restored_values.append(_min)
+        else:
+            _restored_values.append(_min)
+            _gap = (_max - _min) / (_count - 1)
+            _restored_values.extend([_min + j * _gap for j in range(1, _count - 1)])
+            _restored_values.append(_max)
 
     return get_outlier_aware_hist(_restored_values)
 

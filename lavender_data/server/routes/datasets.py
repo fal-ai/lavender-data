@@ -138,9 +138,11 @@ def get_dataset_preview(
         raise HTTPException(status_code=404, detail="Dataset not found")
 
     if cache.exists(f"preview:{preview_id}:error"):
+        error = cache.get(f"preview:{preview_id}:error").decode()
+        cache.delete(f"preview:{preview_id}:error")
         raise HTTPException(
             status_code=500,
-            detail=cache.get(f"preview:{preview_id}:error").decode(),
+            detail=error,
         )
 
     if not cache.exists(f"preview:{preview_id}"):
