@@ -42,28 +42,28 @@ function NumericStatisticsCell({
   const hMax = Math.max(...histogram.hist);
   const random = Math.random();
 
-  let has_lower_outlier = false;
-  let has_upper_outlier = false;
+  let hasLowerOutlier = false;
+  let hasUpperOutlier = false;
 
   if (histogram.bin_edges.length > 3) {
     const gap = histogram.bin_edges[2] - histogram.bin_edges[1];
-    if (histogram.bin_edges[1] - histogram.bin_edges[0] > gap) {
-      has_lower_outlier = true;
+    if (histogram.bin_edges[1] - histogram.bin_edges[0] > gap * 1.5) {
+      hasLowerOutlier = true;
     }
     if (
       histogram.bin_edges[histogram.bin_edges.length - 1] -
         histogram.bin_edges[histogram.bin_edges.length - 2] >
-      gap
+      gap * 1.5
     ) {
-      has_upper_outlier = true;
+      hasUpperOutlier = true;
     }
   }
 
   const isOutlier = (index: number) => {
-    if (has_lower_outlier && index === 0) {
+    if (hasLowerOutlier && index === 0) {
       return true;
     }
-    if (has_upper_outlier && index === histogram.hist.length - 1) {
+    if (hasUpperOutlier && index === histogram.hist.length - 1) {
       return true;
     }
     return false;
@@ -113,10 +113,32 @@ function NumericStatisticsCell({
       </svg>
       <div className="flex flex-col w-full text-xs font-mono font-light text-muted-foreground">
         <div className={`flex justify-between w-full`}>
-          <div>{formatNumber(min)}</div>
-          <div>{formatNumber(max)}</div>
+          <div>
+            {hasLowerOutlier
+              ? formatNumber(histogram.bin_edges[1])
+              : formatNumber(min)}
+          </div>
+          <div>
+            {hasUpperOutlier
+              ? formatNumber(
+                  histogram.bin_edges[histogram.bin_edges.length - 2]
+                )
+              : formatNumber(max)}
+          </div>
         </div>
         <div className="w-full h-[1px] bg-gray-200 dark:bg-gray-500/20"></div>
+        <div className={`flex justify-between w-full`}>
+          <div>Min</div>
+          <div>{formatNumber(min)}</div>
+        </div>
+        <div className={`flex justify-between w-full`}>
+          <div>Max</div>
+          <div>{formatNumber(max)}</div>
+        </div>
+        <div className={`flex justify-between w-full`}>
+          <div>Median</div>
+          <div>{formatNumber(median)}</div>
+        </div>
         <div className={`flex justify-between w-full`}>
           <div>Mean</div>
           <div>{formatNumber(mean)}</div>
@@ -124,10 +146,6 @@ function NumericStatisticsCell({
         <div className={`flex justify-between w-full`}>
           <div>Std</div>
           <div>{formatNumber(std)}</div>
-        </div>
-        <div className={`flex justify-between w-full`}>
-          <div>Median</div>
-          <div>{formatNumber(median)}</div>
         </div>
       </div>
     </div>
