@@ -12,7 +12,15 @@ import json
 
 from lavender_data.server.settings import files_dir
 from lavender_data.server.db import db_manual_session
-from lavender_data.server.db.models import Dataset, Shard, Shardset
+from lavender_data.server.db.models import (
+    Dataset,
+    Shard,
+    Shardset,
+    DatasetPublic,
+    ShardPublic,
+    ShardsetPublic,
+    DatasetColumnPublic,
+)
 from lavender_data.server.cache import CacheClient, get_cache
 from lavender_data.server.reader import (
     get_reader_instance,
@@ -32,8 +40,17 @@ except ImportError:
     torch = None
 
 
+class _Shardset(ShardsetPublic):
+    shards: list[ShardPublic]
+    columns: list[DatasetColumnPublic]
+
+
+class _Dataset(DatasetPublic):
+    shardsets: list[_Shardset]
+
+
 def _read_dataset(
-    dataset: Dataset,
+    dataset: _Dataset,
     index: int,
     reader: ReaderInstance,
     cache: CacheClient,
@@ -173,7 +190,7 @@ def preview_dataset(
     cached_dataset = cache.hget(f"preview:{dataset_id}", "dataset")
     if cached_dataset is None:
         with db_manual_session() as session:
-            dataset: Dataset = session.exec(
+            dataset = session.exec(
                 select(Dataset)
                 .where(Dataset.id == dataset_id)
                 .options(
@@ -194,12 +211,24 @@ def preview_dataset(
                     )
                 )
             ).one()
-        cache.hset(f"preview:{dataset_id}", "dataset", dataset.model_dump_json())
-    else:
-        dataset = Dataset.model_validate_json(cached_dataset)
 
-    if dataset is None:
-        raise ValueError(f"Dataset {dataset_id} not found")
+        if dataset is None:
+            raise ValueError(f"Dataset {dataset_id} not found")
+
+        for ss in dataset.shardsets:
+            for s in ss.shards:
+                s.statistics = None
+
+        dataset = _Dataset.model_validate(dataset)
+        cache.hset(f"preview:{dataset_id}", "dataset", dataset.model_dump_json())
+        for shardset in dataset.shardsets:
+            cache.hset(
+                f"preview:{dataset_id}",
+                f"dataset.shardsets.{shardset.id}",
+                shardset.model_dump_json(),
+            )
+    else:
+        dataset = _Dataset.model_validate_json(cached_dataset)
 
     samples = []
     for index in range(offset, offset + limit):
