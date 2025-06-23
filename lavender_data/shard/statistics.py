@@ -89,14 +89,19 @@ def get_outlier_aware_hist(values: list[Union[int, float]]) -> Histogram:
 
     num_unique_values = len(set([int(v * 100) for v in values if v != np.nan]))
     max_bins = min(num_unique_values, 10)
-
     if n_lower_outliers > 0:
         max_bins -= 1
     if n_upper_outliers > 0:
         max_bins -= 1
+    max_bins = max(max_bins, 1)
+
+    if max_bins == 1:
+        bins = [min_value, max_value]
+    else:
+        bins = max_bins
 
     _hist, _bin_edges = np.histogram(
-        values, range=(lower_bound, upper_bound), bins=max(max_bins, 1)
+        values, range=(lower_bound, upper_bound), bins=bins
     )
     hist: list[float] = _hist.tolist()
     bin_edges: list[float] = _bin_edges.tolist()
