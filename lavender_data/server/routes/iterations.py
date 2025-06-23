@@ -257,7 +257,7 @@ def create_iteration(
         else:
             session.add(iteration)
             session.commit()
-            iteration = session.get_one(Iteration, iteration.id)
+            session.refresh(iteration)
 
         if cluster:
             iteration_shardset_links = [
