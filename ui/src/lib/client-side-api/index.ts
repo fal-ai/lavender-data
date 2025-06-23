@@ -107,3 +107,21 @@ export const getIterationNextPreview = async (iterationId: string) => {
   }
   return response.json();
 };
+
+export type ShardStatistics = components['schemas']['ShardStatisticsPublic'];
+
+export const getShardStatistics = async (
+  datasetId: string,
+  shardsetId: string,
+  shardId: string
+) => {
+  const response = await fetch(
+    `/api/datasets/${datasetId}/shardsets/${shardsetId}/shards/${shardId}/statistics`
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch shard statistics: ${await getError(response)}`
+    );
+  }
+  return response.json();
+};

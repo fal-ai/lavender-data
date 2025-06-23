@@ -13,7 +13,7 @@ from lavender_data.server.background_worker import (
     get_background_worker,
     pool_task,
 )
-from lavender_data.server.db.models import Shard, Shardset
+from lavender_data.server.db.models import Shard, Shardset, ShardStatistics
 from lavender_data.server.db import db_manual_session
 from lavender_data.server.distributed import get_cluster
 from lavender_data.server.dataset.statistics import get_dataset_statistics
@@ -141,7 +141,6 @@ def sync_shardset_location(
                             filesize=orphan_shard.filesize,
                             samples=orphan_shard.samples,
                             format=orphan_shard.format,
-                            statistics=orphan_shard.statistics,
                         )
                     )
                     if result.rowcount > 0:
@@ -156,9 +155,40 @@ def sync_shardset_location(
                             filesize=orphan_shard.filesize,
                             samples=orphan_shard.samples,
                             format=orphan_shard.format,
-                            statistics=orphan_shard.statistics,
                         )
                     )
+
+                shard = session.exec(
+                    select(Shard).where(
+                        Shard.shardset_id == shardset_id,
+                        Shard.index == shard_index,
+                    )
+                ).one_or_none()
+
+                if shard is None:
+                    logger.warning(
+                        f"Shard {shard_index} not created in shardset {shardset_id}"
+                    )
+                    continue
+
+                updated = False
+                if overwrite:
+                    result = session.exec(
+                        update(ShardStatistics)
+                        .where(ShardStatistics.shard_id == shard.id)
+                        .values(data=orphan_shard.statistics)
+                    )
+                    if result.rowcount > 0:
+                        updated = True
+
+                if not updated:
+                    session.exec(
+                        insert(ShardStatistics).values(
+                            shard_id=shard.id,
+                            data=orphan_shard.statistics,
+                        )
+                    )
+
                 session.commit()
 
             reader.clear_cache(

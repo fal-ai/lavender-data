@@ -3,7 +3,7 @@ import time
 from typing import Any, Union
 
 from sqlmodel import select
-from sqlalchemy.orm import selectinload, load_only
+from sqlalchemy.orm import selectinload
 
 import filetype
 import hashlib
@@ -196,28 +196,13 @@ def preview_dataset(
                 .options(
                     selectinload(Dataset.shardsets).options(
                         selectinload(Shardset.columns),
-                        selectinload(Shardset.shards).options(
-                            load_only(
-                                Shard.id,
-                                Shard.shardset_id,
-                                Shard.location,
-                                Shard.filesize,
-                                Shard.samples,
-                                Shard.index,
-                                Shard.format,
-                                Shard.created_at,
-                            )
-                        ),
+                        selectinload(Shardset.shards),
                     )
                 )
             ).one()
 
         if dataset is None:
             raise ValueError(f"Dataset {dataset_id} not found")
-
-        for ss in dataset.shardsets:
-            for s in ss.shards:
-                s.statistics = None
 
         dataset = _Dataset.model_validate(dataset)
         cache.hset(f"preview:{dataset_id}", "dataset", dataset.model_dump_json())

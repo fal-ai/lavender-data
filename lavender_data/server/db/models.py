@@ -16,7 +16,7 @@ from sqlalchemy import Column, DateTime, func, select
 from sqlalchemy.exc import NoResultFound
 from numpy import base_repr
 
-from lavender_data.shard import ShardStatistics
+from lavender_data.shard import ShardStatistics as ShardStatisticsType
 from lavender_data.server.db import db_manual_session
 
 
@@ -115,6 +115,19 @@ class ShardsetPublic(ShardsetBase):
     total_samples: int
 
 
+class ShardStatisticsBase(SQLModel):
+    shard_id: str = Field(primary_key=True, foreign_key="shard.id")
+    data: ShardStatisticsType = Field(sa_type=JSON)
+
+
+class ShardStatistics(ShardStatisticsBase, table=True):
+    shard: "Shard" = Relationship(back_populates="statistics")
+
+
+class ShardStatisticsPublic(ShardStatisticsBase):
+    pass
+
+
 class ShardBase(SQLModel):
     id: str = Field(primary_key=True, default_factory=generate_uid("sd"))
     shardset_id: str = Field(foreign_key="shardset.id")
@@ -124,7 +137,6 @@ class ShardBase(SQLModel):
     index: int = Field(default=0)
     format: str = Field()
     created_at: datetime = CreatedAtField()
-    statistics: Optional[ShardStatistics] = Field(default=None, sa_type=JSON)
 
     __table_args__ = (
         UniqueConstraint("shardset_id", "index", name="unique_shardset_index"),
@@ -133,6 +145,7 @@ class ShardBase(SQLModel):
 
 class Shard(ShardBase, table=True):
     shardset: "Shardset" = Relationship(back_populates="shards")
+    statistics: "ShardStatistics" = Relationship(back_populates="shard")
 
 
 class ShardPublic(ShardBase):

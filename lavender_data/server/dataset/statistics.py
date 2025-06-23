@@ -10,7 +10,7 @@ from lavender_data.shard.statistics import (
     get_outlier_aware_hist,
 )
 from lavender_data.server.db import db_manual_session
-from lavender_data.server.db.models import DatasetColumn, Dataset, Shardset
+from lavender_data.server.db.models import Shard, Shardset
 from lavender_data.logging import get_logger
 
 
@@ -153,7 +153,7 @@ def get_shardset_statistics(shardset_id: str) -> dict[str, ColumnStatistics]:
             .where(Shardset.id == shardset_id)
             .options(
                 selectinload(Shardset.columns),
-                selectinload(Shardset.shards),
+                selectinload(Shardset.shards).options(selectinload(Shard.statistics)),
             )
         ).one()
 
@@ -164,7 +164,9 @@ def get_shardset_statistics(shardset_id: str) -> dict[str, ColumnStatistics]:
     for shard in shardset.shards:
         for column in shardset.columns:
             if shard.statistics is not None:
-                column_statistics[column.name].append(shard.statistics[column.name])
+                column_statistics[column.name].append(
+                    shard.statistics.data[column.name]
+                )
 
     aggregated_statistics = {}
     for column_name, statistics in column_statistics.items():

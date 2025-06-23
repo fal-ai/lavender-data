@@ -1,20 +1,20 @@
 import os
 import json
 from typing import Optional, Any
-import time
 
 from fastapi import HTTPException, APIRouter, Depends
 from sqlmodel import select, delete, update, func
-from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 
 from lavender_data.logging import get_logger
-from lavender_data.server.db import DbSession, db_manual_session
+from lavender_data.server.db import DbSession
 from lavender_data.server.db.models import (
     Dataset,
     Shardset,
     Shard,
+    ShardStatistics,
+    ShardStatisticsPublic,
     DatasetColumn,
     IterationShardsetLink,
     DatasetPublic,
@@ -552,6 +552,23 @@ def get_shardset_shards(
     ).all()
 
     return GetShardsetShardsResponse(shards=shards, total=total)
+
+
+@router.get("/{dataset_id}/shardsets/{shardset_id}/shards/{shard_id}/statistics")
+def get_shard_statistics(
+    dataset_id: str,
+    shardset_id: str,
+    shard_id: str,
+    session: DbSession,
+) -> ShardStatisticsPublic:
+    try:
+        shard_statistics = session.exec(
+            select(ShardStatistics).where(ShardStatistics.shard_id == shard_id)
+        ).one()
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Shard statistics not found")
+
+    return shard_statistics
 
 
 class SyncShardsetParams(BaseModel):
