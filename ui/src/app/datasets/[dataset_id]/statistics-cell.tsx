@@ -41,6 +41,34 @@ function NumericStatisticsCell({
   const count = histogram.hist.reduce((acc, h) => acc + h, 0);
   const hMax = Math.max(...histogram.hist);
   const random = Math.random();
+
+  let has_lower_outlier = false;
+  let has_upper_outlier = false;
+
+  if (histogram.bin_edges.length > 3) {
+    const gap = histogram.bin_edges[2] - histogram.bin_edges[1];
+    if (histogram.bin_edges[1] - histogram.bin_edges[0] > gap) {
+      has_lower_outlier = true;
+    }
+    if (
+      histogram.bin_edges[histogram.bin_edges.length - 1] -
+        histogram.bin_edges[histogram.bin_edges.length - 2] >
+      gap
+    ) {
+      has_upper_outlier = true;
+    }
+  }
+
+  const isOutlier = (index: number) => {
+    if (has_lower_outlier && index === 0) {
+      return true;
+    }
+    if (has_upper_outlier && index === histogram.hist.length - 1) {
+      return true;
+    }
+    return false;
+  };
+
   return (
     <div
       className="pt-1 flex flex-col items-start justify-start h-full"
@@ -57,7 +85,7 @@ function NumericStatisticsCell({
                 y={svgHeight - (h / hMax) * svgHeight}
                 width={width / histogram.hist.length - 2}
                 height={(h / hMax) * svgHeight}
-                fillOpacity="1"
+                fillOpacity={isOutlier(i) ? 0.3 : 1}
               ></rect>
               <TooltipTrigger asChild>
                 <rect
@@ -70,6 +98,7 @@ function NumericStatisticsCell({
                 ></rect>
               </TooltipTrigger>
               <TooltipContent className="w-auto text-wrap break-all font-mono">
+                <div>{isOutlier(i) ? '[Outlier]' : ''}</div>
                 <div>
                   {formatNumber(histogram.bin_edges[i])} -{' '}
                   {formatNumber(histogram.bin_edges[i + 1])}
