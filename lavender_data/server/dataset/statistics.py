@@ -5,6 +5,7 @@ import numpy as np
 from lavender_data.shard.statistics import (
     CategoricalShardStatistics,
     NumericShardStatistics,
+    get_outlier_aware_hist,
 )
 from lavender_data.server.db.models import DatasetColumn, Dataset
 from lavender_data.logging import get_logger
@@ -41,9 +42,7 @@ class CategoricalColumnStatistics(TypedDict):
 ColumnStatistics = Union[NumericColumnStatistics, CategoricalColumnStatistics]
 
 
-def _merge_histograms(
-    hist: list[float], bin_edges: list[float]
-) -> tuple[list[float], list[float]]:
+def _merge_histograms(hist: list[float], bin_edges: list[float]) -> Histogram:
     _map = {}
     for v, bin_edge in zip(hist, bin_edges):
         _map[bin_edge] = _map.get(bin_edge, 0) + v
@@ -54,11 +53,7 @@ def _merge_histograms(
         h = _map[_value]
         _restored_values.extend([_value] * int(h))
 
-    num_unique_values = len(
-        set([int(v * 100) for v in _restored_values if v is not None])
-    )
-    _hist, _bin_edges = np.histogram(_restored_values, bins=min(num_unique_values, 10))
-    return _hist.tolist(), _bin_edges.tolist()
+    return get_outlier_aware_hist(_restored_values)
 
 
 def aggregate_categorical_statistics(
@@ -121,11 +116,9 @@ def aggregate_numeric_statistics(
             _median = (_all_bin_edges[i] + _all_bin_edges[i + 1]) / 2
             break
 
-    _hist, _bin_edges = _merge_histograms(_all_hist, _all_bin_edges)
-
     return NumericColumnStatistics(
         type="numeric",
-        histogram=Histogram(hist=_hist, bin_edges=_bin_edges),
+        histogram=_merge_histograms(_all_hist, _all_bin_edges),
         nan_count=_nan_count,
         max=_max,
         min=_min,

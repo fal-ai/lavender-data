@@ -592,6 +592,7 @@ def sync_shardset(
         shardset_id=shardset.id,
         shardset_location=shardset.location,
         shardset_shard_locations=[s.location for s in shardset.shards],
+        shardset_columns={c.name: c.type for c in shardset.columns},
         overwrite=params.overwrite,
         task_id=task_id,
         with_status=True,

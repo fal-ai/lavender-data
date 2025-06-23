@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Generator
+from typing import Generator, Optional
 
 from sqlmodel import update, insert, select
 
@@ -23,14 +23,18 @@ from lavender_data.server.cache import get_cache
 
 @pool_task()
 def inspect_shard_task(
-    shard_location: str, shard_index: int, statistics_types: dict[str, str]
+    shard_location: str,
+    shard_index: int,
+    statistics_types: dict[str, str],
+    known_columns: Optional[dict[str, str]] = None,
 ):
-    return inspect_shard(shard_location, statistics_types), shard_index
+    return inspect_shard(shard_location, statistics_types, known_columns), shard_index
 
 
 def inspect_shardset_location(
     shardset_location: str,
     skip_locations: list[str] = [],
+    shardset_columns: Optional[dict[str, str]] = None,
 ) -> Generator[tuple[OrphanShardInfo, int, int], None, None]:
     logger = get_logger(__name__)
     pool = get_background_worker().process_pool()
@@ -55,7 +59,10 @@ def inspect_shardset_location(
             return
 
         first_shard_location = os.path.join(shardset_location, shard_basenames[0])
-        first_shard = inspect_shard(first_shard_location)
+        first_shard = inspect_shard(
+            first_shard_location,
+            known_columns=shardset_columns,
+        )
         statistics_types = {
             column_name: s["type"] for column_name, s in first_shard.statistics.items()
         }
@@ -72,6 +79,7 @@ def inspect_shardset_location(
                     shard_location=shard_location,
                     shard_index=shard_index,
                     statistics_types=statistics_types,
+                    known_columns=shardset_columns,
                 )
             )
             shard_index += 1
@@ -93,6 +101,7 @@ def sync_shardset_location(
     shardset_id: str,
     shardset_location: str,
     shardset_shard_locations: list[str],
+    shardset_columns: dict[str, str],
     overwrite: bool = False,
 ) -> Generator[TaskStatus, None, None]:
     # TODO handle when some shards are deleted
@@ -103,11 +112,13 @@ def sync_shardset_location(
 
         yield TaskStatus(status="list", current=0, total=0)
 
+        shard_count = 0
         done_count = 0
         orphan_shard_infos: list[tuple[OrphanShardInfo, int]] = []
         for orphan_shard, shard_index, shard_count in inspect_shardset_location(
             shardset_location,
             skip_locations=[] if overwrite else shardset_shard_locations,
+            shardset_columns=None if len(shardset_columns) == 0 else shardset_columns,
         ):
             if shard_count == 0:
                 return

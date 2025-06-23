@@ -96,7 +96,11 @@ class Reader(ABC):
         self.uid_column_name = uid_column_name
         self.uid_column_type = uid_column_type
 
-        if self.columns is not None and self.uid_column_name not in self.columns:
+        if (
+            self.columns is not None
+            and self.uid_column_name is not None
+            and self.uid_column_name not in self.columns
+        ):
             self.columns[self.uid_column_name] = self.uid_column_type
 
         self.loaded: bool = False

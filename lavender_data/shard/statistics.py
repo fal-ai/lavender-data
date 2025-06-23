@@ -45,12 +45,13 @@ def _is_text_column(values: list[Any]) -> bool:
 
 
 def _is_categorical_column(values: list[Any]) -> bool:
+    unique_values = set(values)
+
     if _is_numeric_column(values):
         # boolean
         return len(set(values)) <= 2
 
-    unique_values = set(values)
-    return len(unique_values) <= max(len(values) * 0.1, 2)
+    return len(unique_values) <= max(min(len(values) * 0.1, 99), 2)
 
 
 def _get_categorical_statistics(values: list[Any]) -> CategoricalShardStatistics:
@@ -60,7 +61,7 @@ def _get_categorical_statistics(values: list[Any]) -> CategoricalShardStatistics
         if value is None or value == "" or value == b"":
             nan_count += 1
             continue
-        frequencies[value] = frequencies.get(value, 0) + 1
+        frequencies[str(value)] = frequencies.get(str(value), 0) + 1
 
     return CategoricalShardStatistics(
         type="categorical",
@@ -70,10 +71,44 @@ def _get_categorical_statistics(values: list[Any]) -> CategoricalShardStatistics
     )
 
 
-def _get_histogram(values: list[Union[int, float]]) -> Histogram:
-    num_unique_values = len(set([int(v * 100) for v in values if v is not None]))
-    hist, bin_edges = np.histogram(values, bins=min(num_unique_values, 10))
-    return Histogram(hist=hist.tolist(), bin_edges=bin_edges.tolist())
+def get_outlier_aware_hist(values: list[Union[int, float]]) -> Histogram:
+    np_values = np.array(values)
+    median = np.median(values)
+    diff = np.abs(values - median)
+    mad = np.median(diff)
+    const = 3.5 * mad / 0.6745
+    min_value = np_values.min().item()
+    max_value = np_values.max().item()
+    lower_bound, upper_bound = (
+        max(median - const, min_value),
+        min(median + const, max_value),
+    )
+
+    n_lower_outliers = (np_values < lower_bound).sum().item()
+    n_upper_outliers = (np_values > upper_bound).sum().item()
+
+    num_unique_values = len(set([int(v * 100) for v in values if v != np.nan]))
+    max_bins = min(num_unique_values, 10)
+
+    if n_lower_outliers > 0:
+        max_bins -= 1
+    if n_upper_outliers > 0:
+        max_bins -= 1
+
+    _hist, _bin_edges = np.histogram(
+        values, range=(lower_bound, upper_bound), bins=max(max_bins, 1)
+    )
+    hist: list[float] = _hist.tolist()
+    bin_edges: list[float] = _bin_edges.tolist()
+
+    if n_lower_outliers > 0:
+        hist.insert(0, n_lower_outliers)
+        bin_edges.insert(0, min_value)
+    if n_upper_outliers > 0:
+        hist.append(n_upper_outliers)
+        bin_edges.append(max_value)
+
+    return Histogram(hist=hist, bin_edges=bin_edges)
 
 
 def _get_numeric_statistics(values: list[Any]) -> NumericShardStatistics:
@@ -118,7 +153,7 @@ def _get_numeric_statistics(values: list[Any]) -> NumericShardStatistics:
 
     return NumericShardStatistics(
         type="numeric",
-        histogram=_get_histogram(numeric_values),
+        histogram=get_outlier_aware_hist(numeric_values),
         nan_count=_nan_count,
         count=len(numeric_values),
         max=_max,

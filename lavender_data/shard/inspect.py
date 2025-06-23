@@ -20,6 +20,7 @@ class OrphanShardInfo(BaseModel):
 def inspect_shard(
     shard_location: str,
     statistics_types: Optional[dict[str, Literal["numeric", "categorical"]]] = None,
+    known_columns: Optional[dict[str, str]] = None,
 ) -> OrphanShardInfo:
     shard_format = os.path.splitext(shard_location)[1].lstrip(".")
 
@@ -28,6 +29,7 @@ def inspect_shard(
             location=shard_location,
             format=shard_format,
             filepath=f.name,
+            columns=known_columns,
         )
         filesize = os.path.getsize(f.name)
         columns = reader.columns
