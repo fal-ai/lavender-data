@@ -6,7 +6,6 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from lavender_data.logging import get_logger
 from lavender_data.server.settings import root_dir
-from .models import Dataset, Shardset, DatasetColumn, Iteration, Shard
 
 
 engine = None
@@ -22,11 +21,15 @@ def setup_db(db_url: Optional[str] = None):
     global engine
 
     connect_args = {}
+    kwargs = {}
 
     if not db_url:
         db_url = default_db_url()
         get_logger(__name__).debug(f"LAVENDER_DATA_DB_URL is not set, using {db_url}")
-        connect_args = {"check_same_thread": False}
+
+    if db_url.startswith("sqlite"):
+        connect_args["check_same_thread"] = False
+        # kwargs["poolclass"] = SingletonThreadPool
 
     if db_url.startswith("postgres"):
         try:
@@ -37,7 +40,7 @@ def setup_db(db_url: Optional[str] = None):
                 "You can install them with `pip install lavender-data[pgsql]`"
             )
 
-    engine = create_engine(db_url, connect_args=connect_args)
+    engine = create_engine(db_url, connect_args=connect_args, **kwargs)
 
 
 def get_session():

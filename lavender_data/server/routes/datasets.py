@@ -1,4 +1,5 @@
 import os
+import json
 from typing import Optional, Any
 import time
 
@@ -8,7 +9,7 @@ from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 
 from lavender_data.logging import get_logger
-from lavender_data.server.db import DbSession
+from lavender_data.server.db import DbSession, get_session
 from lavender_data.server.db.models import (
     Dataset,
     Shardset,
@@ -29,7 +30,11 @@ from lavender_data.server.background_worker import (
     TaskStatus,
     CurrentBackgroundWorker,
 )
-from lavender_data.server.dataset import preview_dataset
+from lavender_data.server.dataset import (
+    ColumnStatistics,
+    preview_dataset_task,
+    get_dataset_statistics as _get_dataset_statistics,
+)
 from lavender_data.server.shardset import (
     get_main_shardset,
     sync_shardset_location,
@@ -38,7 +43,7 @@ from lavender_data.server.shardset import (
 from lavender_data.server.auth import AppAuth
 from lavender_data.storage import list_files
 from lavender_data.shard import inspect_shard
-from lavender_data.serialize import serialize_list, deserialize_list
+from lavender_data.serialize import deserialize_list
 
 router = APIRouter(
     prefix="/datasets",
@@ -69,31 +74,6 @@ def get_dataset(dataset_id: str, session: DbSession) -> GetDatasetResponse:
     return dataset
 
 
-def preview_dataset_and_cache(
-    preview_id: str,
-    dataset_id: str,
-    offset: int,
-    limit: int,
-) -> list[dict[str, Any]]:
-    cache = next(get_cache())
-    logger = get_logger(__name__)
-    logger.info(f"Previewing dataset {dataset_id} {offset}-{offset+limit-1}")
-    start_time = time.time()
-    try:
-        samples = preview_dataset(dataset_id, offset, limit)
-        # cache for 3 minutes
-        cache.set(f"preview:{preview_id}", serialize_list(samples), ex=3 * 60)
-    except Exception as e:
-        logger.exception(f"Failed to preview dataset {dataset_id}: {e}")
-        cache.set(f"preview:{preview_id}:error", str(e), ex=3 * 60)
-        raise e
-    end_time = time.time()
-    logger.info(
-        f"Previewed dataset {dataset_id} {offset}-{offset+limit-1} in {end_time - start_time:.2f}s"
-    )
-    return samples
-
-
 class CreateDatasetPreviewParams(BaseModel):
     offset: int = 0
     limit: int = 10
@@ -108,6 +88,7 @@ def create_dataset_preview(
     dataset_id: str,
     session: DbSession,
     params: CreateDatasetPreviewParams,
+    cache: CacheClient,
     background_worker: CurrentBackgroundWorker,
 ) -> CreateDatasetPreviewResponse:
     try:
@@ -121,8 +102,13 @@ def create_dataset_preview(
     offset = params.offset
     limit = params.limit
     preview_id = dataset_id + ":" + str(params.offset) + ":" + str(params.limit)
+
+    if cache.exists(f"preview:{preview_id}"):
+        return CreateDatasetPreviewResponse(preview_id=preview_id)
+
     background_worker.thread_pool_submit(
-        preview_dataset_and_cache,
+        preview_dataset_task,
+        task_id=preview_id,
         preview_id=preview_id,
         dataset_id=dataset_id,
         offset=offset,
@@ -152,8 +138,11 @@ def get_dataset_preview(
         raise HTTPException(status_code=404, detail="Dataset not found")
 
     if cache.exists(f"preview:{preview_id}:error"):
+        error = cache.get(f"preview:{preview_id}:error").decode()
+        cache.delete(f"preview:{preview_id}:error")
         raise HTTPException(
-            status_code=500, detail=cache.get(f"preview:{preview_id}:error").decode()
+            status_code=500,
+            detail=error,
         )
 
     if not cache.exists(f"preview:{preview_id}"):
@@ -167,6 +156,44 @@ def get_dataset_preview(
         samples=samples,
         total=get_main_shardset(dataset.shardsets).total_samples,
     )
+
+
+class GetDatasetStatisticsResponse(BaseModel):
+    statistics: dict[str, ColumnStatistics]
+
+
+def _get_dataset_statistics_task(dataset_id: str) -> dict[str, ColumnStatistics]:
+    session = next(get_session())
+    cache = next(get_cache())
+    dataset = session.get_one(Dataset, dataset_id)
+    statistics = _get_dataset_statistics(dataset)
+    cache.set(f"dataset-statistics:{dataset_id}", json.dumps(statistics))
+    return statistics
+
+
+@router.get("/{dataset_id}/statistics")
+def get_dataset_statistics(
+    dataset_id: str,
+    cache: CacheClient,
+    background_worker: CurrentBackgroundWorker,
+) -> GetDatasetStatisticsResponse:
+    cache_key = f"dataset-statistics:{dataset_id}"
+    if cache.exists(cache_key):
+        statistics = json.loads(cache.get(cache_key))
+    else:
+        background_worker.thread_pool_submit(
+            _get_dataset_statistics_task,
+            dataset_id=dataset_id,
+            task_id=cache_key,
+            with_status=False,
+            abort_on_duplicate=False,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Dataset statistics are being computed. Please try again later.",
+        )
+
+    return GetDatasetStatisticsResponse(statistics=statistics)
 
 
 class CreateDatasetParams(BaseModel):
@@ -566,8 +593,8 @@ def sync_shardset(
         sync_shardset_location,
         shardset_id=shardset.id,
         shardset_location=shardset.location,
-        shardset_shard_samples=[s.samples for s in shardset.shards],
         shardset_shard_locations=[s.location for s in shardset.shards],
+        shardset_columns={c.name: c.type for c in shardset.columns},
         overwrite=params.overwrite,
         task_id=task_id,
         with_status=True,
@@ -713,3 +740,40 @@ def preprocess_dataset(
         with_status=True,
     )
     return PreprocessDatasetResponse(task_id=task_id)
+
+
+class UpdateDatasetColumnParams(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    description: Optional[str] = None
+
+
+@router.put("/{dataset_id}/columns/{column_id}")
+def update_dataset_column(
+    dataset_id: str,
+    column_id: str,
+    params: UpdateDatasetColumnParams,
+    session: DbSession,
+) -> DatasetColumnPublic:
+    try:
+        column = session.exec(
+            select(DatasetColumn).where(
+                DatasetColumn.id == column_id,
+                DatasetColumn.dataset_id == dataset_id,
+            )
+        ).one()
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Column not found")
+
+    if params.name is not None:
+        column.name = params.name
+    if params.type is not None:
+        column.type = params.type
+    if params.description is not None:
+        column.description = params.description
+
+    session.add(column)
+    session.commit()
+    session.refresh(column)
+
+    return column

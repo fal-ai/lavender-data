@@ -47,7 +47,7 @@ class Reader(ABC):
                     if isinstance(instance, UntypedReader) and columns is None:
                         logger.warning(
                             f'Shard is in "{format}" format, which is not a typed format. '
-                            'All columns will be read as "str".'
+                            "All columns will be read as string."
                         )
 
                     # TODO async?
@@ -96,7 +96,11 @@ class Reader(ABC):
         self.uid_column_name = uid_column_name
         self.uid_column_type = uid_column_type
 
-        if self.columns is not None and self.uid_column_name not in self.columns:
+        if (
+            self.columns is not None
+            and self.uid_column_name is not None
+            and self.uid_column_name not in self.columns
+        ):
             self.columns[self.uid_column_name] = self.uid_column_type
 
         self.loaded: bool = False
@@ -165,6 +169,9 @@ class Reader(ABC):
         if not self.loaded:
             self._load()
         return self.cache[str(uid)]
+
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        return self.get_item_by_index(idx)
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
         for i in range(len(self)):

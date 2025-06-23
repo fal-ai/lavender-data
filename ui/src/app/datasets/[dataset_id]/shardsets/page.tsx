@@ -15,6 +15,8 @@ import { AddShardsetDialog } from './add-shardset-dialog';
 import { ErrorCard } from '@/components/error-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { SelectColumnType } from './select-column-type';
+import { InputColumnDescription } from './input-column-description';
 
 function ShardSetInfo({ shardset }: { shardset: any }) {
   if (!shardset) {
@@ -114,8 +116,15 @@ export default async function DatasetShardsetsPage({
                   <TableCell className="font-mono text-xs">
                     {column.name}
                   </TableCell>
-                  <TableCell>{column.type}</TableCell>
-                  <TableCell>{column.description}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    <SelectColumnType column={column} datasetId={dataset_id} />
+                  </TableCell>
+                  <TableCell>
+                    <InputColumnDescription
+                      column={column}
+                      datasetId={dataset_id}
+                    />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

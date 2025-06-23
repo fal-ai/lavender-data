@@ -26,10 +26,12 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeClosed } from 'lucide-react';
+import { Eye, EyeClosed, Info } from 'lucide-react';
 import { MultiSelect } from '@/components/multiselect';
 import mime from 'mime-types';
 import { Switch } from '@/components/ui/switch';
+import type { components } from '@/lib/api/v1';
+import { StatisticsCell } from './statistics-cell';
 
 const sanitize = (value: any) => {
   if (typeof value === 'object' && value !== null) {
@@ -240,10 +242,12 @@ export default function SamplesTable({
   datasetId,
   samples,
   fetchedColumns,
+  statistics,
 }: {
   datasetId: string;
   samples: any[];
   fetchedColumns: string[];
+  statistics?: components['schemas']['GetDatasetStatisticsResponse'];
 }) {
   const [defaultShow, setDefaultShow] = useState<boolean>(false);
   const [columns, setColumns] = useState<
@@ -339,6 +343,11 @@ export default function SamplesTable({
           <Eye className="w-5 h-5" />
         </div>
       </div>
+      {!statistics && (
+        <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground mb-4">
+          <Info className="w-4 h-4" /> Dataset statistics are not ready yet.
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow>
@@ -348,6 +357,24 @@ export default function SamplesTable({
                 <TableHead key={column.name}>{column.name}</TableHead>
               ))}
           </TableRow>
+          {statistics && (
+            <TableRow>
+              {columns
+                .filter((column) => column.selected)
+                .map((column) => (
+                  <TableHead key={`${column.name}-statistics`}>
+                    {statistics.statistics[column.name] ? (
+                      <StatisticsCell
+                        columnName={column.name}
+                        statistics={statistics.statistics[column.name]}
+                      />
+                    ) : (
+                      <div>-</div>
+                    )}
+                  </TableHead>
+                ))}
+            </TableRow>
+          )}
         </TableHeader>
         <TableBody>
           {samples.map((sample, index) => (

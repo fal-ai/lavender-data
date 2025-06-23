@@ -11,12 +11,27 @@ import { ErrorCard } from '@/components/error-card';
 import Link from 'next/link';
 import { SyncShardsetButton } from './sync-shardset-button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ChevronLeft, Columns, FileStack, Settings } from 'lucide-react';
+import {
+  BarChart3,
+  ChevronLeft,
+  Columns,
+  FileStack,
+  Settings,
+} from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeleteShardsetDialog } from './delete-shardset-dialog';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/pagination';
 import { SetAsMainSwitch } from './set-as-main-switch';
+import { StatisticsCell } from '../../statistics-cell';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 const formatFileSize = (bytes: number) => {
   if (bytes < 1024) {
@@ -172,6 +187,7 @@ export default async function ShardsetDetailPage({
                     <TableHead>Format</TableHead>
                     <TableHead>Samples</TableHead>
                     <TableHead>Filesize</TableHead>
+                    <TableHead>Statistics</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -187,6 +203,60 @@ export default async function ShardsetDetailPage({
                         <TableCell>{shard.format}</TableCell>
                         <TableCell>{shard.samples}</TableCell>
                         <TableCell>{formatFileSize(shard.filesize)}</TableCell>
+                        <TableCell>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="icon">
+                                <BarChart3 className="w-4 h-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl">
+                              <DialogHeader>
+                                <DialogTitle>{shard.location}</DialogTitle>
+                                <DialogDescription>
+                                  {shard.id}
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="flex flex-wrap gap-2 gap-y-8 w-full">
+                                {shard.statistics &&
+                                  Object.entries(shard.statistics)
+                                    .sort((a, b) => a[0].localeCompare(b[0]))
+                                    .map(([columnName, value]) => (
+                                      <div
+                                        key={`${shard.location}-${columnName}`}
+                                      >
+                                        <div className="text-xs font-mono">
+                                          {columnName}
+                                        </div>
+                                        <StatisticsCell
+                                          columnName={columnName}
+                                          statistics={
+                                            value.type === 'numeric'
+                                              ? {
+                                                  type: 'numeric',
+                                                  histogram: value.histogram,
+                                                  nan_count: value.nan_count,
+                                                  max: value.max,
+                                                  min: value.min,
+                                                  mean: value.sum / value.count,
+                                                  median: value.median,
+                                                  std: Math.sqrt(
+                                                    value.sum_squared /
+                                                      value.count -
+                                                      (value.sum /
+                                                        value.count) **
+                                                        2
+                                                  ),
+                                                }
+                                              : value
+                                          }
+                                        />
+                                      </div>
+                                    ))}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </TableCell>
                       </TableRow>
                     ))}
                 </TableBody>

@@ -85,7 +85,7 @@ class TestReader(unittest.TestCase):
                 location=f"file://{self.image_url_shard}",
                 format="csv",
                 filesize=1,
-                columns={"id": "int", "image_url": "str"},
+                columns={"id": "int", "image_url": "string"},
             ),
             "id",
             "int",
@@ -107,7 +107,7 @@ class TestReader(unittest.TestCase):
                 location=f"file://{self.image_url_shard}",
                 format="csv",
                 filesize=1,
-                columns={"id": "int", "image_url": "str"},
+                columns={"id": "int", "image_url": "string"},
                 sample_index=0,
             ),
             feature_shards=[
@@ -118,7 +118,7 @@ class TestReader(unittest.TestCase):
                     location=f"file://{self.caption_shard}",
                     format="csv",
                     filesize=1,
-                    columns={"id": "int", "caption": "str"},
+                    columns={"id": "int", "caption": "string"},
                 ),
                 ShardInfo(
                     shardset_id="test-reader",

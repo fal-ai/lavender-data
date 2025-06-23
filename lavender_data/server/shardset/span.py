@@ -1,4 +1,4 @@
-from lavender_data.server.db import Shardset
+from lavender_data.server.db.models import Shardset
 
 
 def get_main_shardset(shardsets: list[Shardset]) -> Shardset:
