@@ -191,6 +191,7 @@ def sync_shardset_location(
         dataset_statistics = get_dataset_statistics(dataset)
         cache = next(get_cache())
         cache.set(f"dataset-statistics:{dataset.id}", json.dumps(dataset_statistics))
+        cache.delete(f"preview:{dataset.id}")
 
         if cluster is not None and cluster.is_head:
             try:

@@ -199,11 +199,11 @@ def preview_dataset_task(
     start_time = time.time()
     try:
         samples = preview_dataset(dataset_id, offset, limit)
-        # cache for 3 minutes
-        cache.set(f"preview:{preview_id}", serialize_list(samples), ex=3 * 60)
+        # cache for 60 minutes
+        cache.hset(f"preview:{dataset_id}", preview_id, serialize_list(samples))
     except Exception as e:
         logger.exception(f"Failed to preview dataset {dataset_id}: {e}")
-        cache.set(f"preview:{preview_id}:error", str(e), ex=3 * 60)
+        cache.set(f"preview:{dataset_id}:{preview_id}:error", str(e), ex=3 * 60)
         raise e
     end_time = time.time()
     logger.info(

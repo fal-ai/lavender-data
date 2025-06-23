@@ -103,7 +103,7 @@ def create_dataset_preview(
     limit = params.limit
     preview_id = dataset_id + ":" + str(params.offset) + ":" + str(params.limit)
 
-    if cache.exists(f"preview:{preview_id}"):
+    if cache.hget(f"preview:{dataset_id}", preview_id) is not None:
         return CreateDatasetPreviewResponse(preview_id=preview_id)
 
     background_worker.thread_pool_submit(
@@ -137,18 +137,19 @@ def get_dataset_preview(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    if cache.exists(f"preview:{preview_id}:error"):
-        error = cache.get(f"preview:{preview_id}:error").decode()
-        cache.delete(f"preview:{preview_id}:error")
+    if cache.exists(f"preview:{dataset_id}:{preview_id}:error"):
+        error = cache.get(f"preview:{dataset_id}:{preview_id}:error").decode()
+        cache.delete(f"preview:{dataset_id}:{preview_id}:error")
         raise HTTPException(
             status_code=500,
             detail=error,
         )
 
-    if not cache.exists(f"preview:{preview_id}"):
+    cached = cache.hget(f"preview:{dataset_id}", preview_id)
+    if cached is None:
         raise HTTPException(status_code=400, detail="Preview not found")
 
-    samples = deserialize_list(cache.get(f"preview:{preview_id}"))
+    samples = deserialize_list(cached)
 
     return GetDatasetPreviewResponse(
         dataset=dataset,
