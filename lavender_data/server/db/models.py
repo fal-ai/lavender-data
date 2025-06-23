@@ -17,7 +17,7 @@ from sqlalchemy.exc import NoResultFound
 from numpy import base_repr
 
 from lavender_data.shard import ShardStatistics
-from lavender_data.server.db import get_session
+from lavender_data.server.db import db_manual_session
 
 
 def generate_uid(prefix: str, length: int = 20):
@@ -84,27 +84,26 @@ class Shardset(ShardsetBase, table=True):
     @property
     def shard_count(self) -> int:
         try:
-            return (
-                next(get_session())
-                .exec(select(func.count(Shard.id)).where(Shard.shardset_id == self.id))
-                .one()[0]
-            )
+            with db_manual_session() as session:
+                return session.exec(
+                    select(func.count(Shard.id)).where(Shard.shardset_id == self.id)
+                ).one()[0]
         except NoResultFound:
             return 0
 
     @property
     def total_samples(self) -> int:
         try:
-            total_samples = (
-                next(get_session())
-                .exec(
-                    select(func.sum(Shard.samples)).where(Shard.shardset_id == self.id)
-                )
-                .one()[0]
-            ) or 0
+            with db_manual_session() as session:
+                return (
+                    session.exec(
+                        select(func.sum(Shard.samples)).where(
+                            Shard.shardset_id == self.id
+                        )
+                    ).one()[0]
+                ) or 0
         except NoResultFound:
             return 0
-        return total_samples
 
     __table_args__ = (
         UniqueConstraint("dataset_id", "location", name="unique_dataset_location"),

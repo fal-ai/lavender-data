@@ -5,11 +5,12 @@ import time
 
 from fastapi import HTTPException, APIRouter, Depends
 from sqlmodel import select, delete, update, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 
 from lavender_data.logging import get_logger
-from lavender_data.server.db import DbSession, get_session
+from lavender_data.server.db import DbSession, db_manual_session
 from lavender_data.server.db.models import (
     Dataset,
     Shardset,
@@ -164,10 +165,8 @@ class GetDatasetStatisticsResponse(BaseModel):
 
 
 def _get_dataset_statistics_task(dataset_id: str) -> dict[str, ColumnStatistics]:
-    session = next(get_session())
     cache = next(get_cache())
-    dataset = session.get_one(Dataset, dataset_id)
-    statistics = _get_dataset_statistics(dataset)
+    statistics = _get_dataset_statistics(dataset_id)
     cache.set(f"dataset-statistics:{dataset_id}", json.dumps(statistics))
     return statistics
 

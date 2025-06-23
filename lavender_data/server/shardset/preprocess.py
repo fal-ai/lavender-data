@@ -6,6 +6,7 @@ from typing import Generator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sqlmodel import select
+from sqlalchemy.orm import selectinload
 
 from lavender_data.logging import get_logger
 from lavender_data.storage import list_files, upload_file
@@ -20,7 +21,7 @@ from lavender_data.server.db.models import (
     IterationPreprocessor,
     Shardset,
 )
-from lavender_data.server.db import get_session
+from lavender_data.server.db import db_manual_session
 
 from .span import get_main_shardset
 
@@ -71,12 +72,17 @@ def preprocess_shardset(
     drop_last: bool = False,
 ) -> Generator[TaskStatus, None, None]:
     logger = get_logger(__name__)
-    session = next(get_session())
     process_pool = get_process_pool()
 
-    shardsets = session.exec(
-        select(Shardset).where(Shardset.id.in_(source_shardset_ids))
-    ).all()
+    with db_manual_session() as session:
+        shardsets = session.exec(
+            select(Shardset)
+            .where(Shardset.id.in_(source_shardset_ids))
+            .options(
+                selectinload(Shardset.shards),
+                selectinload(Shardset.columns),
+            )
+        ).all()
 
     main_shardset = get_main_shardset(shardsets)
     feature_shardsets = [

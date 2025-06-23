@@ -3,6 +3,7 @@ from typing import Annotated, Optional
 
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
+from sqlalchemy.pool import QueuePool
 
 from lavender_data.logging import get_logger
 from lavender_data.server.settings import root_dir
@@ -29,7 +30,7 @@ def setup_db(db_url: Optional[str] = None):
 
     if db_url.startswith("sqlite"):
         connect_args["check_same_thread"] = False
-        # kwargs["poolclass"] = SingletonThreadPool
+        kwargs["poolclass"] = QueuePool
 
     if db_url.startswith("postgres"):
         try:
@@ -49,6 +50,13 @@ def get_session():
 
     with Session(engine) as session:
         yield session
+
+
+def db_manual_session(**options):
+    if not engine:
+        raise RuntimeError("Database not initialized")
+
+    return Session(engine, **options)
 
 
 DbSession = Annotated[Session, Depends(get_session)]

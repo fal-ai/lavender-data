@@ -2,15 +2,17 @@ import os
 import time
 from typing import Any, Union
 
-from sqlalchemy.exc import NoResultFound
+from sqlmodel import select
+from sqlalchemy.orm import selectinload, load_only
+
 import filetype
 import hashlib
 import numpy as np
 import json
 
 from lavender_data.server.settings import files_dir
-from lavender_data.server.db import get_session
-from lavender_data.server.db.models import Dataset, Shard
+from lavender_data.server.db import db_manual_session
+from lavender_data.server.db.models import Dataset, Shard, Shardset
 from lavender_data.server.cache import CacheClient, get_cache
 from lavender_data.server.reader import (
     get_reader_instance,
@@ -31,11 +33,37 @@ except ImportError:
 
 
 def _read_dataset(
-    dataset: Dataset,
+    dataset_id: str,
     index: int,
     reader: ReaderInstance,
     cache: CacheClient,
 ) -> GlobalSampleIndex:
+    with db_manual_session() as session:
+        dataset: Dataset = session.exec(
+            select(Dataset)
+            .where(Dataset.id == dataset_id)
+            .options(
+                selectinload(Dataset.shardsets).options(
+                    selectinload(Shardset.columns),
+                    selectinload(Shardset.shards).options(
+                        load_only(
+                            Shard.id,
+                            Shard.shardset_id,
+                            Shard.location,
+                            Shard.filesize,
+                            Shard.samples,
+                            Shard.index,
+                            Shard.format,
+                            Shard.created_at,
+                        )
+                    ),
+                )
+            )
+        ).one()
+
+    if dataset is None:
+        raise ValueError(f"Dataset {dataset_id} not found")
+
     main_shardset = get_main_shardset(dataset.shardsets)
 
     if cache.exists(f"preview-shards:{main_shardset.id}"):
@@ -165,19 +193,13 @@ def preview_dataset(
     offset: int,
     limit: int,
 ) -> list[dict[str, Any]]:
-    session = next(get_session())
     cache = next(get_cache())
     reader = get_reader_instance()
-
-    try:
-        dataset = session.get_one(Dataset, dataset_id)
-    except NoResultFound:
-        raise ValueError(f"Dataset {dataset_id} not found")
 
     samples = []
     for index in range(offset, offset + limit):
         try:
-            sample = _read_dataset(dataset, index, reader, cache)
+            sample = _read_dataset(dataset_id, index, reader, cache)
         except IndexError:
             break
 
