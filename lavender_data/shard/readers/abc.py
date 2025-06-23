@@ -47,7 +47,7 @@ class Reader(ABC):
                     if isinstance(instance, UntypedReader) and columns is None:
                         logger.warning(
                             f'Shard is in "{format}" format, which is not a typed format. '
-                            'All columns will be read as "str".'
+                            "All columns will be read as string."
                         )
 
                     # TODO async?

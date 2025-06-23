@@ -17,7 +17,7 @@ class TestSerializeSample(unittest.TestCase):
             "dict": {"d": 4},
             "dict_of_dict": {"e": {"f": 5}},
             "dict_of_list": {"g": [6, 7]},
-            "str": "hello",
+            "string": "hello",
             "bytes": b"\x00\x01\x02\x03\x04",
             "ndarray": np.array([[1, 2, 3], [4, 5, 6]]),
             "tensor": torch.tensor([[1, 2, 3], [4, 5, 6]]),

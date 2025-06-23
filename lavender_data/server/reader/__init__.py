@@ -37,9 +37,7 @@ def _default_null_type(t: str) -> str:
         return np.nan
     elif t.startswith("float") or t.startswith("double"):
         return np.nan
-    elif t.startswith("str"):
-        return ""
-    elif t.startswith("text") or t.startswith("string"):
+    elif t.startswith("text") or t.startswith("str"):
         return ""
     elif t.startswith("binary"):
         return b""

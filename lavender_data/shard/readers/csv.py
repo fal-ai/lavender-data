@@ -16,11 +16,11 @@ class CsvReader(UntypedReader):
     typed_columns = False
 
     def resolve_type(self, value: Any, typestr: str) -> type:
-        if typestr in ["int32", "int64"]:
+        if typestr in ["int", "int32", "int64"]:
             return int(value)
         elif typestr in ["float", "double"]:
             return float(value)
-        elif typestr in ["string"]:
+        elif typestr in ["string", "text", "str"]:
             return str(value)
         elif typestr in ["bool", "boolean"]:
             return value.lower() in ["true", "t", "yes", "y", "1"]
