@@ -159,6 +159,10 @@ class BackgroundWorker:
                 if get_task_status(t.metadata.uid) is None:
                     self._tasks.remove(t)
 
+                if get_task_status(t.metadata.uid).status == "completed":
+                    delete_task_status(t.metadata.uid)
+                    self._tasks.remove(t)
+
     def _start_cleanup_thread(self):
         def _cleanup_tasks():
             while True:
