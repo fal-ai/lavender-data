@@ -1413,22 +1413,16 @@ export interface components {
              */
             overwrite: boolean;
         };
-        /** TaskMetadata */
-        TaskMetadata: {
-            /** Uid */
-            uid: string;
-            /** Name */
-            name: string;
-            /**
-             * Start Time
-             * Format: date-time
-             */
-            start_time: string;
-            /** Kwargs */
-            kwargs: {
-                [key: string]: unknown;
-            };
-            status?: components["schemas"]["TaskStatus"] | null;
+        /** TaskItem */
+        TaskItem: {
+            /** Status */
+            status: string;
+            /** Current */
+            current: number;
+            /** Total */
+            total: number;
+            /** Task Id */
+            task_id: string;
         };
         /** TaskStatus */
         TaskStatus: {
@@ -2771,7 +2765,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskMetadata"][];
+                    "application/json": components["schemas"]["TaskItem"][];
                 };
             };
         };

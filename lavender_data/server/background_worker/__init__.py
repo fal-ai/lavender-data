@@ -4,7 +4,6 @@ from fastapi import Depends
 
 from .background_worker import (
     TaskStatus,
-    TaskMetadata,
     BackgroundWorker,
     get_background_worker,
     setup_background_worker,
@@ -19,7 +18,6 @@ from .process_pool import ProcessPool, pool_task
 
 __all__ = [
     "TaskStatus",
-    "TaskMetadata",
     "BackgroundWorker",
     "get_background_worker",
     "setup_background_worker",

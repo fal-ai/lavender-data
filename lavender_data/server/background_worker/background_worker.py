@@ -21,14 +21,6 @@ class TaskStatus(BaseModel):
     total: int
 
 
-class TaskMetadata(BaseModel):
-    uid: str
-    name: str
-    start_time: datetime
-    kwargs: dict
-    status: Optional[TaskStatus] = None
-
-
 def set_task_status(
     task_id: str,
     status: Optional[str] = None,
@@ -40,21 +32,21 @@ def set_task_status(
     if _status is None:
         _status = TaskStatus(status="", current=0, total=0)
 
-    next(get_cache()).set(
-        f"task-{task_id}",
+    next(get_cache()).hset(
+        f"background-worker:tasks",
+        task_id,
         json.dumps(
             {
-                "status": (status if status is not None else _status.status),
-                "current": (current if current is not None else _status.current),
+                "status": status if status is not None else _status.status,
+                "current": current if current is not None else _status.current,
                 "total": total if total is not None else _status.total,
             }
         ),
-        ex=ex,
     )
 
 
 def get_task_status(task_uid: str) -> Optional[TaskStatus]:
-    status = next(get_cache()).get(f"task-{task_uid}")
+    status = next(get_cache()).hget(f"background-worker:tasks", task_uid)
     if status is None:
         return None
 
@@ -67,7 +59,15 @@ def get_task_status(task_uid: str) -> Optional[TaskStatus]:
 
 
 def delete_task_status(task_uid: str):
-    next(get_cache()).delete(f"task-{task_uid}")
+    next(get_cache()).hdel(f"background-worker:tasks", task_uid)
+
+
+def all_task_statuses() -> dict[str, TaskStatus]:
+    tasks = next(get_cache()).hgetall(f"background-worker:tasks")
+    return {
+        task_id: TaskStatus.model_validate(json.loads(t))
+        for task_id, t in tasks.items()
+    }
 
 
 class Aborted(Exception):
@@ -129,7 +129,6 @@ def _run_task_no_status(
 
 
 class TaskItem(NamedTuple):
-    metadata: TaskMetadata
     future: Future
     abort_event: threading.Event
 
@@ -141,12 +140,9 @@ class BackgroundWorker:
 
         self._process_pool = ProcessPool(self._num_workers)
 
-        self._tasks: list[TaskItem] = []
-        self._tasks_lock = threading.Lock()
-
-        self._task_status: dict[str, TaskStatus] = {}
-
         self._executor = ThreadPoolExecutor(self._num_workers)
+        self._abort_events: dict[str, threading.Event] = {}
+        self._futures: dict[str, Future] = {}
 
         self._start_cleanup_thread()
 
@@ -154,31 +150,25 @@ class BackgroundWorker:
         return self._process_pool
 
     def _cleanup_tasks(self):
-        with self._tasks_lock:
-            for t in self._tasks:
-                if get_task_status(t.metadata.uid) is None:
-                    self._tasks.remove(t)
+        for task_id, status in all_task_statuses().items():
+            if status.status == "completed":
+                delete_task_status(task_id)
 
-                if get_task_status(t.metadata.uid).status == "completed":
-                    delete_task_status(t.metadata.uid)
-                    self._tasks.remove(t)
+            if status.status in ["completed", "aborted", "failed"]:
+                self._abort_events.pop(task_id, None)
+                self._futures.pop(task_id, None)
 
     def _start_cleanup_thread(self):
         def _cleanup_tasks():
             while True:
-                time.sleep(1)
+                time.sleep(10)
                 self._cleanup_tasks()
 
         threading.Thread(target=_cleanup_tasks, daemon=True).start()
 
-    def running_tasks(self) -> list[TaskMetadata]:
+    def list_tasks(self) -> dict[str, TaskStatus]:
         self._cleanup_tasks()
-        with self._tasks_lock:
-            tasks = [t.metadata for t in self._tasks]
-            tasks.sort(key=lambda t: t.start_time)
-            for task in tasks:
-                task.status = get_task_status(task.uid)
-            return tasks
+        return {task_id: status for task_id, status in all_task_statuses().items()}
 
     def get_task_status(self, task_id: str) -> Optional[TaskStatus]:
         return get_task_status(task_id)
@@ -208,19 +198,8 @@ class BackgroundWorker:
             **kwargs,
         )
 
-        with self._tasks_lock:
-            self._tasks.append(
-                TaskItem(
-                    metadata=TaskMetadata(
-                        uid=task_id,
-                        name=task_name or func.__name__,
-                        start_time=datetime.now(UTC),
-                        kwargs=kwargs,
-                    ),
-                    future=future,
-                    abort_event=abort_event,
-                )
-            )
+        self._abort_events[task_id] = abort_event
+        self._futures[task_id] = future
 
         return task_id
 
@@ -232,20 +211,20 @@ class BackgroundWorker:
         return self.process_pool().submit(func, **kwargs)
 
     def abort(self, task_id: str):
-        with self._tasks_lock:
-            status = get_task_status(task_id)
-            if status is not None:
-                delete_task_status(task_id)
+        status = get_task_status(task_id)
+        if status is not None:
+            delete_task_status(task_id)
 
-            task = next((t for t in self._tasks if t.metadata.uid == task_id), None)
-            if task is not None:
-                task.abort_event.set()
-                task.future.cancel()
-                self._tasks.remove(task)
+        if task_id in self._abort_events:
+            self._abort_events[task_id].set()
+
+        if task_id in self._futures:
+            self._futures[task_id].cancel()
 
     def abort_all(self):
-        for t in self._tasks:
-            self.abort(t.metadata.uid)
+        for task_id, status in all_task_statuses().items():
+            if status.status == "running":
+                self.abort(task_id)
 
     def shutdown(self):
         self._logger.debug("Shutting down background worker")

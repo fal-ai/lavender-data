@@ -46,11 +46,9 @@ class TestBackgroundWorker(unittest.TestCase):
         timeout = 5
 
         filename = f"test-{random.randint(0, 1000000)}.txt"
-        self.assertEqual(len(self.worker.running_tasks()), 0)
+        self.assertEqual(len(self.worker.list_tasks()), 0)
         self.worker.thread_pool_submit(write_task, filename=filename, with_status=True)
-        self.assertEqual(len(self.worker.running_tasks()), 1)
-        self.assertEqual(self.worker.running_tasks()[0].name, "write_task")
-        self.assertEqual(self.worker.running_tasks()[0].kwargs, {"filename": filename})
+        self.assertEqual(len(self.worker.list_tasks()), 1)
 
         start_time = time.time()
         while not os.path.exists(filename):
