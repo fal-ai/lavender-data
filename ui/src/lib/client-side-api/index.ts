@@ -11,7 +11,7 @@ export const getVersion = async (): Promise<VersionResponse> => {
 };
 
 type TaskStatus = components['schemas']['TaskStatus'];
-type TaskMetadata = components['schemas']['TaskMetadata'];
+type TaskItem = components['schemas']['TaskItem'];
 
 export const getSyncShardsetStatus = async (
   datasetId: string,
@@ -26,7 +26,7 @@ export const getSyncShardsetStatus = async (
   return response.json();
 };
 
-export const getBackgroundTasks = async (): Promise<TaskMetadata[]> => {
+export const getBackgroundTasks = async (): Promise<TaskItem[]> => {
   const response = await fetch(`/api/background-tasks`);
   if (!response.ok) {
     throw new Error(`Failed to fetch background tasks: ${response.status}`);

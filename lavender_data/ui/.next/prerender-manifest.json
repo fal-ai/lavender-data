@@ -25,30 +25,6 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/background-tasks": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/background-tasks",
-      "dataRoute": "/background-tasks.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
     "/": {
       "experimentalBypassFor": [
         {
@@ -72,13 +48,37 @@
         "x-next-revalidated-tags",
         "x-next-revalidate-tag-token"
       ]
+    },
+    "/background-tasks": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/background-tasks",
+      "dataRoute": "/background-tasks.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
     }
   },
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "d46dad545f19135a1e9b7c1aa3149ed4",
-    "previewModeSigningKey": "cf2b8cc5d4f30f49f22dca7e01f658ebacebe819d54c9edd461871fd57bdbb45",
-    "previewModeEncryptionKey": "c81e53e3776561fc4d81cf9ee9388687f31bc2a252df457b30bed8c642464c22"
+    "previewModeId": "ef49c83de76ac6f59a124c13b4b4be38",
+    "previewModeSigningKey": "ae96380b5e634eb506659d212372bf892241dd2245f8e60a6453902cbe4ec14c",
+    "previewModeEncryptionKey": "4729a75c92610049c0cd95166d634f98518e1efccf28d71703b7dd7dacebebcc"
   }
 }
