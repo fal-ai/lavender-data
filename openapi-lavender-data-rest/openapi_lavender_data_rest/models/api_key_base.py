@@ -8,11 +8,11 @@ from dateutil.parser import isoparse
 
 from ..types import UNSET, Unset
 
-T = TypeVar("T", bound="ApiKeyPublic")
+T = TypeVar("T", bound="ApiKeyBase")
 
 
 @_attrs_define
-class ApiKeyPublic:
+class ApiKeyBase:
     """
     Attributes:
         note (Union[None, str]):
@@ -125,7 +125,7 @@ class ApiKeyPublic:
 
         locked = d.pop("locked", UNSET)
 
-        api_key_public = cls(
+        api_key_base = cls(
             note=note,
             created_at=created_at,
             expires_at=expires_at,
@@ -135,8 +135,8 @@ class ApiKeyPublic:
             locked=locked,
         )
 
-        api_key_public.additional_properties = d
-        return api_key_public
+        api_key_base.additional_properties = d
+        return api_key_base
 
     @property
     def additional_keys(self) -> list[str]:

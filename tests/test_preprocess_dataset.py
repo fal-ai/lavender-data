@@ -142,7 +142,7 @@ class TestPreprocessDataset(unittest.TestCase):
         start = time.time()
         while True:
             tasks = get_tasks()
-            task = next(t for t in tasks if t.uid == task_id)
+            task = next(t for t in tasks if t.task_id == task_id)
             if task.status.status == "completed":
                 break
             time.sleep(1)

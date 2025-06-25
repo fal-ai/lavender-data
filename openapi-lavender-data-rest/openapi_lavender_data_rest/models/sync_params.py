@@ -5,13 +5,13 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 if TYPE_CHECKING:
-    from ..models.api_key_public import ApiKeyPublic
-    from ..models.dataset_column_public import DatasetColumnPublic
-    from ..models.dataset_public import DatasetPublic
-    from ..models.iteration_public import IterationPublic
+    from ..models.api_key_base import ApiKeyBase
+    from ..models.dataset_base import DatasetBase
+    from ..models.dataset_column_base import DatasetColumnBase
+    from ..models.iteration_base import IterationBase
     from ..models.iteration_shardset_link import IterationShardsetLink
-    from ..models.shard_public import ShardPublic
-    from ..models.shardset_public import ShardsetPublic
+    from ..models.shard_base import ShardBase
+    from ..models.shardset_base import ShardsetBase
 
 
 T = TypeVar("T", bound="SyncParams")
@@ -21,22 +21,22 @@ T = TypeVar("T", bound="SyncParams")
 class SyncParams:
     """
     Attributes:
-        datasets (list['DatasetPublic']):
-        dataset_columns (list['DatasetColumnPublic']):
-        shardsets (list['ShardsetPublic']):
-        shards (list['ShardPublic']):
-        iterations (list['IterationPublic']):
+        datasets (list['DatasetBase']):
+        dataset_columns (list['DatasetColumnBase']):
+        shardsets (list['ShardsetBase']):
+        shards (list['ShardBase']):
+        iterations (list['IterationBase']):
         iteration_shardset_links (list['IterationShardsetLink']):
-        api_keys (list['ApiKeyPublic']):
+        api_keys (list['ApiKeyBase']):
     """
 
-    datasets: list["DatasetPublic"]
-    dataset_columns: list["DatasetColumnPublic"]
-    shardsets: list["ShardsetPublic"]
-    shards: list["ShardPublic"]
-    iterations: list["IterationPublic"]
+    datasets: list["DatasetBase"]
+    dataset_columns: list["DatasetColumnBase"]
+    shardsets: list["ShardsetBase"]
+    shards: list["ShardBase"]
+    iterations: list["IterationBase"]
     iteration_shardset_links: list["IterationShardsetLink"]
-    api_keys: list["ApiKeyPublic"]
+    api_keys: list["ApiKeyBase"]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -93,47 +93,47 @@ class SyncParams:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.api_key_public import ApiKeyPublic
-        from ..models.dataset_column_public import DatasetColumnPublic
-        from ..models.dataset_public import DatasetPublic
-        from ..models.iteration_public import IterationPublic
+        from ..models.api_key_base import ApiKeyBase
+        from ..models.dataset_base import DatasetBase
+        from ..models.dataset_column_base import DatasetColumnBase
+        from ..models.iteration_base import IterationBase
         from ..models.iteration_shardset_link import IterationShardsetLink
-        from ..models.shard_public import ShardPublic
-        from ..models.shardset_public import ShardsetPublic
+        from ..models.shard_base import ShardBase
+        from ..models.shardset_base import ShardsetBase
 
         d = dict(src_dict)
         datasets = []
         _datasets = d.pop("datasets")
         for datasets_item_data in _datasets:
-            datasets_item = DatasetPublic.from_dict(datasets_item_data)
+            datasets_item = DatasetBase.from_dict(datasets_item_data)
 
             datasets.append(datasets_item)
 
         dataset_columns = []
         _dataset_columns = d.pop("dataset_columns")
         for dataset_columns_item_data in _dataset_columns:
-            dataset_columns_item = DatasetColumnPublic.from_dict(dataset_columns_item_data)
+            dataset_columns_item = DatasetColumnBase.from_dict(dataset_columns_item_data)
 
             dataset_columns.append(dataset_columns_item)
 
         shardsets = []
         _shardsets = d.pop("shardsets")
         for shardsets_item_data in _shardsets:
-            shardsets_item = ShardsetPublic.from_dict(shardsets_item_data)
+            shardsets_item = ShardsetBase.from_dict(shardsets_item_data)
 
             shardsets.append(shardsets_item)
 
         shards = []
         _shards = d.pop("shards")
         for shards_item_data in _shards:
-            shards_item = ShardPublic.from_dict(shards_item_data)
+            shards_item = ShardBase.from_dict(shards_item_data)
 
             shards.append(shards_item)
 
         iterations = []
         _iterations = d.pop("iterations")
         for iterations_item_data in _iterations:
-            iterations_item = IterationPublic.from_dict(iterations_item_data)
+            iterations_item = IterationBase.from_dict(iterations_item_data)
 
             iterations.append(iterations_item)
 
@@ -147,7 +147,7 @@ class SyncParams:
         api_keys = []
         _api_keys = d.pop("api_keys")
         for api_keys_item_data in _api_keys:
-            api_keys_item = ApiKeyPublic.from_dict(api_keys_item_data)
+            api_keys_item = ApiKeyBase.from_dict(api_keys_item_data)
 
             api_keys.append(api_keys_item)
 
