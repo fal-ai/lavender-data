@@ -1,13 +1,16 @@
 from typing import Literal, TypedDict, Union
 
 import numpy as np
+from sqlmodel import select
+from sqlalchemy.orm import selectinload, load_only
 
 from lavender_data.shard.statistics import (
     CategoricalShardStatistics,
     NumericShardStatistics,
     get_outlier_aware_hist,
 )
-from lavender_data.server.db.models import DatasetColumn, Dataset
+from lavender_data.server.db import db_manual_session
+from lavender_data.server.db.models import Shard, Shardset
 from lavender_data.logging import get_logger
 
 
@@ -134,29 +137,55 @@ def aggregate_numeric_statistics(
     )
 
 
-def get_column_statistics(column: DatasetColumn) -> ColumnStatistics:
-    shard_statistics = [
-        shard.statistics[column.name]
-        for shard in column.shardset.shards
-        if shard.statistics is not None
-    ]
-    if len(shard_statistics) == 0:
-        raise ValueError(f"No shard statistics found for column {column.name}")
-
-    if shard_statistics[0]["type"] == "categorical":
-        return aggregate_categorical_statistics(shard_statistics)
-    elif shard_statistics[0]["type"] == "numeric":
-        return aggregate_numeric_statistics(shard_statistics)
+def aggregate_statistics(column_statistics: list[ColumnStatistics]) -> ColumnStatistics:
+    if column_statistics[0]["type"] == "categorical":
+        return aggregate_categorical_statistics(column_statistics)
+    elif column_statistics[0]["type"] == "numeric":
+        return aggregate_numeric_statistics(column_statistics)
     else:
-        raise ValueError(f"Unknown column statistics: {column.name} {shard_statistics}")
+        raise ValueError(f"Unknown column statistics: {column_statistics[0]['type']}")
 
 
-def get_dataset_statistics(dataset: Dataset) -> dict[str, ColumnStatistics]:
+def get_shardset_statistics(shardset_id: str) -> dict[str, ColumnStatistics]:
+    with db_manual_session() as session:
+        shardset: Shardset = session.exec(
+            select(Shardset)
+            .where(Shardset.id == shardset_id)
+            .options(
+                selectinload(Shardset.columns),
+                selectinload(Shardset.shards).options(selectinload(Shard.statistics)),
+            )
+        ).one()
+
     logger = get_logger(__name__)
-    statistics = {}
-    for column in dataset.columns:
+
+    column_statistics = {column.name: [] for column in shardset.columns}
+
+    for shard in shardset.shards:
+        for column in shardset.columns:
+            if shard.statistics is not None:
+                column_statistics[column.name].append(
+                    shard.statistics.data[column.name]
+                )
+
+    aggregated_statistics = {}
+    for column_name, statistics in column_statistics.items():
         try:
-            statistics[column.name] = get_column_statistics(column)
+            aggregated_statistics[column_name] = aggregate_statistics(statistics)
         except Exception as e:
-            logger.warning(f"Failed to get statistics for column {column.name}: {e}")
+            logger.warning(f"Failed to get statistics for column {column_name}: {e}")
+    return aggregated_statistics
+
+
+def get_dataset_statistics(dataset_id: str) -> dict[str, ColumnStatistics]:
+    with db_manual_session() as session:
+        shardsets: list[Shardset] = session.exec(
+            select(Shardset)
+            .where(Shardset.dataset_id == dataset_id)
+            .options(load_only(Shardset.id))
+        ).all()
+
+    statistics = {}
+    for shardset in shardsets:
+        statistics.update(get_shardset_statistics(shardset.id))
     return statistics

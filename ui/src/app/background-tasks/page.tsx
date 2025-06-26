@@ -38,11 +38,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 
-type TaskMetadata = components['schemas']['TaskMetadata'];
+type TaskItem = components['schemas']['TaskItem'];
 
 export default function BackgroundTasksPage() {
   const [loading, setLoading] = useState(true);
-  const [backgroundTasks, setBackgroundTasks] = useState<TaskMetadata[]>([]);
+  const [backgroundTasks, setBackgroundTasks] = useState<TaskItem[]>([]);
   const [refreshCount, setRefreshCount] = useState(0);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
@@ -109,21 +109,15 @@ export default function BackgroundTasksPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>ID</TableHead>
-                    <TableHead className="min-w-[200px]">Name</TableHead>
-                    <TableHead>Created</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {backgroundTasks.map((backgroundTask) => (
-                    <TableRow key={backgroundTask.uid}>
+                    <TableRow key={backgroundTask.task_id}>
                       <TableCell className="font-mono text-xs">
-                        {backgroundTask.uid}
-                      </TableCell>
-                      <TableCell>{backgroundTask.name}</TableCell>
-                      <TableCell>
-                        {utcToLocal(backgroundTask.start_time)}
+                        {backgroundTask.task_id}
                       </TableCell>
                       <TableCell>
                         {backgroundTask.status ? (
@@ -131,17 +125,17 @@ export default function BackgroundTasksPage() {
                             <Progress
                               className="w-full"
                               value={
-                                backgroundTask.status.total > 0
-                                  ? (100 * backgroundTask.status.current) /
-                                    backgroundTask.status.total
+                                backgroundTask.total > 0
+                                  ? (100 * backgroundTask.current) /
+                                    backgroundTask.total
                                   : 0
                               }
                             />
                             <div className="text-sm text-muted-foreground">
-                              {backgroundTask.status.total > 0
-                                ? `${backgroundTask.status.current} / ${backgroundTask.status.total} `
+                              {backgroundTask.total > 0
+                                ? `${backgroundTask.current} / ${backgroundTask.total} `
                                 : ''}
-                              {backgroundTask.status.status}
+                              {backgroundTask.status}
                             </div>
                           </div>
                         ) : (
@@ -164,7 +158,7 @@ export default function BackgroundTasksPage() {
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() =>
-                                  abortTaskAction(backgroundTask.uid)
+                                  abortTaskAction(backgroundTask.task_id)
                                 }
                               >
                                 Continue

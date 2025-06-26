@@ -142,8 +142,8 @@ class TestPreprocessDataset(unittest.TestCase):
         start = time.time()
         while True:
             tasks = get_tasks()
-            task = next(t for t in tasks if t.uid == task_id)
-            if task.status.status == "completed":
+            task = next((t for t in tasks if t.task_id == task_id), None)
+            if task is None or task.status == "completed":
                 break
             time.sleep(1)
             if time.time() - start > timeout:

@@ -1,18 +1,27 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from lavender_data.server.background_worker import (
     CurrentBackgroundWorker,
-    TaskMetadata,
+    TaskStatus,
 )
 
 router = APIRouter(prefix="/background-tasks", tags=["background-tasks"])
 
 
+class TaskItem(TaskStatus):
+    task_id: str
+
+
 @router.get("/")
 def get_tasks(
     background_worker: CurrentBackgroundWorker,
-) -> list[TaskMetadata]:
-    return background_worker.running_tasks()
+) -> list[TaskItem]:
+    tasks = background_worker.list_tasks()
+    return [
+        TaskItem(task_id=task_id, **status.model_dump())
+        for task_id, status in tasks.items()
+    ]
 
 
 @router.post("/{task_uid}/abort")

@@ -2,7 +2,7 @@ import os
 import json
 from typing import Generator, Optional
 
-from sqlmodel import update, insert, select
+from sqlmodel import update, insert, select, delete
 
 from lavender_data.logging import get_logger
 from lavender_data.storage import list_files
@@ -13,8 +13,8 @@ from lavender_data.server.background_worker import (
     get_background_worker,
     pool_task,
 )
-from lavender_data.server.db.models import Shard
-from lavender_data.server.db import get_session
+from lavender_data.server.db.models import Shard, Shardset, ShardStatistics
+from lavender_data.server.db import db_manual_session
 from lavender_data.server.distributed import get_cluster
 from lavender_data.server.dataset.statistics import get_dataset_statistics
 from lavender_data.server.reader import get_reader_instance, ShardInfo
@@ -104,7 +104,7 @@ def sync_shardset_location(
     shardset_columns: dict[str, str],
     overwrite: bool = False,
 ) -> Generator[TaskStatus, None, None]:
-    # TODO handle when some shards are deleted
+    # TODO handle when columns are changed
     logger = get_logger(__name__)
     try:
         cluster = get_cluster()
@@ -114,7 +114,6 @@ def sync_shardset_location(
 
         shard_count = 0
         done_count = 0
-        orphan_shard_infos: list[tuple[OrphanShardInfo, int]] = []
         for orphan_shard, shard_index, shard_count in inspect_shardset_location(
             shardset_location,
             skip_locations=[] if overwrite else shardset_shard_locations,
@@ -123,51 +122,74 @@ def sync_shardset_location(
             if shard_count == 0:
                 return
 
-            done_count += 1
-            orphan_shard_infos.append((orphan_shard, shard_index))
             logger.debug(
                 f"Inspected shard {orphan_shard.location} ({done_count}/{shard_count})"
             )
-            yield TaskStatus(status="inspect", current=done_count, total=shard_count)
 
-        orphan_shard_infos.sort(key=lambda x: x[1])
+            with db_manual_session() as session:
+                updated = False
+                # TODO upsert https://github.com/fastapi/sqlmodel/issues/59
+                if overwrite:
+                    result = session.exec(
+                        update(Shard)
+                        .where(
+                            Shard.shardset_id == shardset_id,
+                            Shard.index == shard_index,
+                        )
+                        .values(
+                            location=orphan_shard.location,
+                            filesize=orphan_shard.filesize,
+                            samples=orphan_shard.samples,
+                            format=orphan_shard.format,
+                        )
+                    )
+                    if result.rowcount > 0:
+                        updated = True
 
-        yield TaskStatus(status="reflect", current=done_count, total=shard_count)
+                if not updated:
+                    session.exec(
+                        insert(Shard).values(
+                            shardset_id=shardset_id,
+                            index=shard_index,
+                            location=orphan_shard.location,
+                            filesize=orphan_shard.filesize,
+                            samples=orphan_shard.samples,
+                            format=orphan_shard.format,
+                        )
+                    )
 
-        session = next(get_session())
-        for orphan_shard, shard_index in orphan_shard_infos:
-            # TODO upsert https://github.com/fastapi/sqlmodel/issues/59
-            updated = False
-            if overwrite:
-                result = session.exec(
-                    update(Shard)
-                    .where(
+                shard = session.exec(
+                    select(Shard).where(
                         Shard.shardset_id == shardset_id,
                         Shard.index == shard_index,
                     )
-                    .values(
-                        location=orphan_shard.location,
-                        filesize=orphan_shard.filesize,
-                        samples=orphan_shard.samples,
-                        format=orphan_shard.format,
-                        statistics=orphan_shard.statistics,
-                    )
-                )
-                if result.rowcount > 0:
-                    updated = True
+                ).one_or_none()
 
-            if not updated:
-                session.exec(
-                    insert(Shard).values(
-                        shardset_id=shardset_id,
-                        index=shard_index,
-                        location=orphan_shard.location,
-                        filesize=orphan_shard.filesize,
-                        samples=orphan_shard.samples,
-                        format=orphan_shard.format,
-                        statistics=orphan_shard.statistics,
+                if shard is None:
+                    logger.warning(
+                        f"Shard {shard_index} not created in shardset {shardset_id}"
                     )
-                )
+                    continue
+
+                updated = False
+                if overwrite:
+                    result = session.exec(
+                        update(ShardStatistics)
+                        .where(ShardStatistics.shard_id == shard.id)
+                        .values(data=orphan_shard.statistics)
+                    )
+                    if result.rowcount > 0:
+                        updated = True
+
+                if not updated:
+                    session.exec(
+                        insert(ShardStatistics).values(
+                            shard_id=shard.id,
+                            data=orphan_shard.statistics,
+                        )
+                    )
+
+                session.commit()
 
             reader.clear_cache(
                 ShardInfo(
@@ -176,25 +198,40 @@ def sync_shardset_location(
                     **orphan_shard.model_dump(),
                 )
             )
+            done_count += 1
+            yield TaskStatus(status="inspect", current=done_count, total=shard_count)
 
-        session.commit()
+        yield TaskStatus(status="reflect", current=done_count, total=shard_count)
 
-        shardset_shards = session.exec(
-            select(Shard).where(Shard.shardset_id == shardset_id)
-        ).all()
+        with db_manual_session() as session:
+            result = session.exec(
+                delete(Shard).where(
+                    Shard.shardset_id == shardset_id, Shard.index >= shard_count
+                )
+            )
+            logger.debug(
+                f"Deleted {result.rowcount} shards from shardset {shardset_id}"
+            )
+            session.commit()
 
-        if len(shardset_shards) == 0:
-            logger.warning(f"Shardset {shardset_id} has no shards")
-            return
+        with db_manual_session() as session:
+            shardset = session.exec(
+                select(Shardset).where(Shardset.id == shardset_id)
+            ).first()
+            dataset_id = shardset.dataset_id
 
-        dataset = shardset_shards[0].shardset.dataset
-        dataset_statistics = get_dataset_statistics(dataset)
+        dataset_statistics = get_dataset_statistics(dataset_id)
+
         cache = next(get_cache())
-        cache.set(f"dataset-statistics:{dataset.id}", json.dumps(dataset_statistics))
-        cache.delete(f"preview:{dataset.id}")
+        cache.set(f"dataset-statistics:{dataset_id}", json.dumps(dataset_statistics))
+        cache.delete(f"preview:{dataset_id}")
 
         if cluster is not None and cluster.is_head:
             try:
+                with db_manual_session() as session:
+                    shardset_shards = session.exec(
+                        select(Shard).where(Shard.shardset_id == shardset_id)
+                    ).all()
                 logger.debug(
                     f"Syncing shardset {shardset_id} to cluster nodes ({len(shardset_shards)} shards)"
                 )

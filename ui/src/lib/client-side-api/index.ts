@@ -11,7 +11,7 @@ export const getVersion = async (): Promise<VersionResponse> => {
 };
 
 type TaskStatus = components['schemas']['TaskStatus'];
-type TaskMetadata = components['schemas']['TaskMetadata'];
+type TaskItem = components['schemas']['TaskItem'];
 
 export const getSyncShardsetStatus = async (
   datasetId: string,
@@ -26,7 +26,7 @@ export const getSyncShardsetStatus = async (
   return response.json();
 };
 
-export const getBackgroundTasks = async (): Promise<TaskMetadata[]> => {
+export const getBackgroundTasks = async (): Promise<TaskItem[]> => {
   const response = await fetch(`/api/background-tasks`);
   if (!response.ok) {
     throw new Error(`Failed to fetch background tasks: ${response.status}`);
@@ -103,6 +103,24 @@ export const getIterationNextPreview = async (iterationId: string) => {
   if (!response.ok) {
     throw new Error(
       `Failed to fetch iteration next preview: ${await getError(response)}`
+    );
+  }
+  return response.json();
+};
+
+export type ShardStatistics = components['schemas']['ShardStatisticsPublic'];
+
+export const getShardStatistics = async (
+  datasetId: string,
+  shardsetId: string,
+  shardId: string
+) => {
+  const response = await fetch(
+    `/api/datasets/${datasetId}/shardsets/${shardsetId}/shards/${shardId}/statistics`
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch shard statistics: ${await getError(response)}`
     );
   }
   return response.json();

@@ -2,15 +2,25 @@ import os
 import time
 from typing import Any, Union
 
-from sqlalchemy.exc import NoResultFound
+from sqlmodel import select
+from sqlalchemy.orm import selectinload
+
 import filetype
 import hashlib
 import numpy as np
 import json
 
 from lavender_data.server.settings import files_dir
-from lavender_data.server.db import get_session
-from lavender_data.server.db.models import Dataset, Shard
+from lavender_data.server.db import db_manual_session
+from lavender_data.server.db.models import (
+    Dataset,
+    Shard,
+    Shardset,
+    DatasetPublic,
+    ShardPublic,
+    ShardsetPublic,
+    DatasetColumnPublic,
+)
 from lavender_data.server.cache import CacheClient, get_cache
 from lavender_data.server.reader import (
     get_reader_instance,
@@ -30,8 +40,17 @@ except ImportError:
     torch = None
 
 
+class _Shardset(ShardsetPublic):
+    shards: list[ShardPublic]
+    columns: list[DatasetColumnPublic]
+
+
+class _Dataset(DatasetPublic):
+    shardsets: list[_Shardset]
+
+
 def _read_dataset(
-    dataset: Dataset,
+    dataset: _Dataset,
     index: int,
     reader: ReaderInstance,
     cache: CacheClient,
@@ -165,14 +184,36 @@ def preview_dataset(
     offset: int,
     limit: int,
 ) -> list[dict[str, Any]]:
-    session = next(get_session())
     cache = next(get_cache())
     reader = get_reader_instance()
 
-    try:
-        dataset = session.get_one(Dataset, dataset_id)
-    except NoResultFound:
-        raise ValueError(f"Dataset {dataset_id} not found")
+    cached_dataset = cache.hget(f"preview:{dataset_id}", "dataset")
+    if cached_dataset is None:
+        with db_manual_session() as session:
+            dataset = session.exec(
+                select(Dataset)
+                .where(Dataset.id == dataset_id)
+                .options(
+                    selectinload(Dataset.shardsets).options(
+                        selectinload(Shardset.columns),
+                        selectinload(Shardset.shards),
+                    )
+                )
+            ).one()
+
+        if dataset is None:
+            raise ValueError(f"Dataset {dataset_id} not found")
+
+        dataset = _Dataset.model_validate(dataset)
+        cache.hset(f"preview:{dataset_id}", "dataset", dataset.model_dump_json())
+        for shardset in dataset.shardsets:
+            cache.hset(
+                f"preview:{dataset_id}",
+                f"dataset.shardsets.{shardset.id}",
+                shardset.model_dump_json(),
+            )
+    else:
+        dataset = _Dataset.model_validate_json(cached_dataset)
 
     samples = []
     for index in range(offset, offset + limit):

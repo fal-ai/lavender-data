@@ -161,6 +161,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasets/{dataset_id}/shardsets/{shardset_id}/shards/{shard_id}/statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Shard Statistics */
+        get: operations["get_shard_statistics_datasets__dataset_id__shardsets__shardset_id__shards__shard_id__statistics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasets/{dataset_id}/shardsets/{shardset_id}/sync": {
         parameters: {
             query?: never;
@@ -1256,10 +1273,6 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Statistics */
-            statistics?: {
-                [key: string]: components["schemas"]["NumericShardStatistics"] | components["schemas"]["CategoricalShardStatistics"];
-            } | null;
         };
         /** ShardPublic */
         ShardPublic: {
@@ -1291,10 +1304,15 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Statistics */
-            statistics?: {
+        };
+        /** ShardStatisticsPublic */
+        ShardStatisticsPublic: {
+            /** Shard Id */
+            shard_id: string;
+            /** Data */
+            data: {
                 [key: string]: components["schemas"]["NumericShardStatistics"] | components["schemas"]["CategoricalShardStatistics"];
-            } | null;
+            };
         };
         /** ShardsetBase */
         ShardsetBase: {
@@ -1395,22 +1413,16 @@ export interface components {
              */
             overwrite: boolean;
         };
-        /** TaskMetadata */
-        TaskMetadata: {
-            /** Uid */
-            uid: string;
-            /** Name */
-            name: string;
-            /**
-             * Start Time
-             * Format: date-time
-             */
-            start_time: string;
-            /** Kwargs */
-            kwargs: {
-                [key: string]: unknown;
-            };
-            status?: components["schemas"]["TaskStatus"] | null;
+        /** TaskItem */
+        TaskItem: {
+            /** Status */
+            status: string;
+            /** Current */
+            current: number;
+            /** Total */
+            total: number;
+            /** Task Id */
+            task_id: string;
         };
         /** TaskStatus */
         TaskStatus: {
@@ -1862,6 +1874,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetShardsetShardsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_shard_statistics_datasets__dataset_id__shardsets__shardset_id__shards__shard_id__statistics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+                shardset_id: string;
+                shard_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShardStatisticsPublic"];
                 };
             };
             /** @description Validation Error */
@@ -2720,7 +2765,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskMetadata"][];
+                    "application/json": components["schemas"]["TaskItem"][];
                 };
             };
         };

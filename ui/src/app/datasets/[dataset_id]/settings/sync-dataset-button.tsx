@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button';
-import { RefreshCcw } from 'lucide-react';
+import { LoaderCircle, RefreshCcw } from 'lucide-react';
 import { syncShardset } from '../shardsets/[shardset_id]/sync-shardset-action';
 import { getClient } from '@/lib/api';
-import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 
 export async function SyncDatasetButton({
   dataset_id,
@@ -45,16 +45,23 @@ export async function SyncDatasetButton({
         syncShardset(dataset_id, shardset_id, false)
       )
     );
-    redirect(`/background-tasks/`);
+    revalidatePath(`/datasets/${dataset_id}`);
   };
 
   return (
     <div className="w-full flex flex-col gap-1">
       <form action={syncAction}>
-        <Button type="submit" className="w-full" disabled={disabled}>
-          <RefreshCcw className="w-4 h-4" />
-          Sync
-        </Button>
+        {disabled ? (
+          <Button type="submit" className="w-full" disabled={disabled}>
+            <LoaderCircle className="w-4 h-4 animate-spin" />
+            Sync in progress...
+          </Button>
+        ) : (
+          <Button type="submit" className="w-full" disabled={disabled}>
+            <RefreshCcw className="w-4 h-4" />
+            Sync
+          </Button>
+        )}
       </form>
     </div>
   );
