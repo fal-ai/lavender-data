@@ -2,7 +2,7 @@ import os
 import json
 from typing import Generator, Optional
 
-from sqlmodel import update, insert, select
+from sqlmodel import update, insert, select, delete
 
 from lavender_data.logging import get_logger
 from lavender_data.storage import list_files
@@ -104,7 +104,7 @@ def sync_shardset_location(
     shardset_columns: dict[str, str],
     overwrite: bool = False,
 ) -> Generator[TaskStatus, None, None]:
-    # TODO handle when some shards are deleted
+    # TODO handle when columns are changed
     logger = get_logger(__name__)
     try:
         cluster = get_cluster()
@@ -202,6 +202,17 @@ def sync_shardset_location(
             yield TaskStatus(status="inspect", current=done_count, total=shard_count)
 
         yield TaskStatus(status="reflect", current=done_count, total=shard_count)
+
+        with db_manual_session() as session:
+            result = session.exec(
+                delete(Shard).where(
+                    Shard.shardset_id == shardset_id, Shard.index >= shard_count
+                )
+            )
+            logger.debug(
+                f"Deleted {result.rowcount} shards from shardset {shardset_id}"
+            )
+            session.commit()
 
         with db_manual_session() as session:
             shardset = session.exec(
