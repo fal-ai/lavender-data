@@ -45,6 +45,10 @@ def _is_text_column(values: list[Any]) -> bool:
 
 
 def _is_categorical_column(values: list[Any]) -> bool:
+    # unhashable types are not categorical
+    if not _is_numeric_column(values) and not _is_text_column(values):
+        return False
+
     unique_values = set(values)
 
     if _is_numeric_column(values):

@@ -1,4 +1,4 @@
-import os
+import numpy as np
 import csv
 import sys
 import ast
@@ -17,14 +17,28 @@ class CsvReader(UntypedReader):
 
     def resolve_type(self, value: Any, typestr: str) -> type:
         if typestr in ["int", "int32", "int64"]:
+            if value == "":
+                return np.nan
             return int(value)
         elif typestr in ["float", "double"]:
+            if value == "":
+                return np.nan
             return float(value)
         elif typestr in ["string", "text", "str"]:
             return str(value)
         elif typestr in ["bool", "boolean"]:
             return value.lower() in ["true", "t", "yes", "y", "1"]
-        elif typestr in ["list", "map", "binary"]:
+        elif typestr in ["list"]:
+            if value == "":
+                return []
+            return ast.literal_eval(value)
+        elif typestr in ["map"]:
+            if value == "":
+                return {}
+            return ast.literal_eval(value)
+        elif typestr in ["binary"]:
+            if value == "":
+                return b""
             return ast.literal_eval(value)
         return value
 
