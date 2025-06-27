@@ -206,7 +206,13 @@ def sync_shardset_location(
         with db_manual_session() as session:
             result = session.exec(
                 delete(Shard).where(
-                    Shard.shardset_id == shardset_id, Shard.index >= shard_count
+                    Shard.shardset_id == shardset_id,
+                    Shard.index
+                    >= (
+                        shard_count
+                        if overwrite
+                        else shard_count + len(shardset_shard_locations)
+                    ),
                 )
             )
             logger.debug(
