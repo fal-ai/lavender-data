@@ -1,6 +1,6 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
   "/api/[...path]/route": "app/api/[...path]/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
   "/api/files/[...path]/route": "app/api/files/[...path]/route.js",
   "/background-tasks/page": "app/background-tasks/page.js",
   "/page": "app/page.js",
@@ -8,11 +8,11 @@
   "/datasets/page": "app/datasets/page.js",
   "/iterations/[iteration_id]/page": "app/iterations/[iteration_id]/page.js",
   "/iterations/page": "app/iterations/page.js",
-  "/datasets/[dataset_id]/dataloader/page": "app/datasets/[dataset_id]/dataloader/page.js",
-  "/datasets/[dataset_id]/page": "app/datasets/[dataset_id]/page.js",
   "/datasets/[dataset_id]/iterations/page": "app/datasets/[dataset_id]/iterations/page.js",
+  "/datasets/[dataset_id]/preview/page": "app/datasets/[dataset_id]/preview/page.js",
+  "/datasets/[dataset_id]/page": "app/datasets/[dataset_id]/page.js",
+  "/datasets/[dataset_id]/dataloader/page": "app/datasets/[dataset_id]/dataloader/page.js",
   "/datasets/[dataset_id]/settings/page": "app/datasets/[dataset_id]/settings/page.js",
   "/datasets/[dataset_id]/shardsets/[shardset_id]/page": "app/datasets/[dataset_id]/shardsets/[shardset_id]/page.js",
-  "/datasets/[dataset_id]/shardsets/page": "app/datasets/[dataset_id]/shardsets/page.js",
-  "/datasets/[dataset_id]/preview/page": "app/datasets/[dataset_id]/preview/page.js"
+  "/datasets/[dataset_id]/shardsets/page": "app/datasets/[dataset_id]/shardsets/page.js"
 }

@@ -65,6 +65,12 @@ const ellipsize = (value: any) => {
 };
 
 const getFileType = (url: string) => {
+  if (isYoutubeUrl(url)) {
+    return {
+      image: false,
+      video: true,
+    };
+  }
   const mimeType = mime.lookup(url.split('?')[0]);
   if (!mimeType) {
     return {
@@ -78,10 +84,26 @@ const getFileType = (url: string) => {
   };
 };
 
+const isYoutubeUrl = (url: string) => {
+  return (
+    (url.startsWith('https://www.youtube.com/') ||
+      url.startsWith('https://youtu.be/')) &&
+    getYoutubeVideoId(url) !== ''
+  );
+};
+
+const getYoutubeVideoId = (url: string) => {
+  return (url.split('v=')[1] ?? url.split('youtu.be/')[1] ?? '').split('&')[0];
+};
+
 const getFileUrl = (url: string) => {
   if (url.startsWith('file://')) {
     const filename = url.replace('file://', '');
     return `/api/files/${filename}`;
+  }
+  if (isYoutubeUrl(url)) {
+    const videoId = getYoutubeVideoId(url);
+    return `https://www.youtube.com/embed/${videoId}`;
   }
   return url;
 };
@@ -100,7 +122,11 @@ function FileCell({
 
   useEffect(() => {
     setShow(defaultShow);
-    setContentLoading(true);
+    if (isYoutubeUrl(url)) {
+      setContentLoading(false);
+    } else {
+      setContentLoading(true);
+    }
   }, [url]);
 
   useEffect(() => {
@@ -114,13 +140,13 @@ function FileCell({
     return (
       <Dialog>
         <DialogTrigger asChild>
-          <div>
+          <div className="h-[180px]">
             <Skeleton
-              className={`w-full h-[64px] ${contentLoading ? 'block' : 'hidden'}`}
+              className={`w-full h-full ${contentLoading ? 'block' : 'hidden'}`}
             />
             <img
               src={src}
-              className={`h-[64px] ${contentLoading ? 'hidden' : 'block'}`}
+              className={`w-auto h-full max-w-[320px] object-contain ${contentLoading ? 'hidden' : 'block'}`}
               onLoad={() => setContentLoading(false)}
             />
           </div>
@@ -133,7 +159,7 @@ function FileCell({
             </DialogDescription>
           </DialogHeader>
           <div className="w-full flex justify-center">
-            <img src={src} className="w-[400px]" />
+            <img src={src} className="h-[360px]" />
           </div>
           <DialogFooter className="max-h-[500px] overflow-x-auto overflow-y-auto">
             <Table>
@@ -163,20 +189,35 @@ function FileCell({
           {show ? (
             <div>
               <Skeleton
-                className={`w-full h-[64px] ${contentLoading ? 'block' : 'hidden'}`}
+                className={`w-full h-[180px] ${contentLoading ? 'block' : 'hidden'}`}
               />
-              <video
-                src={src}
-                className={`h-[64px] ${contentLoading ? 'hidden' : 'block'}`}
-                onCanPlay={() => setContentLoading(false)}
-                autoPlay
-                muted
-                loop
-                playsInline
-              />
+              <div className="w-full h-[180px]">
+                {!isYoutubeUrl(url) ? (
+                  <video
+                    src={src}
+                    className={`w-auto h-full max-w-[320px] object-contain ${contentLoading ? 'hidden' : 'block'}`}
+                    onCanPlay={() => setContentLoading(false)}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                  />
+                ) : (
+                  <iframe
+                    height="180"
+                    src={src}
+                    allow="accelerometer; autoplay; muted; loop; playsinline"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                  ></iframe>
+                )}
+              </div>
             </div>
           ) : (
-            <Button className="w-full h-[64px]" onClick={() => setShow(true)}>
+            <Button
+              className="w-[320px] h-[180px]"
+              onClick={() => setShow(true)}
+            >
               <Eye />
             </Button>
           )}
@@ -189,7 +230,18 @@ function FileCell({
             </DialogDescription>
           </DialogHeader>
           <div className="w-full flex justify-center">
-            <video src={src} controls autoPlay className="w-[400px]" />
+            {!isYoutubeUrl(url) ? (
+              <video src={src} className="h-[360px]" controls autoPlay />
+            ) : (
+              <iframe
+                height="360"
+                src={src}
+                allow="accelerometer; autoplay;"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+                onLoad={() => setContentLoading(false)}
+              ></iframe>
+            )}
           </div>
           <DialogFooter className="max-h-[500px] overflow-x-auto overflow-y-auto">
             <Table>
