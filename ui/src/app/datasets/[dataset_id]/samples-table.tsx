@@ -122,11 +122,7 @@ function FileCell({
 
   useEffect(() => {
     setShow(defaultShow);
-    if (isYoutubeUrl(url)) {
-      setContentLoading(false);
-    } else {
-      setContentLoading(true);
-    }
+    setContentLoading(true);
   }, [url]);
 
   useEffect(() => {
@@ -140,7 +136,7 @@ function FileCell({
     return (
       <Dialog>
         <DialogTrigger asChild>
-          <div className="h-[180px]">
+          <div className="w-[320px] h-[180px]">
             <Skeleton
               className={`w-full h-full ${contentLoading ? 'block' : 'hidden'}`}
             />
@@ -189,13 +185,15 @@ function FileCell({
           {show ? (
             <div>
               <Skeleton
-                className={`w-full h-[180px] ${contentLoading ? 'block' : 'hidden'}`}
+                className={`w-[320px] h-[180px] ${contentLoading ? 'block' : 'hidden'}`}
               />
-              <div className="w-full h-[180px]">
+              <div
+                className={`w-full h-[180px] ${contentLoading ? 'hidden' : 'block'}`}
+              >
                 {!isYoutubeUrl(url) ? (
                   <video
                     src={src}
-                    className={`w-auto h-full max-w-[320px] object-contain ${contentLoading ? 'hidden' : 'block'}`}
+                    className={`w-auto h-full max-w-[320px] object-contain`}
                     onCanPlay={() => setContentLoading(false)}
                     autoPlay
                     muted
@@ -206,6 +204,7 @@ function FileCell({
                   <iframe
                     height="180"
                     src={src}
+                    onLoad={() => setContentLoading(false)}
                     allow="accelerometer; autoplay; muted; loop; playsinline"
                     referrerPolicy="strict-origin-when-cross-origin"
                     allowFullScreen

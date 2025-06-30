@@ -39,7 +39,7 @@ export default async function DatasetsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {datasets.map((dataset: any) => (
+                {datasets.map((dataset) => (
                   <TableRow key={dataset.id}>
                     <TableCell className="font-mono text-xs">
                       <Link href={`/datasets/${dataset.id}/preview`}>

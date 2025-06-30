@@ -17,6 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SelectColumnType } from './select-column-type';
 import { InputColumnDescription } from './input-column-description';
+import { formatNumber } from '@/lib/number';
 
 function ShardSetInfo({ shardset }: { shardset: any }) {
   if (!shardset) {
@@ -31,7 +32,8 @@ function ShardSetInfo({ shardset }: { shardset: any }) {
       </div>
       <div className="text-xs text-muted-foreground">{shardset.location}</div>
       <div className="text-xs text-muted-foreground">
-        total {shardset.total_samples} samples, {shardset.shard_count} shards
+        {shardset.shard_count} shards, {formatNumber(shardset.total_samples)}{' '}
+        samples
       </div>
     </Link>
   );
