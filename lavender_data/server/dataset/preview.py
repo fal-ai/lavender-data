@@ -147,35 +147,42 @@ def _set_file(content: bytes):
     return filename
 
 
+def refine_value_previewable(value: Any):
+    if type(value) == bytes:
+        if len(value) > 0:
+            try:
+                local_path = _set_file(value)
+                return f"file://{local_path}"
+            except ValueError:
+                return f"<bytes>"
+        else:
+            return ""
+    elif type(value) == dict:
+        if value.get("bytes"):
+            try:
+                local_path = _set_file(value["bytes"])
+                return f"file://{local_path}"
+            except ValueError:
+                return str(value)
+        else:
+            return str(value)
+    elif type(value) == str:
+        if any(
+            value.startswith(prefix)
+            for prefix in ["s3://", "hf://", "http://", "https://"]
+        ):
+            return get_url(value)
+    elif torch and isinstance(value, torch.Tensor):
+        return f"<torch.Tensor shape={value.shape} dtype={value.dtype}>"
+    elif isinstance(value, np.ndarray):
+        return f"<numpy.ndarray shape={value.shape} dtype={value.dtype}>"
+
+    return value
+
+
 def refine_sample_previewable(sample: dict[str, Any]):
     for key in sample.keys():
-        if type(sample[key]) == bytes:
-            if len(sample[key]) > 0:
-                local_path = _set_file(sample[key])
-                sample[key] = f"file://{local_path}"
-                # sample[key] = "<bytes>"
-            else:
-                sample[key] = ""
-        if type(sample[key]) == dict:
-            if sample[key].get("bytes"):
-                local_path = _set_file(sample[key]["bytes"])
-                sample[key] = f"file://{local_path}"
-            else:
-                sample[key] = str(sample[key])
-        if type(sample[key]) == str:
-            if any(
-                sample[key].startswith(prefix)
-                for prefix in ["s3://", "hf://", "http://", "https://"]
-            ):
-                sample[key] = get_url(sample[key])
-        if torch and isinstance(sample[key], torch.Tensor):
-            sample[key] = (
-                f"<torch.Tensor shape={sample[key].shape} dtype={sample[key].dtype}>"
-            )
-        if isinstance(sample[key], np.ndarray):
-            sample[key] = (
-                f"<numpy.ndarray shape={sample[key].shape} dtype={sample[key].dtype}>"
-            )
+        sample[key] = refine_value_previewable(sample[key])
     return sample
 
 
