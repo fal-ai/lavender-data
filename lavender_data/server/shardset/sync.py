@@ -129,22 +129,21 @@ def sync_shardset_location(
             with db_manual_session() as session:
                 updated = False
                 # TODO upsert https://github.com/fastapi/sqlmodel/issues/59
-                if overwrite:
-                    result = session.exec(
-                        update(Shard)
-                        .where(
-                            Shard.shardset_id == shardset_id,
-                            Shard.index == shard_index,
-                        )
-                        .values(
-                            location=orphan_shard.location,
-                            filesize=orphan_shard.filesize,
-                            samples=orphan_shard.samples,
-                            format=orphan_shard.format,
-                        )
+                result = session.exec(
+                    update(Shard)
+                    .where(
+                        Shard.shardset_id == shardset_id,
+                        Shard.index == shard_index,
                     )
-                    if result.rowcount > 0:
-                        updated = True
+                    .values(
+                        location=orphan_shard.location,
+                        filesize=orphan_shard.filesize,
+                        samples=orphan_shard.samples,
+                        format=orphan_shard.format,
+                    )
+                )
+                if result.rowcount > 0:
+                    updated = True
 
                 if not updated:
                     session.exec(
@@ -172,14 +171,13 @@ def sync_shardset_location(
                     continue
 
                 updated = False
-                if overwrite:
-                    result = session.exec(
-                        update(ShardStatistics)
-                        .where(ShardStatistics.shard_id == shard.id)
-                        .values(data=orphan_shard.statistics)
-                    )
-                    if result.rowcount > 0:
-                        updated = True
+                result = session.exec(
+                    update(ShardStatistics)
+                    .where(ShardStatistics.shard_id == shard.id)
+                    .values(data=orphan_shard.statistics)
+                )
+                if result.rowcount > 0:
+                    updated = True
 
                 if not updated:
                     session.exec(

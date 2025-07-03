@@ -80,6 +80,7 @@ def _import_from_directory(directory: str):
             script_hash = _import_from_file(file)
         except Exception as e:
             logger.error(f"Error importing {file}: {e}")
+            continue
 
         if script_hash:
             current_hashes.add(script_hash)
