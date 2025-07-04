@@ -2,6 +2,8 @@ import math
 import numpy as np
 from typing import Any, Literal, Optional, TypedDict, Union
 
+from lavender_data.logging import get_logger
+
 
 class Histogram(TypedDict):
     hist: list[float]
@@ -52,8 +54,7 @@ def _is_categorical_column(values: list[Any]) -> bool:
     unique_values = set(values)
 
     if _is_numeric_column(values):
-        # boolean
-        return len(set(values)) <= 2
+        return len(set(values)) <= 10
 
     return len(unique_values) <= max(min(len(values) * 0.1, 99), 2)
 
@@ -141,6 +142,20 @@ def _get_numeric_statistics(values: list[Any]) -> NumericShardStatistics:
                 return None
             return len(value)
 
+    elif isinstance(values[0], (list, tuple)):
+
+        def _to_numeric(value: Any):
+            if value is None:
+                return None
+            return len(value)
+
+    elif isinstance(values[0], dict):
+
+        def _to_numeric(value: Any):
+            if value is None:
+                return None
+            return len(value.keys())
+
     else:
         raise ValueError(f"Invalid column type: {type(values[0])}")
 
@@ -193,6 +208,7 @@ def get_shard_statistics(
     columns: dict[str, str],
     statistics_types: Optional[dict[str, Literal["numeric", "categorical"]]] = None,
 ) -> ShardStatistics:
+    logger = get_logger(__name__)
     samples_by_column = {
         column_name: [sample[column_name] for sample in samples]
         for column_name in columns.keys()
@@ -203,8 +219,12 @@ def get_shard_statistics(
         statistics_type = (
             statistics_types.get(column_name) if statistics_types else None
         )
-        column_statistics[column_name] = get_shard_column_statistics(
-            values, statistics_type=statistics_type
-        )
+        try:
+            column_statistics[column_name] = get_shard_column_statistics(
+                values, statistics_type=statistics_type
+            )
+        except Exception as e:
+            logger.warning(f"Error getting statistics for column {column_name}: {e}")
+            continue
 
     return column_statistics
