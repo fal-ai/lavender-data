@@ -488,6 +488,7 @@ class IterationState(IterationStateOps):
             try:
                 sample = reader.get_sample(next_item, join="inner")
             except InnerJoinSampleInsufficient:
+                self.filtered(next_item.index)
                 continue
             except Exception as e:
                 self.failed(next_item.index)

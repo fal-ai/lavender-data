@@ -93,7 +93,10 @@ def _decollate(batch: dict) -> dict:
     _batch = {}
     for k, v in batch.items():
         if torch is not None and isinstance(v, torch.Tensor):
-            _batch[k] = v.item()
+            try:
+                _batch[k] = v.item()
+            except RuntimeError:
+                _batch[k] = v[0]
         elif isinstance(v, list) and len(v) == 1:
             _batch[k] = v[0]
         elif isinstance(v, dict):
