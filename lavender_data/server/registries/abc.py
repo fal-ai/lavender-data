@@ -17,7 +17,11 @@ class FuncSpec(BaseModel):
 
 
 def _get_md5(_class: type[T]) -> str:
-    return hashlib.md5(inspect.getsource(_class).encode()).hexdigest()
+    try:
+        source = inspect.getsource(_class)
+    except Exception as e:
+        source = _class.__name__
+    return hashlib.md5(source.encode()).hexdigest()
 
 
 class Registry(ABC, Generic[T]):
