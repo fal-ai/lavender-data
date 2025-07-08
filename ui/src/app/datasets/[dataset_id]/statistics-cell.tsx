@@ -159,35 +159,43 @@ function CategoricalStatisticsCell({
       ) : (
         <svg width={width} height={svgHeight}>
           <g>
-            {Object.entries(frequencies).map(([value, count], i) => (
-              <Tooltip key={`histogram-${columnName}-${random}-${i}`}>
-                <rect
-                  className="fill-gray-400 dark:fill-gray-500/80"
-                  rx="2"
-                  x={i * (width / n_unique)}
-                  y={svgHeight - (count / hMax) * svgHeight}
-                  width={width / n_unique - 2}
-                  height={(count / hMax) * svgHeight}
-                  fillOpacity="1"
-                ></rect>
-                <TooltipTrigger asChild>
+            {Object.entries(frequencies)
+              .sort(([v_a], [v_b]) => {
+                if (!isNaN(parseFloat(v_a)) && !isNaN(parseFloat(v_b))) {
+                  return parseFloat(v_a) - parseFloat(v_b);
+                }
+                return v_a.localeCompare(v_b);
+              })
+              .map(([value, count], i) => (
+                <Tooltip key={`histogram-${columnName}-${random}-${i}`}>
                   <rect
+                    className="fill-gray-400 dark:fill-gray-500/80"
                     rx="2"
                     x={i * (width / n_unique)}
-                    y={svgHeight - svgHeight}
+                    y={svgHeight - (count / hMax) * svgHeight}
                     width={width / n_unique - 2}
-                    height={svgHeight}
-                    fillOpacity="0"
+                    height={(count / hMax) * svgHeight}
+                    fillOpacity="1"
                   ></rect>
-                </TooltipTrigger>
-                <TooltipContent className="w-auto text-wrap break-all font-mono">
-                  <div>{value}</div>
-                  <div>
-                    {((count / hMax) * 100).toFixed(2)}% ({formatNumber(count)})
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            ))}
+                  <TooltipTrigger asChild>
+                    <rect
+                      rx="2"
+                      x={i * (width / n_unique)}
+                      y={svgHeight - svgHeight}
+                      width={width / n_unique - 2}
+                      height={svgHeight}
+                      fillOpacity="0"
+                    ></rect>
+                  </TooltipTrigger>
+                  <TooltipContent className="w-auto text-wrap break-all font-mono">
+                    <div>{value}</div>
+                    <div>
+                      {((count / hMax) * 100).toFixed(2)}% (
+                      {formatNumber(count)})
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
           </g>
         </svg>
       )}
