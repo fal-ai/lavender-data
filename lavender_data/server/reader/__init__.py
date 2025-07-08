@@ -202,6 +202,9 @@ class ServerSideReader:
             for k, v in sample_partial.items():
                 if k == index.uid_column_name:
                     continue
+                if v is None:
+                    sample[k] = _default_null_type(feature_shard.columns[k])
+                    continue
                 sample[k] = v
 
         return sample
