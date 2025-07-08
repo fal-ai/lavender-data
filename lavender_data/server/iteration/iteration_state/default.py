@@ -22,6 +22,7 @@ from lavender_data.server.reader import (
     ShardInfo,
     MainShardInfo,
     GlobalSampleIndex,
+    InnerJoinSampleInsufficient,
 )
 from lavender_data.server.registries import (
     FilterRegistry,
@@ -485,7 +486,9 @@ class IterationState(IterationStateOps):
             next_item = self.next_item(rank)
 
             try:
-                sample = reader.get_sample(next_item)
+                sample = reader.get_sample(next_item, join="inner")
+            except InnerJoinSampleInsufficient:
+                continue
             except Exception as e:
                 self.failed(next_item.index)
                 msg = f"Failed to read sample {next_item.index} (sample {next_item.main_shard.sample_index} of shard {next_item.main_shard.index}): {e.__class__.__name__}({str(e)})"

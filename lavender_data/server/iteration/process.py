@@ -114,7 +114,7 @@ def _process_next_samples(params: ProcessNextSamplesParams) -> dict:
     batch_size = params.batch_size
 
     if samples is None:
-        samples = [reader.get_sample(i) for i in global_sample_indices]
+        samples = [reader.get_sample(i, join="left") for i in global_sample_indices]
 
     batch = (
         CollaterRegistry.get(collater["name"]).collate(samples)
