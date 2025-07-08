@@ -1,6 +1,7 @@
 import io
 import numpy as np
 import ujson as json
+import warnings
 
 try:
     import torch
@@ -127,7 +128,7 @@ def serialize_sample(sample: dict):
     return header + body
 
 
-def deserialize_sample(content: bytes):
+def deserialize_sample(content: bytes, strict: bool = True):
     header_length, current = detach_length(content)
     keys = json.loads(current[:header_length].decode("utf-8"))
     values = []
@@ -136,9 +137,26 @@ def deserialize_sample(content: bytes):
     if signature != b"sa":
         raise ValueError(f"Unknown signature: {signature}")
     current = current[2:]
-    while current:
+    i = 0
+    while current and i < len(keys):
         value_length, value = detach_length(current)
         current_value = value[:value_length]
-        values.append(deserialize_item(current_value))
+        try:
+            values.append(deserialize_item(current_value))
+        except Exception as e:
+            msg = (
+                f"Failed to deserialize item {keys[i]}: {e}\n"
+                f"Remaining {len(value)} bytes, current item {len(current_value)} bytes, length {value_length}"
+            )
+            if not strict:
+                warnings.warn(msg)
+                values.append(None)
+            else:
+                raise ValueError(msg)
         current = value[value_length:]
+        i += 1
+
+    if len(current) > 0:
+        warnings.warn(f"Remaining {len(current)} bytes")
+
     return dict(zip(keys, values))
