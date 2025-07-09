@@ -309,9 +309,6 @@ class LavenderDataLoader:
     def __getitem__(self, index: int):
         return next(self)
 
-    def __del__(self):
-        self._stop()
-
 
 class AsyncLavenderDataLoader:
     def __init__(
@@ -329,9 +326,10 @@ class AsyncLavenderDataLoader:
         self._poll_interval = poll_interval
         self._in_order = in_order
         self._arrived: list[tuple[int, dict]] = []
-        self._current = -1
+        self._current = 0
         self._stopped = False
         self._fetch_threads: list[threading.Thread] = []
+        self._joined_fetch_threads = 0
         self._error: Optional[Exception] = None
 
     def _stop(self):
@@ -353,8 +351,7 @@ class AsyncLavenderDataLoader:
             cache_key = self._dl._submit_next_item()
         except LavenderDataApiError as e:
             if "No more indices to pop" in str(e):
-                self._stopped = True
-                return
+                raise StopIteration
             else:
                 raise e
 
@@ -367,9 +364,6 @@ class AsyncLavenderDataLoader:
                 data = self._dl._get_submitted_result(cache_key)
                 if data is not None:
                     arrived_index = data["_lavender_data_current"]
-            except StopIteration:
-                self._stopped = True
-                return
             except LavenderDataSampleProcessingError as e:
                 if self._dl._skip_on_failure:
                     arrived_index = e.current
@@ -382,13 +376,15 @@ class AsyncLavenderDataLoader:
         while not self._stopped:
             try:
                 fetched = self._fetch_one()
-                if fetched is None:
-                    continue
                 arrived_index, data = fetched
                 self._arrived.append((arrived_index, data))
+            except StopIteration:
+                break
             except Exception as e:
                 self._error = e
                 self._stopped = True
+
+        self._joined_fetch_threads += 1
 
     def _start_fetch_threads(self):
         for _ in range(self._prefetch_factor):
@@ -406,27 +402,28 @@ class AsyncLavenderDataLoader:
         self._dl._complete_last_indices()
 
         data = None
-        next_index = self._current + 1
         while data is None:
             if self._stopped:
-                if self._error is not None:
-                    raise self._error
+                raise self._error or StopIteration
+
+            if self._joined_fetch_threads == len(self._fetch_threads):
                 raise StopIteration
 
-            try:
-                arrived_index, data = (
-                    # next index is in the arrived list
-                    next((i, data) for i, data in self._arrived if i == next_index)
-                    if self._in_order
-                    # any index is in the arrived list
-                    else next((i, data) for i, data in self._arrived)
-                )
-                self._arrived = [a for a in self._arrived if a[0] != arrived_index]
-                self._current = next_index
-                next_index = self._current + 1
-            except StopIteration:
-                # nothing is arrived yet
+            arrived = next(
+                (
+                    (i, data)
+                    for i, data in self._arrived
+                    if i == self._current or not self._in_order
+                ),
+                None,
+            )
+
+            if arrived is None:
                 continue
+
+            arrived_index, data = arrived
+            self._arrived = [a for a in self._arrived if a[0] != arrived_index]
+            self._current += 1
 
         self._dl._set_last_indices(data)
         return data
@@ -442,6 +439,3 @@ class AsyncLavenderDataLoader:
 
     def __getitem__(self, index: int):
         return next(self)
-
-    def __del__(self):
-        self._stop()
