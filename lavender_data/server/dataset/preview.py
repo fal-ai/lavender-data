@@ -127,7 +127,8 @@ def _read_dataset(
             uid_column_type=uid_column_type,
             main_shard=main_shard,
             feature_shards=feature_shards,
-        )
+        ),
+        join="left",
     )
 
 

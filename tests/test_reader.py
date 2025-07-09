@@ -9,6 +9,7 @@ from lavender_data.server.reader import (
     GlobalSampleIndex,
     MainShardInfo,
     ShardInfo,
+    InnerJoinSampleInsufficient,
 )
 
 from tests.utils.shards import create_test_shard
@@ -131,10 +132,13 @@ class TestReader(unittest.TestCase):
                 ),
             ],
         )
-        sample = self.reader.get_sample(index)
+        sample = self.reader.get_sample(index, join="left")
         self.assertEqual(sample["id"], 0)
         self.assertEqual(sample["image_url"], "https://example.com/image-0.jpg")
         self.assertEqual(sample["caption"], "Caption for image 0")
         self.assertTrue(np.isnan(sample["score"]))
+
+        with self.assertRaises(InnerJoinSampleInsufficient):
+            self.reader.get_sample(index, join="inner")
 
     # TODO cache size test

@@ -1,6 +1,7 @@
 import ujson as json
 from typing import Optional
 import traceback
+import time
 
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -93,7 +94,10 @@ def _decollate(batch: dict) -> dict:
     _batch = {}
     for k, v in batch.items():
         if torch is not None and isinstance(v, torch.Tensor):
-            _batch[k] = v.item()
+            try:
+                _batch[k] = v.item()
+            except RuntimeError:
+                _batch[k] = v[0]
         elif isinstance(v, list) and len(v) == 1:
             _batch[k] = v[0]
         elif isinstance(v, dict):
@@ -114,7 +118,7 @@ def _process_next_samples(params: ProcessNextSamplesParams) -> dict:
     batch_size = params.batch_size
 
     if samples is None:
-        samples = [reader.get_sample(i) for i in global_sample_indices]
+        samples = [reader.get_sample(i, join="left") for i in global_sample_indices]
 
     batch = (
         CollaterRegistry.get(collater["name"]).collate(samples)
@@ -161,6 +165,21 @@ def process_next_samples(
                 raise error
 
 
+def _format_number(number: int):
+    if number < 1000:
+        return f"{number} "
+    elif number < 1000**2:
+        return f"{number/1000:.2f} K"
+    elif number < 1000**3:
+        return f"{number/1000**2:.2f} M"
+    else:
+        return f"{number/1000**3:.2f} G"
+
+
+def _ms(seconds: float):
+    return f"{seconds*1000:.2f} ms"
+
+
 @pool_task()
 def process_next_samples_and_store(
     params: ProcessNextSamplesParams,
@@ -170,10 +189,22 @@ def process_next_samples_and_store(
     *,
     shared_memory: SharedMemory,
 ):
+    logger = get_logger(__name__)
     try:
+        _start = time.perf_counter()
         batch = process_next_samples(params, max_retry_count)
+        _process_time = time.perf_counter()
         content = serialize_sample(batch)
+        _serialize_time = time.perf_counter()
         shared_memory.set(cache_key, content, ex=cache_ttl)
+        _store_time = time.perf_counter()
+        logger.debug(
+            f"Done processing {cache_key} in {_ms(_store_time - _start)}, "
+            f"process: {_ms(_process_time - _start)}, "
+            f"serialize: {_ms(_serialize_time - _process_time)}, "
+            f"store: {_ms(_store_time - _serialize_time)}, "
+            f"size: {_format_number(len(content))}B"
+        )
     except ProcessNextSamplesException as e:
         shared_memory.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)
     except Exception as e:

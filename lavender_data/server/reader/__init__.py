@@ -1,6 +1,6 @@
 import os
 import hashlib
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Literal
 
 import numpy as np
 from fastapi import Depends
@@ -43,8 +43,19 @@ def _default_null_type(t: str) -> str:
         return b""
     elif t.startswith("bool"):
         return np.nan
+    elif t.startswith("list"):
+        return []
+    elif t.startswith("dict"):
+        return {}
     else:
         return None
+
+
+JoinMethod = Literal["inner", "left"]
+
+
+class InnerJoinSampleInsufficient(Exception):
+    pass
 
 
 class ServerSideReader:
@@ -149,7 +160,11 @@ class ServerSideReader:
                 self.reader_cache[cache_key].clear()
                 del self.reader_cache[cache_key]
 
-    def _get_sample(self, index: GlobalSampleIndex):
+    def _get_sample(
+        self,
+        index: GlobalSampleIndex,
+        join: JoinMethod,
+    ):
         reader = self.get_reader(
             index.main_shard, index.uid_column_name, index.uid_column_type
         )
@@ -175,20 +190,34 @@ class ServerSideReader:
             try:
                 sample_partial = reader.get_item_by_uid(sample_uid)
             except KeyError:
-                msg = f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({index.main_shard.sample_index} of {index.main_shard.location})'
-                sample_partial = {
-                    k: _default_null_type(t) for k, t in feature_shard.columns.items()
-                }
+                if join == "inner":
+                    raise InnerJoinSampleInsufficient(
+                        f'Failed to read sample with uid "{sample_uid}" from shard {feature_shard.location} ({index.main_shard.sample_index} of {index.main_shard.location})'
+                    )
+                else:
+                    sample_partial = {
+                        k: _default_null_type(t)
+                        for k, t in feature_shard.columns.items()
+                    }
             for k, v in sample_partial.items():
                 if k == index.uid_column_name:
+                    continue
+                if v is None:
+                    sample[k] = _default_null_type(feature_shard.columns[k])
                     continue
                 sample[k] = v
 
         return sample
 
-    def get_sample(self, index: GlobalSampleIndex):
+    def get_sample(
+        self,
+        index: GlobalSampleIndex,
+        join: JoinMethod = "inner",
+    ):
         try:
-            return self._get_sample(index)
+            return self._get_sample(index, join)
+        except InnerJoinSampleInsufficient:
+            raise
         except Exception as e:
             self.clear_cache(index.main_shard, *index.feature_shards)
             raise e

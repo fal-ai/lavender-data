@@ -22,6 +22,7 @@ from lavender_data.server.reader import (
     ShardInfo,
     MainShardInfo,
     GlobalSampleIndex,
+    InnerJoinSampleInsufficient,
 )
 from lavender_data.server.registries import (
     FilterRegistry,
@@ -479,13 +480,17 @@ class IterationState(IterationStateOps):
         filters = self._filters()
         categorizer = self._categorizer()
 
+        current = int(self.cache.incr(self._key("batch_count"), 1)) - 1
         global_sample_indices = []
         samples = []
         while len(samples) < max(batch_size, 1):
             next_item = self.next_item(rank)
 
             try:
-                sample = reader.get_sample(next_item)
+                sample = reader.get_sample(next_item, join="inner")
+            except InnerJoinSampleInsufficient:
+                self.filtered(next_item.index)
+                continue
             except Exception as e:
                 self.failed(next_item.index)
                 msg = f"Failed to read sample {next_item.index} (sample {next_item.main_shard.sample_index} of shard {next_item.main_shard.index}): {e.__class__.__name__}({str(e)})"
@@ -538,7 +543,6 @@ class IterationState(IterationStateOps):
                 samples.append(sample)
 
         cache_key = self._cache_key([i.index for i in global_sample_indices])
-        current = int(self.cache.incr(self._key("batch_count"), 1)) - 1
         return cache_key, ProcessNextSamplesParams(
             current=current,
             global_sample_indices=global_sample_indices,

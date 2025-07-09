@@ -5,6 +5,8 @@ import threading
 import hashlib
 from lavender_data.logging import get_logger
 
+EOF_SIGNATURE = b"EOF"
+
 
 class SharedMemory:
     def __init__(self):
@@ -62,7 +64,11 @@ class SharedMemory:
 
     def set(self, name: str, value: Union[bytes, str], ex: Optional[int] = None):
         _value = self._ensure_bytes(value)
-        _value = len(_value).to_bytes(length=8, byteorder="big", signed=False) + _value
+        _value = (
+            len(_value).to_bytes(length=8, byteorder="big", signed=False)
+            + _value
+            + EOF_SIGNATURE
+        )
 
         try:
             memory = self._create_shared_memory(name, len(_value))
@@ -81,6 +87,8 @@ class SharedMemory:
             memory = self._get_shared_memory(name)
             b = memory.buf.tobytes()
             length = int.from_bytes(b[:8], byteorder="big", signed=False)
+            if b[length + 8 : length + 8 + len(EOF_SIGNATURE)] != EOF_SIGNATURE:
+                return None
             return b[8 : length + 8]
         except FileNotFoundError:
             return None

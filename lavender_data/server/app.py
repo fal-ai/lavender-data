@@ -1,8 +1,8 @@
+import time
 import re
-import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -106,15 +106,37 @@ async def lifespan(app: FastAPI):
         pass
 
 
-class EndpointFilter(logging.Filter):
-    def filter(self, record: logging.LogRecord) -> bool:
-        # Disable logging for polling requests
-        return not re.match(r".*GET.*/iterations/.*/next/.* 202.*", record.getMessage())
-
-
-logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
-
 app = FastAPI(lifespan=lifespan)
+
+
+def log_filter(request: Request, response):
+    if (
+        re.match(r"/iterations/.*/next/.*", request.url.path)
+        and response.status_code == 202
+    ):
+        return False
+    return True
+
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    logger = get_logger(__name__)
+    start_time = time.perf_counter()
+    response = await call_next(request)
+    process_time = time.perf_counter() - start_time
+
+    if log_filter(request, response):
+        path = (
+            f"{request.url.path}?{request.url.query}"
+            if request.url.query
+            else request.url.path
+        )
+        logger.info(
+            f"{request.client.host}:{request.client.port} - {request.method} {path} {response.status_code} {process_time:.2f}s"
+        )
+
+    return response
+
 
 app.mount("/files", StaticFiles(directory=files_dir), name="files")
 app.add_middleware(

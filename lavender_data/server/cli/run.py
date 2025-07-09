@@ -34,7 +34,7 @@ def run(env_file: str = ".env", init: bool = False):
     server = uvicorn.Server(config)
 
     get_logger("uvicorn", clear_handlers=True)
-    get_logger("uvicorn.access", clear_handlers=True)
+    get_logger("uvicorn.access", clear_handlers=True).disabled = True
 
     try:
         server.run()
