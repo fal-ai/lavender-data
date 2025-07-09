@@ -301,6 +301,8 @@ class LavenderDataLoader:
         try:
             while True:
                 yield next(self)
+        except StopIteration:
+            pass
         finally:
             self._stop()
 
@@ -433,6 +435,8 @@ class AsyncLavenderDataLoader:
         try:
             while True:
                 yield next(self)
+        except StopIteration:
+            pass
         finally:
             self._stop()
 
