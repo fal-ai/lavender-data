@@ -126,8 +126,13 @@ async def add_process_time_header(request: Request, call_next):
     process_time = time.perf_counter() - start_time
 
     if log_filter(request, response):
+        path = (
+            f"{request.url.path}?{request.url.query}"
+            if request.url.query
+            else request.url.path
+        )
         logger.info(
-            f"{request.client.host}:{request.client.port} - {request.method} {request.url.path}?{request.url.query} {response.status_code} {process_time:.2f}s"
+            f"{request.client.host}:{request.client.port} - {request.method} {path} {response.status_code} {process_time:.2f}s"
         )
 
     return response

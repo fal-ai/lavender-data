@@ -1,4 +1,5 @@
 from lavender_data.client import LavenderDataClient
+from lavender_data.serialize import deserialize_sample
 
 
 def _api(api_url: str, api_key: str):
@@ -77,11 +78,13 @@ def get_next_item(
     no_cache: bool,
     max_retry_count: int,
 ):
-    return _api(api_url=api_url, api_key=api_key).get_next_item(
-        iteration_id=iteration_id,
-        rank=rank,
-        no_cache=no_cache,
-        max_retry_count=max_retry_count,
+    return deserialize_sample(
+        _api(api_url=api_url, api_key=api_key).get_next_item(
+            iteration_id=iteration_id,
+            rank=rank,
+            no_cache=no_cache,
+            max_retry_count=max_retry_count,
+        )
     )
 
 
@@ -102,8 +105,10 @@ def submit_next_item(
 
 
 def get_submitted_result(api_url: str, api_key: str, iteration_id: str, cache_key: str):
-    return _api(api_url=api_url, api_key=api_key).get_submitted_result(
-        iteration_id=iteration_id, cache_key=cache_key
+    return deserialize_sample(
+        _api(api_url=api_url, api_key=api_key).get_submitted_result(
+            iteration_id=iteration_id, cache_key=cache_key
+        )
     )
 
 

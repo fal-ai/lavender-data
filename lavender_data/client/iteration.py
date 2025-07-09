@@ -3,6 +3,7 @@ import json
 from typing import Optional, Union, Literal
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 
+from lavender_data.serialize import deserialize_sample, DeserializeException
 from lavender_data.client.api import (
     get_client,
     LavenderDataClient,
@@ -140,6 +141,8 @@ class LavenderDataLoader:
         self._api_key = api_key
         self._api = _api(self._api_url, self._api_key)
 
+        self._bytes = 0
+
         self.id = self._iteration_id
 
     def torch(
@@ -215,19 +218,21 @@ class LavenderDataLoader:
 
     def _get_next_item(self):
         try:
-            sample_or_batch = self._api.get_next_item(
+            serialized = self._api.get_next_item(
                 iteration_id=self._iteration_id,
                 rank=self._rank,
                 no_cache=self._no_cache,
                 max_retry_count=self._max_retry_count,
             )
+            self._bytes += len(serialized)
+            return deserialize_sample(serialized)
         except LavenderDataApiError as e:
             if "No more indices to pop" in str(e):
                 raise StopIteration
             else:
                 raise e
-
-        return sample_or_batch
+        except DeserializeException as e:
+            raise ValueError(f"Failed to deserialize sample: {e}")
 
     def _submit_next_item(self) -> str:
         cache_key = self._api.submit_next_item(
@@ -240,10 +245,12 @@ class LavenderDataLoader:
 
     def _get_submitted_result(self, cache_key: str):
         try:
-            return self._api.get_submitted_result(
+            serialized = self._api.get_submitted_result(
                 iteration_id=self._iteration_id,
                 cache_key=cache_key,
             )
+            self._bytes += len(serialized)
+            return deserialize_sample(serialized)
         except LavenderDataApiError as e:
             if "Data is still being processed" in str(e):
                 return None
@@ -253,6 +260,8 @@ class LavenderDataLoader:
                 raise StopIteration
             else:
                 raise e
+        except DeserializeException as e:
+            raise ValueError(f"Failed to deserialize sample: {e}")
 
     def __next__(self):
         self._complete_last_indices()

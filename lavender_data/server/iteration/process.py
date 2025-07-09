@@ -165,6 +165,21 @@ def process_next_samples(
                 raise error
 
 
+def _format_number(number: int):
+    if number < 1000:
+        return f"{number} "
+    elif number < 1000**2:
+        return f"{number/1000:.2f} K"
+    elif number < 1000**3:
+        return f"{number/1000**2:.2f} M"
+    else:
+        return f"{number/1000**3:.2f} G"
+
+
+def _ms(seconds: float):
+    return f"{seconds*1000:.2f} ms"
+
+
 @pool_task()
 def process_next_samples_and_store(
     params: ProcessNextSamplesParams,
@@ -184,7 +199,11 @@ def process_next_samples_and_store(
         shared_memory.set(cache_key, content, ex=cache_ttl)
         _store_time = time.perf_counter()
         logger.debug(
-            f"Done processing {cache_key} in {_store_time-_start:.2f}s, process: {_process_time-_start:.2f}s, serialize: {_serialize_time - _process_time:.2f}s, store: {_store_time - _serialize_time:.2f}s, size: {len(content)} bytes"
+            f"Done processing {cache_key} in {_ms(_store_time - _start)}, "
+            f"process: {_ms(_process_time - _start)}, "
+            f"serialize: {_ms(_serialize_time - _process_time)}, "
+            f"store: {_ms(_store_time - _serialize_time)}, "
+            f"size: {_format_number(len(content))}B"
         )
     except ProcessNextSamplesException as e:
         shared_memory.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)

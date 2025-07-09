@@ -128,6 +128,10 @@ def serialize_sample(sample: dict):
     return header + body
 
 
+class DeserializeException(Exception):
+    pass
+
+
 def deserialize_sample(content: bytes, strict: bool = True):
     header_length, current = detach_length(content)
     keys = json.loads(current[:header_length].decode("utf-8"))
@@ -152,7 +156,7 @@ def deserialize_sample(content: bytes, strict: bool = True):
                 warnings.warn(msg)
                 values.append(None)
             else:
-                raise ValueError(msg)
+                raise DeserializeException(msg)
         current = value[value_length:]
         i += 1
 

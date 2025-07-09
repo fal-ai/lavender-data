@@ -377,8 +377,7 @@ class LavenderDataClient:
                 no_cache=no_cache,
                 max_retry_count=max_retry_count,
             )
-        content = self._check_response(response).payload.read()
-        return deserialize_sample(content)
+        return self._check_response(response).payload.read()
 
     def submit_next_item(
         self,
@@ -406,8 +405,7 @@ class LavenderDataClient:
             )
         if response.status_code == 202:
             raise LavenderDataApiError(response.content.decode("utf-8"))
-        content = self._check_response(response).payload.read()
-        return deserialize_sample(content)
+        return self._check_response(response).payload.read()
 
     def complete_index(self, iteration_id: str, index: int):
         with self._get_client() as client:
