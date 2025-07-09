@@ -143,9 +143,14 @@ class LavenderDataLoader:
         self._api = _api(self._api_url, self._api_key)
 
         self._bytes = 0
-        self._complete_thread: Optional[threading.Thread] = None
+        self._stopped = False
 
         self.id = self._iteration_id
+
+        self._complete_thread = threading.Thread(
+            target=self._keep_complete_indices, daemon=True
+        )
+        self._complete_thread.start()
 
     def torch(
         self,
@@ -206,7 +211,7 @@ class LavenderDataLoader:
         return self._total
 
     def _keep_complete_indices(self):
-        while True:
+        while not self._stopped:
             if len(self._completed_indices) == 0:
                 time.sleep(0.1)
                 continue
@@ -215,12 +220,6 @@ class LavenderDataLoader:
             self.complete(index)
 
     def _complete_last_indices(self):
-        if self._complete_thread is None:
-            self._complete_thread = threading.Thread(
-                target=self._keep_complete_indices, daemon=True
-            )
-            self._complete_thread.start()
-
         self._completed_indices.update(self._last_indices)
         self._last_indices = set()
 
@@ -278,6 +277,10 @@ class LavenderDataLoader:
         except DeserializeException as e:
             raise ValueError(f"Failed to deserialize sample: {e}")
 
+    def _stop(self):
+        self._stopped = True
+        self._complete_thread.join()
+
     def __next__(self):
         self._complete_last_indices()
 
@@ -295,10 +298,17 @@ class LavenderDataLoader:
         return sample_or_batch
 
     def __iter__(self):
-        return self
+        try:
+            while True:
+                yield next(self)
+        finally:
+            self._stop()
 
     def __getitem__(self, index: int):
         return next(self)
+
+    def __del__(self):
+        self._stop()
 
 
 class AsyncLavenderDataLoader:
@@ -312,47 +322,54 @@ class AsyncLavenderDataLoader:
         if prefetch_factor < 1:
             raise ValueError("prefetch_factor must be greater than 0")
 
-        self.dl = dl
-        self.prefetch_factor = prefetch_factor
-        self.poll_interval = poll_interval
-        self.in_order = in_order
-        self.arrived: list[tuple[int, dict]] = []
-        self.current = -1
-        self.stopped = False
-        self.fetch_threads: list[threading.Thread] = []
+        self._dl = dl
+        self._prefetch_factor = prefetch_factor
+        self._poll_interval = poll_interval
+        self._in_order = in_order
+        self._arrived: list[tuple[int, dict]] = []
+        self._current = -1
+        self._stopped = False
+        self._fetch_threads: list[threading.Thread] = []
+        self._error: Optional[Exception] = None
+
+    def _stop(self):
+        self._stopped = True
+        for thread in self._fetch_threads:
+            thread.join()
+        self._dl._stop()
 
     def _get_submitted_result(self, cache_key: str):
         while True:
-            data = self.dl._get_submitted_result(cache_key)
+            data = self._dl._get_submitted_result(cache_key)
             if data is not None:
                 return data
             else:
-                time.sleep(self.poll_interval)
+                time.sleep(self._poll_interval)
 
     def _fetch_one(self):
         try:
-            cache_key = self.dl._submit_next_item()
+            cache_key = self._dl._submit_next_item()
         except LavenderDataApiError as e:
             if "No more indices to pop" in str(e):
-                self.stopped = True
+                self._stopped = True
                 return
             else:
                 raise e
 
         data = None
         arrived_index = None
-        while arrived_index is None:
-            time.sleep(self.poll_interval)
+        while arrived_index is None and not self._stopped:
+            time.sleep(self._poll_interval)
 
             try:
-                data = self.dl._get_submitted_result(cache_key)
+                data = self._dl._get_submitted_result(cache_key)
                 if data is not None:
                     arrived_index = data["_lavender_data_current"]
             except StopIteration:
-                self.stopped = True
+                self._stopped = True
                 return
             except LavenderDataSampleProcessingError as e:
-                if self.dl._skip_on_failure:
+                if self._dl._skip_on_failure:
                     arrived_index = e.current
                 else:
                     raise e
@@ -360,54 +377,64 @@ class AsyncLavenderDataLoader:
         return arrived_index, data
 
     def _keep_fetching(self):
-        while not self.stopped:
+        while not self._stopped:
             try:
                 arrived_index, data = self._fetch_one()
-                self.arrived.append((arrived_index, data))
+                self._arrived.append((arrived_index, data))
             except Exception as e:
-                warnings.warn(f"Error in fetch thread: {e}")
+                self._error = e
+                self._stopped = True
 
     def _start_fetch_threads(self):
-        for _ in range(self.prefetch_factor):
-            thread = threading.Thread(target=self._keep_fetching, daemon=True)
+        for _ in range(self._prefetch_factor):
+            thread = threading.Thread(target=self._keep_fetching)
             thread.start()
-            self.fetch_threads.append(thread)
+            self._fetch_threads.append(thread)
 
     def __len__(self):
-        return len(self.dl)
+        return len(self._dl)
 
     def __next__(self):
-        if len(self.fetch_threads) == 0:
+        if len(self._fetch_threads) == 0:
             self._start_fetch_threads()
 
-        self.dl._complete_last_indices()
+        self._dl._complete_last_indices()
 
         data = None
-        next_index = self.current + 1
+        next_index = self._current + 1
         while data is None:
-            if self.stopped:
+            if self._stopped:
+                if self._error is not None:
+                    raise self._error
                 raise StopIteration
 
             try:
                 arrived_index, data = (
                     # next index is in the arrived list
-                    next((i, data) for i, data in self.arrived if i == next_index)
-                    if self.in_order
+                    next((i, data) for i, data in self._arrived if i == next_index)
+                    if self._in_order
                     # any index is in the arrived list
-                    else next((i, data) for i, data in self.arrived)
+                    else next((i, data) for i, data in self._arrived)
                 )
-                self.arrived = [a for a in self.arrived if a[0] != arrived_index]
-                self.current = next_index
-                next_index = self.current + 1
+                self._arrived = [a for a in self._arrived if a[0] != arrived_index]
+                self._current = next_index
+                next_index = self._current + 1
             except StopIteration:
                 # nothing is arrived yet
                 continue
 
-        self.dl._set_last_indices(data)
+        self._dl._set_last_indices(data)
         return data
 
     def __iter__(self):
-        return self
+        try:
+            while True:
+                yield next(self)
+        finally:
+            self._stop()
 
     def __getitem__(self, index: int):
         return next(self)
+
+    def __del__(self):
+        self._stop()
