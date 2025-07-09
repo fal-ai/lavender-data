@@ -379,7 +379,10 @@ class AsyncLavenderDataLoader:
     def _keep_fetching(self):
         while not self._stopped:
             try:
-                arrived_index, data = self._fetch_one()
+                fetched = self._fetch_one()
+                if fetched is None:
+                    continue
+                arrived_index, data = fetched
                 self._arrived.append((arrived_index, data))
             except Exception as e:
                 self._error = e
