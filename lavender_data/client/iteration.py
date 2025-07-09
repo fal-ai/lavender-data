@@ -1,7 +1,7 @@
 import time
-import json
+import threading
+import warnings
 from typing import Optional, Union, Literal
-from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 
 from lavender_data.serialize import deserialize_sample, DeserializeException
 from lavender_data.client.api import (
@@ -131,7 +131,8 @@ class LavenderDataLoader:
         self._iteration_id = iteration_response.id
         self._total = iteration_response.total
 
-        self._last_indices = None
+        self._last_indices = set()
+        self._completed_indices = set()
         self._no_cache = no_cache
         self._max_retry_count = max_retry_count
         self._skip_on_failure = skip_on_failure
@@ -142,6 +143,7 @@ class LavenderDataLoader:
         self._api = _api(self._api_url, self._api_key)
 
         self._bytes = 0
+        self._complete_thread: Optional[threading.Thread] = None
 
         self.id = self._iteration_id
 
@@ -203,18 +205,31 @@ class LavenderDataLoader:
     def __len__(self):
         return self._total
 
+    def _keep_complete_indices(self):
+        while True:
+            if len(self._completed_indices) == 0:
+                time.sleep(0.1)
+                continue
+
+            index = self._completed_indices.pop()
+            self.complete(index)
+
     def _complete_last_indices(self):
-        if self._last_indices is not None:
-            for index in self._last_indices:
-                self.complete(index)
-            self._last_indices = None
+        if self._complete_thread is None:
+            self._complete_thread = threading.Thread(
+                target=self._keep_complete_indices, daemon=True
+            )
+            self._complete_thread.start()
+
+        self._completed_indices.update(self._last_indices)
+        self._last_indices = set()
 
     def _set_last_indices(self, sample_or_batch):
         indices = sample_or_batch["_lavender_data_indices"]
         if isinstance(indices, list):
-            self._last_indices = indices
+            self._last_indices = set(indices)
         else:
-            self._last_indices = [indices]
+            self._last_indices = {indices}
 
     def _get_next_item(self):
         try:
@@ -301,11 +316,10 @@ class AsyncLavenderDataLoader:
         self.prefetch_factor = prefetch_factor
         self.poll_interval = poll_interval
         self.in_order = in_order
-        self.executor: Optional[ThreadPoolExecutor] = None  # to be serializable
-        self.futures: list[Future] = []
         self.arrived: list[tuple[int, dict]] = []
         self.current = -1
         self.stopped = False
+        self.fetch_threads: list[threading.Thread] = []
 
     def _get_submitted_result(self, cache_key: str):
         while True:
@@ -315,89 +329,79 @@ class AsyncLavenderDataLoader:
             else:
                 time.sleep(self.poll_interval)
 
-    def _submit_next(self):
-        if self.stopped:
-            return
+    def _fetch_one(self):
+        try:
+            cache_key = self.dl._submit_next_item()
+        except LavenderDataApiError as e:
+            if "No more indices to pop" in str(e):
+                self.stopped = True
+                return
+            else:
+                raise e
 
-        queue_size = self.prefetch_factor
-        if self.executor is None:
-            self.executor = ThreadPoolExecutor(queue_size)
+        data = None
+        arrived_index = None
+        while arrived_index is None:
+            time.sleep(self.poll_interval)
 
-        while len(self.futures) < queue_size:
             try:
-                cache_key = self.dl._submit_next_item()
-            except LavenderDataApiError as e:
-                if "No more indices to pop" in str(e):
-                    self.stopped = True
-                    return
+                data = self.dl._get_submitted_result(cache_key)
+                if data is not None:
+                    arrived_index = data["_lavender_data_current"]
+            except StopIteration:
+                self.stopped = True
+                return
+            except LavenderDataSampleProcessingError as e:
+                if self.dl._skip_on_failure:
+                    arrived_index = e.current
                 else:
                     raise e
-            future = self.executor.submit(
-                self._get_submitted_result, cache_key=cache_key
-            )
-            self.futures.append(future)
+
+        return arrived_index, data
+
+    def _keep_fetching(self):
+        while not self.stopped:
+            try:
+                arrived_index, data = self._fetch_one()
+                self.arrived.append((arrived_index, data))
+            except Exception as e:
+                warnings.warn(f"Error in fetch thread: {e}")
+
+    def _start_fetch_threads(self):
+        for _ in range(self.prefetch_factor):
+            thread = threading.Thread(target=self._keep_fetching, daemon=True)
+            thread.start()
+            self.fetch_threads.append(thread)
 
     def __len__(self):
         return len(self.dl)
 
     def __next__(self):
-        if len(self.futures) == 0:
-            self._submit_next()
+        if len(self.fetch_threads) == 0:
+            self._start_fetch_threads()
 
         self.dl._complete_last_indices()
 
         data = None
         next_index = self.current + 1
-        while True:
-            # check if the data has already arrived during the previous iteration
-            already_arrived = (
-                [data for i, data in self.arrived if i == next_index]
-                if self.in_order
-                else self.arrived
-            )
-            if len(already_arrived) > 0:
-                data = already_arrived[0]
-                self.arrived = [a for a in self.arrived if a[0] != next_index]
-                self.current = next_index
-                next_index = self.current + 1
-                if data is not None:
-                    break
-                else:
-                    continue
-
-            # if the iteration is stopped and there are no more futures to be waited, stop iteration
-            if self.stopped and len(self.futures) == 0:
+        while data is None:
+            if self.stopped:
                 raise StopIteration
 
             try:
-                # wait for the data to arrive
-                future = next(as_completed(self.futures))
-                self.futures.remove(future)
-                data = future.result()
-                arrived_index = data["_lavender_data_current"]
-            except StopIteration:
-                # it means one of the workers detected that the iteration is stopped
-                # but it's not guaranteed that all data from the other workers has returned
-                self.stopped = True
-                continue
-            except LavenderDataSampleProcessingError as e:
-                if self.dl._skip_on_failure:
-                    data = None
-                    arrived_index = e.current
-                else:
-                    raise e
-
-            self._submit_next()
-
-            if not self.in_order or arrived_index == next_index:
-                # if arrived index is the next index, return the data
+                arrived_index, data = (
+                    # next index is in the arrived list
+                    next((i, data) for i, data in self.arrived if i == next_index)
+                    if self.in_order
+                    # any index is in the arrived list
+                    else next((i, data) for i, data in self.arrived)
+                )
+                self.arrived = [a for a in self.arrived if a[0] != arrived_index]
                 self.current = next_index
                 next_index = self.current + 1
-                if data is not None:
-                    break
-            else:
-                # if arrived index is not the next index, add the data to the list
-                self.arrived.append((arrived_index, data))
+            except StopIteration:
+                # nothing is arrived yet
+                continue
 
         self.dl._set_last_indices(data)
         return data
