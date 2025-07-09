@@ -347,6 +347,7 @@ class ProcessPool:
 
     def shutdown(self):
         self._kill_switch.set()
+        self._spawner_thread.join()
 
         _clear_queue(self._call_queue)
         for p in self._processes:
@@ -357,7 +358,6 @@ class ProcessPool:
         self._result_queue.put(STOP_SIGN)
         self._result_queue.close()
 
-        self._spawner_thread.join()
         self._manager_thread.join()
 
         for p in self._processes:
