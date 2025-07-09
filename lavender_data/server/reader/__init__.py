@@ -216,6 +216,8 @@ class ServerSideReader:
     ):
         try:
             return self._get_sample(index, join)
+        except InnerJoinSampleInsufficient:
+            raise
         except Exception as e:
             self.clear_cache(index.main_shard, *index.feature_shards)
             raise e
