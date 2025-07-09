@@ -111,7 +111,7 @@ app = FastAPI(lifespan=lifespan)
 
 def log_filter(request: Request, response):
     if (
-        re.match(r"/iterations/.*/next/.*", str(request.url))
+        re.match(r"/iterations/.*/next/.*", request.url.path)
         and response.status_code == 202
     ):
         return False
@@ -127,7 +127,7 @@ async def add_process_time_header(request: Request, call_next):
 
     if log_filter(request, response):
         logger.info(
-            f"{request.client.host}:{request.client.port} - {request.method} {request.url} {response.status_code} {process_time:.2f}s"
+            f"{request.client.host}:{request.client.port} - {request.method} {request.url.path}?{request.url.query} {response.status_code} {process_time:.2f}s"
         )
 
     return response

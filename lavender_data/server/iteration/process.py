@@ -1,6 +1,7 @@
 import ujson as json
 from typing import Optional
 import traceback
+import time
 
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -173,10 +174,18 @@ def process_next_samples_and_store(
     *,
     shared_memory: SharedMemory,
 ):
+    logger = get_logger(__name__)
     try:
+        _start = time.perf_counter()
         batch = process_next_samples(params, max_retry_count)
+        _process_time = time.perf_counter()
         content = serialize_sample(batch)
+        _serialize_time = time.perf_counter()
         shared_memory.set(cache_key, content, ex=cache_ttl)
+        _store_time = time.perf_counter()
+        logger.debug(
+            f"Done processing {cache_key} in {_store_time-_start:.2f}s, process: {_process_time-_start:.2f}s, serialize: {_serialize_time - _process_time:.2f}s, store: {_store_time - _serialize_time:.2f}s, size: {len(content)} bytes"
+        )
     except ProcessNextSamplesException as e:
         shared_memory.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)
     except Exception as e:
