@@ -357,10 +357,11 @@ class ProcessPool:
         self._result_queue.put(STOP_SIGN)
         self._result_queue.close()
 
-        for p in self._processes:
-            p.join()
         self._spawner_thread.join()
         self._manager_thread.join()
+
+        for p in self._processes:
+            p.join()
 
 
 _tasks = {}
