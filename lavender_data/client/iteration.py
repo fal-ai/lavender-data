@@ -1,6 +1,7 @@
 import time
+import queue
 import threading
-import warnings
+import multiprocessing as mp
 from typing import Optional, Union, Literal
 
 from lavender_data.serialize import deserialize_sample, DeserializeException
@@ -248,35 +249,6 @@ class LavenderDataLoader:
         except DeserializeException as e:
             raise ValueError(f"Failed to deserialize sample: {e}")
 
-    def _submit_next_item(self) -> str:
-        cache_key = self._api.submit_next_item(
-            iteration_id=self._iteration_id,
-            rank=self._rank,
-            no_cache=self._no_cache,
-            max_retry_count=self._max_retry_count,
-        ).cache_key
-        return cache_key
-
-    def _get_submitted_result(self, cache_key: str):
-        try:
-            serialized = self._api.get_submitted_result(
-                iteration_id=self._iteration_id,
-                cache_key=cache_key,
-            )
-            self._bytes += len(serialized)
-            return deserialize_sample(serialized)
-        except LavenderDataApiError as e:
-            if "Data is still being processed" in str(e):
-                return None
-            elif "Cache key not found" in str(e):
-                raise ValueError("Cache key not found")
-            elif "No more indices to pop" in str(e):
-                raise StopIteration
-            else:
-                raise e
-        except DeserializeException as e:
-            raise ValueError(f"Failed to deserialize sample: {e}")
-
     def _stop(self):
         self._stopped = True
         self._complete_thread.join()
@@ -310,6 +282,87 @@ class LavenderDataLoader:
         return next(self)
 
 
+def _fetch_worker(
+    iteration_id: str,
+    rank: int,
+    no_cache: bool,
+    max_retry_count: int,
+    api_url: Optional[str],
+    api_key: Optional[str],
+    skip_on_failure: bool,
+    poll_interval: float,
+    stopped,
+    data_queue,
+    error_queue,
+    join_queue,
+):
+    api = _api(api_url, api_key)
+    with api._get_client() as client:
+
+        def _fetch_one():
+            try:
+                cache_key = api.submit_next_item(
+                    iteration_id=iteration_id,
+                    rank=rank,
+                    no_cache=no_cache,
+                    max_retry_count=max_retry_count,
+                    client=client,
+                ).cache_key
+            except LavenderDataApiError as e:
+                if "No more indices to pop" in str(e):
+                    raise StopIteration
+                else:
+                    raise e
+
+            data = None
+            arrived_index = None
+            while arrived_index is None and not stopped.is_set():
+                time.sleep(poll_interval)
+
+                try:
+                    _start = time.perf_counter()
+                    serialized = api.get_submitted_result(
+                        iteration_id=iteration_id,
+                        cache_key=cache_key,
+                        client=client,
+                    )
+                    _end = time.perf_counter()
+                    # print(f"get_submitted_result: {(_end - _start)*1000:.2f}ms ({(len(serialized)/1024**2)/(_end - _start):.2f} MB/s)")
+                    data = deserialize_sample(serialized)
+                    if data is not None:
+                        arrived_index = data["_lavender_data_current"]
+                except LavenderDataSampleProcessingError as e:
+                    if skip_on_failure:
+                        arrived_index = e.current
+                    else:
+                        raise e
+                except LavenderDataApiError as e:
+                    if "Data is still being processed" in str(e):
+                        continue
+                    elif "Cache key not found" in str(e):
+                        raise ValueError("Cache key not found")
+                    elif "No more indices to pop" in str(e):
+                        raise StopIteration
+                    else:
+                        raise e
+                except DeserializeException as e:
+                    raise ValueError(f"Failed to deserialize sample: {e}")
+
+            return arrived_index, data
+
+        while not stopped.is_set():
+            try:
+                fetched = _fetch_one()
+                arrived_index, data = fetched
+                data_queue.put((arrived_index, data))
+            except StopIteration:
+                break
+            except Exception as e:
+                error_queue.put(e)
+
+    join_queue.put(1)
+
+
 class AsyncLavenderDataLoader:
     def __init__(
         self,
@@ -325,88 +378,105 @@ class AsyncLavenderDataLoader:
         self._prefetch_factor = prefetch_factor
         self._poll_interval = poll_interval
         self._in_order = in_order
-        self._arrived: list[tuple[int, dict]] = []
+
+        self._stopped = threading.Event()
+        self._data_queue = queue.Queue()
+        self._error_queue = queue.Queue()
+        self._join_queue = queue.Queue()
+        self._fetch_processes: list[threading.Thread] = []
+        self._joined_fetch_processes = 0
+
         self._current = 0
-        self._stopped = False
-        self._fetch_threads: list[threading.Thread] = []
-        self._joined_fetch_threads = 0
         self._error: Optional[Exception] = None
+        self._arrived: list[tuple[int, dict]] = []
+
+        self._watch_data_queue_thread: Optional[threading.Thread] = None
+        self._watch_error_queue_thread: Optional[threading.Thread] = None
+        self._watch_join_queue_thread: Optional[threading.Thread] = None
 
     def _stop(self):
-        self._stopped = True
-        for thread in self._fetch_threads:
-            thread.join()
+        self._stopped.set()
+        self._watch_data_queue_thread.join()
+        self._watch_error_queue_thread.join()
+        self._watch_join_queue_thread.join()
+        for process in self._fetch_processes:
+            process.join()
         self._dl._stop()
 
-    def _get_submitted_result(self, cache_key: str):
-        while True:
-            data = self._dl._get_submitted_result(cache_key)
-            if data is not None:
-                return data
-            else:
-                time.sleep(self._poll_interval)
-
-    def _fetch_one(self):
-        try:
-            cache_key = self._dl._submit_next_item()
-        except LavenderDataApiError as e:
-            if "No more indices to pop" in str(e):
-                raise StopIteration
-            else:
-                raise e
-
-        data = None
-        arrived_index = None
-        while arrived_index is None and not self._stopped:
-            time.sleep(self._poll_interval)
-
+    def _watch_data_queue(self):
+        while not self._stopped.is_set():
             try:
-                data = self._dl._get_submitted_result(cache_key)
-                if data is not None:
-                    arrived_index = data["_lavender_data_current"]
-            except LavenderDataSampleProcessingError as e:
-                if self._dl._skip_on_failure:
-                    arrived_index = e.current
-                else:
-                    raise e
-
-        return arrived_index, data
-
-    def _keep_fetching(self):
-        while not self._stopped:
-            try:
-                fetched = self._fetch_one()
-                arrived_index, data = fetched
+                arrived_index, data = self._data_queue.get(timeout=0.1)
                 self._arrived.append((arrived_index, data))
-            except StopIteration:
-                break
-            except Exception as e:
-                self._error = e
-                self._stopped = True
+            except queue.Empty:
+                pass
 
-        self._joined_fetch_threads += 1
+    def _watch_error_queue(self):
+        while not self._stopped.is_set():
+            try:
+                error = self._error_queue.get(timeout=0.1)
+                self._error = error
+                self._stopped.set()
+            except queue.Empty:
+                pass
 
-    def _start_fetch_threads(self):
+    def _watch_join_queue(self):
+        while not self._stopped.is_set():
+            try:
+                self._joined_fetch_processes += self._join_queue.get(timeout=0.1)
+            except queue.Empty:
+                pass
+
+    def _start_fetch_processes(self):
+        self._watch_data_queue_thread = threading.Thread(
+            target=self._watch_data_queue, daemon=True
+        )
+        self._watch_data_queue_thread.start()
+        self._watch_error_queue_thread = threading.Thread(
+            target=self._watch_error_queue, daemon=True
+        )
+        self._watch_error_queue_thread.start()
+        self._watch_join_queue_thread = threading.Thread(
+            target=self._watch_join_queue, daemon=True
+        )
+        self._watch_join_queue_thread.start()
+
         for _ in range(self._prefetch_factor):
-            thread = threading.Thread(target=self._keep_fetching)
-            thread.start()
-            self._fetch_threads.append(thread)
+            process = threading.Thread(
+                target=_fetch_worker,
+                args=(
+                    self._dl._iteration_id,
+                    self._dl._rank,
+                    self._dl._no_cache,
+                    self._dl._max_retry_count,
+                    self._dl._api_url,
+                    self._dl._api_key,
+                    self._dl._skip_on_failure,
+                    self._poll_interval,
+                    self._stopped,
+                    self._data_queue,
+                    self._error_queue,
+                    self._join_queue,
+                ),
+            )
+            process.start()
+            self._fetch_processes.append(process)
 
     def __len__(self):
         return len(self._dl)
 
     def __next__(self):
-        if len(self._fetch_threads) == 0:
-            self._start_fetch_threads()
+        if len(self._fetch_processes) == 0:
+            self._start_fetch_processes()
 
         self._dl._complete_last_indices()
 
         data = None
         while data is None:
-            if self._stopped:
+            if self._stopped.is_set():
                 raise self._error or StopIteration
 
-            if self._joined_fetch_threads == len(self._fetch_threads):
+            if self._joined_fetch_processes == len(self._fetch_processes):
                 raise StopIteration
 
             arrived = next(

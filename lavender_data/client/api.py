@@ -1,5 +1,5 @@
 from typing import Optional, TypeVar, Union
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import base64
 import os
 import json
@@ -368,10 +368,11 @@ class LavenderDataClient:
         rank: int = 0,
         no_cache: bool = False,
         max_retry_count: int = 0,
+        client: Optional[Client] = None,
     ):
-        with self._get_client() as client:
+        with self._get_client() if client is None else nullcontext() as _client:
             response = get_next_iterations_iteration_id_next_get.sync_detailed(
-                client=client,
+                client=client or _client,
                 iteration_id=iteration_id,
                 rank=rank,
                 no_cache=no_cache,
@@ -385,10 +386,11 @@ class LavenderDataClient:
         rank: int = 0,
         no_cache: bool = False,
         max_retry_count: int = 0,
+        client: Optional[Client] = None,
     ):
-        with self._get_client() as client:
+        with self._get_client() if client is None else nullcontext() as _client:
             response = submit_next_iterations_iteration_id_next_post.sync_detailed(
-                client=client,
+                client=client or _client,
                 iteration_id=iteration_id,
                 rank=rank,
                 no_cache=no_cache,
@@ -396,10 +398,15 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
-    def get_submitted_result(self, iteration_id: str, cache_key: str):
-        with self._get_client() as client:
+    def get_submitted_result(
+        self,
+        iteration_id: str,
+        cache_key: str,
+        client: Optional[Client] = None,
+    ):
+        with self._get_client() if client is None else nullcontext() as _client:
             response = get_submitted_result_iterations_iteration_id_next_cache_key_get.sync_detailed(
-                client=client,
+                client=client or _client,
                 iteration_id=iteration_id,
                 cache_key=cache_key,
             )

@@ -132,7 +132,7 @@ async def add_process_time_header(request: Request, call_next):
             else request.url.path
         )
         logger.info(
-            f"{request.client.host}:{request.client.port} - {request.method} {path} {response.status_code} {process_time:.2f}s"
+            f"{request.client.host}:{request.client.port} - {request.method} {path} {response.status_code} {process_time*1000:.2f}ms"
         )
 
     return response
