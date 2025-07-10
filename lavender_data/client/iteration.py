@@ -1,7 +1,10 @@
 import time
+import secrets
 import queue
+import traceback
 import threading
 import multiprocessing as mp
+import multiprocessing.shared_memory as mp_shared_memory
 from typing import Optional, Union, Literal
 
 from lavender_data.serialize import deserialize_sample, DeserializeException
@@ -191,13 +194,15 @@ class LavenderDataLoader:
 
     def to_async(
         self,
-        prefetch_factor: int,
+        prefetch_factor: int = 1,
+        num_workers: int = 1,
         poll_interval: float = 0.1,
         in_order: bool = True,
     ):
         return AsyncLavenderDataLoader(
             self,
             prefetch_factor,
+            num_workers,
             poll_interval,
             in_order,
         )
@@ -282,6 +287,36 @@ class LavenderDataLoader:
         return next(self)
 
 
+class _ExceptionFromWorker(Exception):
+    def __init__(self, exception: str):
+        self.exception = exception
+
+    def __str__(self):
+        return self.exception
+
+    def __repr__(self):
+        return self.exception
+
+
+def _format_exception(e: Exception):
+    return (
+        "".join(traceback.format_exception(type(e), e, e.__traceback__))
+        + "\n"
+        + "".join(traceback.format_tb(e.__traceback__))
+    )
+
+
+EOF_SIGNATURE = b"EOF"
+
+
+def _int_to_bytes(i: int):
+    return i.to_bytes(length=8, byteorder="big", signed=False)
+
+
+def _bytes_to_int(b: bytes):
+    return int.from_bytes(b, byteorder="big", signed=False)
+
+
 def _fetch_worker(
     iteration_id: str,
     rank: int,
@@ -289,13 +324,35 @@ def _fetch_worker(
     max_retry_count: int,
     api_url: Optional[str],
     api_key: Optional[str],
-    skip_on_failure: bool,
     poll_interval: float,
     stopped,
-    data_queue,
+    shm_names,
     error_queue,
     join_queue,
 ):
+    _stop_local = False
+
+    def _watch_stopped():
+        nonlocal _stop_local
+        stopped.wait()
+        _stop_local = True
+
+    _watch_stopped_thread = threading.Thread(target=_watch_stopped, daemon=True)
+    _watch_stopped_thread.start()
+
+    shms = {}
+    for shm_name in shm_names:
+        try:
+            shms[shm_name] = mp_shared_memory.SharedMemory(
+                name=shm_name, create=True, size=12 * 1024**2
+            )
+        except FileExistsError:
+            mp_shared_memory.SharedMemory(name=shm_name).unlink()
+            shms[shm_name] = mp_shared_memory.SharedMemory(
+                name=shm_name, create=True, size=12 * 1024**2
+            )
+        shms[shm_name].buf[0:8] = _int_to_bytes(1)
+
     api = _api(api_url, api_key)
     with api._get_client() as client:
 
@@ -314,28 +371,19 @@ def _fetch_worker(
                 else:
                     raise e
 
-            data = None
-            arrived_index = None
-            while arrived_index is None and not stopped.is_set():
+            serialized = None
+            error = None
+            while (serialized is None and error is None) and not _stop_local:
                 time.sleep(poll_interval)
 
                 try:
-                    _start = time.perf_counter()
                     serialized = api.get_submitted_result(
                         iteration_id=iteration_id,
                         cache_key=cache_key,
                         client=client,
                     )
-                    _end = time.perf_counter()
-                    # print(f"get_submitted_result: {(_end - _start)*1000:.2f}ms ({(len(serialized)/1024**2)/(_end - _start):.2f} MB/s)")
-                    data = deserialize_sample(serialized)
-                    if data is not None:
-                        arrived_index = data["_lavender_data_current"]
                 except LavenderDataSampleProcessingError as e:
-                    if skip_on_failure:
-                        arrived_index = e.current
-                    else:
-                        raise e
+                    error = (e.current, e.msg)
                 except LavenderDataApiError as e:
                     if "Data is still being processed" in str(e):
                         continue
@@ -345,20 +393,43 @@ def _fetch_worker(
                         raise StopIteration
                     else:
                         raise e
-                except DeserializeException as e:
-                    raise ValueError(f"Failed to deserialize sample: {e}")
 
-            return arrived_index, data
+            return serialized, error
 
-        while not stopped.is_set():
+        shm_idx = 0
+        while not _stop_local:
             try:
                 fetched = _fetch_one()
-                arrived_index, data = fetched
-                data_queue.put((arrived_index, data))
+                serialized, error = fetched
+
+                if serialized is not None:
+                    shm = shms[shm_names[shm_idx]]
+                    shm_idx = (shm_idx + 1) % len(shm_names)
+                    serialized = (
+                        _int_to_bytes(0)
+                        + _int_to_bytes(len(serialized))
+                        + serialized
+                        + EOF_SIGNATURE
+                    )
+
+                    while True:
+                        if _bytes_to_int(shm.buf[0:8]) == 0 and not _stop_local:
+                            time.sleep(0.01)
+                            continue
+                        break
+
+                    shm.buf[: len(serialized)] = serialized
+
+                if error is not None:
+                    error_queue.put(error)
             except StopIteration:
                 break
             except Exception as e:
-                error_queue.put(e)
+                error_queue.put((-1, _format_exception(e)))
+            except KeyboardInterrupt as e:
+                break
+
+    _watch_stopped_thread.join()
 
     join_queue.put(1)
 
@@ -367,71 +438,133 @@ class AsyncLavenderDataLoader:
     def __init__(
         self,
         dl: LavenderDataLoader,
-        prefetch_factor: int,
+        prefetch_factor: int = 1,
+        num_workers: int = 1,
         poll_interval: float = 0.1,
         in_order: bool = True,
     ):
+        if num_workers < 1:
+            raise ValueError("num_workers must be greater than 0")
+
         if prefetch_factor < 1:
             raise ValueError("prefetch_factor must be greater than 0")
 
         self._dl = dl
         self._prefetch_factor = prefetch_factor
+        self._num_workers = num_workers
         self._poll_interval = poll_interval
         self._in_order = in_order
 
-        self._stopped = threading.Event()
-        self._data_queue = queue.Queue()
-        self._error_queue = queue.Queue()
-        self._join_queue = queue.Queue()
-        self._fetch_processes: list[threading.Thread] = []
+        self._mp_ctx = mp.get_context("spawn")
+        self._stopped = self._mp_ctx.Event()
+        self._stopped_local = False
+        self._shm = {
+            i: [
+                f"shm-{i}-{j}-{secrets.token_hex(4)}"
+                for j in range(self._prefetch_factor)
+            ]
+            for i in range(self._num_workers)
+        }
+        self._error_queue = self._mp_ctx.Queue()
+        self._join_queue = self._mp_ctx.Queue()
+        self._fetch_processes: list[mp.Process] = []
         self._joined_fetch_processes = 0
 
         self._current = 0
         self._error: Optional[Exception] = None
-        self._arrived: list[tuple[int, dict]] = []
+        self._arrived: dict[int, dict] = {}
 
-        self._watch_data_queue_thread: Optional[threading.Thread] = None
+        self._watch_data_threads: list[threading.Thread] = []
         self._watch_error_queue_thread: Optional[threading.Thread] = None
         self._watch_join_queue_thread: Optional[threading.Thread] = None
+        self._watch_stopped_thread: Optional[threading.Thread] = None
 
     def _stop(self):
         self._stopped.set()
-        self._watch_data_queue_thread.join()
+        self._watch_stopped_thread.join()
+        for thread in self._watch_data_threads:
+            thread.join()
         self._watch_error_queue_thread.join()
         self._watch_join_queue_thread.join()
+        for shm_names in self._shm.values():
+            for shm_name in shm_names:
+                try:
+                    shm = mp_shared_memory.SharedMemory(name=shm_name)
+                    shm.close()
+                    shm.unlink()
+                except FileNotFoundError:
+                    continue
+        self._error_queue.close()
+        self._join_queue.close()
         for process in self._fetch_processes:
             process.join()
         self._dl._stop()
 
-    def _watch_data_queue(self):
-        while not self._stopped.is_set():
+    def _watch_data(self, shm_name: str):
+        while True:
             try:
-                arrived_index, data = self._data_queue.get(timeout=0.1)
-                self._arrived.append((arrived_index, data))
-            except queue.Empty:
-                pass
+                shm = mp_shared_memory.SharedMemory(name=shm_name)
+                break
+            except FileNotFoundError:
+                continue
+
+        while not self._stopped_local:
+            # time.sleep(self._poll_interval)
+
+            if _bytes_to_int(shm.buf[0:8].tobytes()) == 1:
+                continue
+
+            if len(self._arrived) >= self._prefetch_factor * self._num_workers:
+                continue
+
+            b = shm.buf[8:].tobytes()
+            length = _bytes_to_int(b[:8])
+            if b[length + 8 : length + 8 + len(EOF_SIGNATURE)] != EOF_SIGNATURE:
+                continue
+
+            serialized = b[8 : length + 8]
+            shm.buf[0:8] = _int_to_bytes(1)
+
+            try:
+                data = deserialize_sample(serialized)
+                self._arrived[data["_lavender_data_current"]] = data
+            except DeserializeException as e:
+                self._error_queue.put((-1, _format_exception(e)))
 
     def _watch_error_queue(self):
-        while not self._stopped.is_set():
+        while not self._stopped_local:
             try:
-                error = self._error_queue.get(timeout=0.1)
-                self._error = error
-                self._stopped.set()
+                failed_index, error = self._error_queue.get(timeout=0.1)
+                if failed_index == -1 or not self._dl._skip_on_failure:
+                    # fatal
+                    self._error = _ExceptionFromWorker(error)
+                    self._stopped.set()
+                else:
+                    self._arrived[failed_index] = None
             except queue.Empty:
                 pass
 
     def _watch_join_queue(self):
-        while not self._stopped.is_set():
+        while not self._stopped_local:
             try:
                 self._joined_fetch_processes += self._join_queue.get(timeout=0.1)
             except queue.Empty:
                 pass
 
+    def _watch_stopped(self):
+        self._stopped.wait()
+        self._stopped_local = True
+
     def _start_fetch_processes(self):
-        self._watch_data_queue_thread = threading.Thread(
-            target=self._watch_data_queue, daemon=True
-        )
-        self._watch_data_queue_thread.start()
+        for shm_names in self._shm.values():
+            for shm_name in shm_names:
+                _thread = threading.Thread(
+                    target=self._watch_data,
+                    args=(shm_name,),
+                    daemon=True,
+                )
+                _thread.start()
+                self._watch_data_threads.append(_thread)
         self._watch_error_queue_thread = threading.Thread(
             target=self._watch_error_queue, daemon=True
         )
@@ -440,9 +573,13 @@ class AsyncLavenderDataLoader:
             target=self._watch_join_queue, daemon=True
         )
         self._watch_join_queue_thread.start()
+        self._watch_stopped_thread = threading.Thread(
+            target=self._watch_stopped, daemon=True
+        )
+        self._watch_stopped_thread.start()
 
-        for _ in range(self._prefetch_factor):
-            process = threading.Thread(
+        for i in range(self._num_workers):
+            process = self._mp_ctx.Process(
                 target=_fetch_worker,
                 args=(
                     self._dl._iteration_id,
@@ -451,10 +588,9 @@ class AsyncLavenderDataLoader:
                     self._dl._max_retry_count,
                     self._dl._api_url,
                     self._dl._api_key,
-                    self._dl._skip_on_failure,
                     self._poll_interval,
                     self._stopped,
-                    self._data_queue,
+                    self._shm[i],
                     self._error_queue,
                     self._join_queue,
                 ),
@@ -466,6 +602,7 @@ class AsyncLavenderDataLoader:
         return len(self._dl)
 
     def __next__(self):
+        _start = time.perf_counter()
         if len(self._fetch_processes) == 0:
             self._start_fetch_processes()
 
@@ -473,26 +610,20 @@ class AsyncLavenderDataLoader:
 
         data = None
         while data is None:
-            if self._stopped.is_set():
+            if self._stopped_local:
                 raise self._error or StopIteration
 
             if self._joined_fetch_processes == len(self._fetch_processes):
                 raise StopIteration
 
-            arrived = next(
-                (
-                    (i, data)
-                    for i, data in self._arrived
-                    if i == self._current or not self._in_order
-                ),
-                None,
-            )
-
-            if arrived is None:
+            try:
+                if self._in_order:
+                    data = self._arrived.pop(self._current)
+                else:
+                    _, data = self._arrived.popitem()
+            except KeyError:
                 continue
 
-            arrived_index, data = arrived
-            self._arrived = [a for a in self._arrived if a[0] != arrived_index]
             self._current += 1
 
         self._dl._set_last_indices(data)
@@ -501,7 +632,11 @@ class AsyncLavenderDataLoader:
     def __iter__(self):
         try:
             while True:
-                yield next(self)
+                _start = time.perf_counter()
+                data = next(self)
+                yield data
+                # print(f"next: {(time.perf_counter() - _start)*1000:.2f}ms")
+                # print(self._arrived.keys())
         except StopIteration:
             pass
         finally:
