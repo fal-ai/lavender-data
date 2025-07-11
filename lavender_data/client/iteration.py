@@ -198,6 +198,7 @@ class LavenderDataLoader:
         num_workers: int = 1,
         poll_interval: float = 0.1,
         in_order: bool = True,
+        shm_size: int = 4 * 1024**2,
     ):
         return AsyncLavenderDataLoader(
             self,
@@ -205,6 +206,7 @@ class LavenderDataLoader:
             num_workers,
             poll_interval,
             in_order,
+            shm_size,
         )
 
     def complete(self, index: int):
@@ -326,6 +328,7 @@ def _fetch_worker(
     api_url: Optional[str],
     api_key: Optional[str],
     poll_interval: float,
+    shm_size: int,
     stopped,
     shm_names,
     error_queue,
@@ -345,12 +348,12 @@ def _fetch_worker(
     for shm_name in shm_names:
         try:
             shms[shm_name] = mp_shared_memory.SharedMemory(
-                name=shm_name, create=True, size=12 * 1024**2
+                name=shm_name, create=True, size=shm_size
             )
         except FileExistsError:
             mp_shared_memory.SharedMemory(name=shm_name).unlink()
             shms[shm_name] = mp_shared_memory.SharedMemory(
-                name=shm_name, create=True, size=12 * 1024**2
+                name=shm_name, create=True, size=shm_size
             )
         shms[shm_name].buf[0:8] = _int_to_bytes(SAMPLE_USED)
 
@@ -445,6 +448,7 @@ class AsyncLavenderDataLoader:
         num_workers: int = 1,
         poll_interval: float = 0.1,
         in_order: bool = True,
+        shm_size: int = 4 * 1024**2,
     ):
         if num_workers < 1:
             raise ValueError("num_workers must be greater than 0")
@@ -452,12 +456,16 @@ class AsyncLavenderDataLoader:
         if prefetch_factor < 1:
             raise ValueError("prefetch_factor must be greater than 0")
 
+        if shm_size < 4 * 1024:
+            raise ValueError("shm_size must be greater than 4KB")
+
         self._dl = dl
         self._prefetch_factor = prefetch_factor
         self._num_workers = num_workers
         self._poll_interval = poll_interval
         self._poll_poll_inerval = poll_interval / 10
         self._in_order = in_order
+        self._shm_size = shm_size
 
         self._mp_ctx = mp.get_context("spawn")
         self._stopped = self._mp_ctx.Event()
@@ -532,8 +540,7 @@ class AsyncLavenderDataLoader:
 
                 try:
                     data = deserialize_sample(shm.buf[24 : length + 24])
-                    data["_lavender_data_shm"] = shm_name
-                    self._arrived[current] = data
+                    self._arrived[current] = (shm_name, data)
                 except DeserializeException as e:
                     self._error_queue.put((-1, _format_exception(e)))
         except Exception as e:
@@ -572,7 +579,7 @@ class AsyncLavenderDataLoader:
                     self._error = _ExceptionFromWorker(error)
                     self._stopped.set()
                 else:
-                    self._arrived[failed_index] = None
+                    self._arrived[failed_index] = (None, None)
             except queue.Empty:
                 pass
 
@@ -625,6 +632,7 @@ class AsyncLavenderDataLoader:
                     self._dl._api_url,
                     self._dl._api_key,
                     self._poll_interval,
+                    self._shm_size,
                     self._stopped,
                     self._shm_names[i],
                     self._error_queue,
@@ -651,8 +659,9 @@ class AsyncLavenderDataLoader:
         self._mark_shm_used()
         self._dl._mark_completed()
 
+        shm_name = None
         data = None
-        while data is None:
+        while data is None or shm_name is None:
             if self._stopped_local:
                 raise self._error or StopIteration
 
@@ -661,16 +670,16 @@ class AsyncLavenderDataLoader:
 
             try:
                 if self._in_order:
-                    data = self._arrived.pop(self._current)
+                    shm_name, data = self._arrived.pop(self._current)
                 else:
-                    data = self._arrived.pop(list(self._arrived.keys())[0])
+                    shm_name, data = self._arrived.pop(list(self._arrived.keys())[0])
             except (KeyError, IndexError):
                 time.sleep(self._poll_poll_inerval)
                 continue
 
             self._current += 1
 
-        self._mark_shm_using(data.pop("_lavender_data_shm"))
+        self._mark_shm_using(shm_name)
         self._dl._mark_using(data.pop("_lavender_data_indices"))
         return data
 
