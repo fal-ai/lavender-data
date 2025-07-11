@@ -229,8 +229,7 @@ class LavenderDataLoader:
         self._completed_indices.update(self._last_indices)
         self._last_indices = set()
 
-    def _set_last_indices(self, sample_or_batch):
-        indices = sample_or_batch["_lavender_data_indices"]
+    def _set_last_indices(self, indices: Union[list[int], int]):
         if isinstance(indices, list):
             self._last_indices = set(indices)
         else:
@@ -271,7 +270,7 @@ class LavenderDataLoader:
                 else:
                     raise e
 
-        self._set_last_indices(sample_or_batch)
+        self._set_last_indices(sample_or_batch.pop("_lavender_data_indices"))
         return sample_or_batch
 
     def __iter__(self):
@@ -307,6 +306,8 @@ def _format_exception(e: Exception):
 
 
 EOF_SIGNATURE = b"EOF"
+SAMPLE_USED = 1
+SAMPLE_NEW = 0
 
 
 def _int_to_bytes(i: int):
@@ -351,7 +352,7 @@ def _fetch_worker(
             shms[shm_name] = mp_shared_memory.SharedMemory(
                 name=shm_name, create=True, size=12 * 1024**2
             )
-        shms[shm_name].buf[0:8] = _int_to_bytes(1)
+        shms[shm_name].buf[0:8] = _int_to_bytes(SAMPLE_USED)
 
     api = _api(api_url, api_key)
     with api._get_client() as client:
@@ -399,24 +400,23 @@ def _fetch_worker(
         shm_idx = 0
         while not _stop_local:
             try:
+                while not _stop_local:
+                    shm = shms[shm_names[shm_idx]]
+                    shm_idx = (shm_idx + 1) % len(shm_names)
+                    if _bytes_to_int(shm.buf[0:8].tobytes()) == SAMPLE_NEW:
+                        continue
+                    break
+
                 fetched = _fetch_one()
                 serialized, error = fetched
 
                 if serialized is not None:
-                    shm = shms[shm_names[shm_idx]]
-                    shm_idx = (shm_idx + 1) % len(shm_names)
                     serialized = (
                         _int_to_bytes(0)
                         + _int_to_bytes(len(serialized))
                         + serialized
                         + EOF_SIGNATURE
                     )
-
-                    while True:
-                        if _bytes_to_int(shm.buf[0:8]) == 0 and not _stop_local:
-                            time.sleep(0.01)
-                            continue
-                        break
 
                     shm.buf[: len(serialized)] = serialized
 
@@ -453,12 +453,13 @@ class AsyncLavenderDataLoader:
         self._prefetch_factor = prefetch_factor
         self._num_workers = num_workers
         self._poll_interval = poll_interval
+        self._poll_poll_inerval = poll_interval / 10
         self._in_order = in_order
 
         self._mp_ctx = mp.get_context("spawn")
         self._stopped = self._mp_ctx.Event()
         self._stopped_local = False
-        self._shm = {
+        self._shm_names = {
             i: [
                 f"shm-{i}-{j}-{secrets.token_hex(4)}"
                 for j in range(self._prefetch_factor)
@@ -474,7 +475,10 @@ class AsyncLavenderDataLoader:
         self._error: Optional[Exception] = None
         self._arrived: dict[int, dict] = {}
 
+        self._used_shm_names: set[str] = set()
+
         self._watch_data_threads: list[threading.Thread] = []
+        self._watch_used_shm_thread: Optional[threading.Thread] = None
         self._watch_error_queue_thread: Optional[threading.Thread] = None
         self._watch_join_queue_thread: Optional[threading.Thread] = None
         self._watch_stopped_thread: Optional[threading.Thread] = None
@@ -486,7 +490,7 @@ class AsyncLavenderDataLoader:
             thread.join()
         self._watch_error_queue_thread.join()
         self._watch_join_queue_thread.join()
-        for shm_names in self._shm.values():
+        for shm_names in self._shm_names.values():
             for shm_name in shm_names:
                 try:
                     shm = mp_shared_memory.SharedMemory(name=shm_name)
@@ -501,35 +505,59 @@ class AsyncLavenderDataLoader:
         self._dl._stop()
 
     def _watch_data(self, shm_name: str):
-        while True:
-            try:
-                shm = mp_shared_memory.SharedMemory(name=shm_name)
-                break
-            except FileNotFoundError:
-                continue
+        try:
+            while True:
+                try:
+                    shm = mp_shared_memory.SharedMemory(name=shm_name)
+                    break
+                except (FileNotFoundError, ValueError):
+                    continue
 
-        while not self._stopped_local:
-            # time.sleep(self._poll_interval)
+            while not self._stopped_local:
+                if _bytes_to_int(shm.buf[0:8].tobytes()) == SAMPLE_USED:
+                    time.sleep(self._poll_poll_inerval)
+                    continue
 
-            if _bytes_to_int(shm.buf[0:8].tobytes()) == 1:
-                continue
+                length = _bytes_to_int(shm.buf[8:16].tobytes())
+                if (
+                    shm.buf[length + 16 : length + 16 + len(EOF_SIGNATURE)].tobytes()
+                    != EOF_SIGNATURE
+                ):
+                    continue
 
-            if len(self._arrived) >= self._prefetch_factor * self._num_workers:
-                continue
+                try:
+                    data = deserialize_sample(shm.buf[16 : length + 16])
+                    current = data.pop("_lavender_data_current")
+                    data["_lavender_data_shm"] = shm_name
+                    self._arrived[current] = data
+                except DeserializeException as e:
+                    self._error_queue.put((-1, _format_exception(e)))
+        except Exception as e:
+            self._error_queue.put((-1, _format_exception(e)))
 
-            b = shm.buf[8:].tobytes()
-            length = _bytes_to_int(b[:8])
-            if b[length + 8 : length + 8 + len(EOF_SIGNATURE)] != EOF_SIGNATURE:
-                continue
+    def _watch_used_shm(self):
+        try:
+            _shm = {}
+            for shm_names in self._shm_names.values():
+                for shm_name in shm_names:
+                    while True:
+                        try:
+                            _shm[shm_name] = mp_shared_memory.SharedMemory(
+                                name=shm_name
+                            )
+                            break
+                        except (FileNotFoundError, ValueError):
+                            continue
 
-            serialized = b[8 : length + 8]
-            shm.buf[0:8] = _int_to_bytes(1)
+            while not self._stopped_local:
+                if len(self._used_shm_names) == 0:
+                    time.sleep(self._poll_poll_inerval)
+                    continue
 
-            try:
-                data = deserialize_sample(serialized)
-                self._arrived[data["_lavender_data_current"]] = data
-            except DeserializeException as e:
-                self._error_queue.put((-1, _format_exception(e)))
+                shm_name = self._used_shm_names.pop()
+                _shm[shm_name].buf[0:8] = _int_to_bytes(SAMPLE_USED)
+        except Exception as e:
+            self._error_queue.put((-1, _format_exception(e)))
 
     def _watch_error_queue(self):
         while not self._stopped_local:
@@ -556,7 +584,7 @@ class AsyncLavenderDataLoader:
         self._stopped_local = True
 
     def _start_fetch_processes(self):
-        for shm_names in self._shm.values():
+        for shm_names in self._shm_names.values():
             for shm_name in shm_names:
                 _thread = threading.Thread(
                     target=self._watch_data,
@@ -565,6 +593,10 @@ class AsyncLavenderDataLoader:
                 )
                 _thread.start()
                 self._watch_data_threads.append(_thread)
+        self._watch_used_shm_thread = threading.Thread(
+            target=self._watch_used_shm, daemon=True
+        )
+        self._watch_used_shm_thread.start()
         self._watch_error_queue_thread = threading.Thread(
             target=self._watch_error_queue, daemon=True
         )
@@ -590,7 +622,7 @@ class AsyncLavenderDataLoader:
                     self._dl._api_key,
                     self._poll_interval,
                     self._stopped,
-                    self._shm[i],
+                    self._shm_names[i],
                     self._error_queue,
                     self._join_queue,
                 ),
@@ -602,7 +634,6 @@ class AsyncLavenderDataLoader:
         return len(self._dl)
 
     def __next__(self):
-        _start = time.perf_counter()
         if len(self._fetch_processes) == 0:
             self._start_fetch_processes()
 
@@ -620,23 +651,21 @@ class AsyncLavenderDataLoader:
                 if self._in_order:
                     data = self._arrived.pop(self._current)
                 else:
-                    _, data = self._arrived.popitem()
-            except KeyError:
+                    data = self._arrived.pop(list(self._arrived.keys())[0])
+            except (KeyError, IndexError):
+                time.sleep(self._poll_poll_inerval)
                 continue
 
             self._current += 1
 
-        self._dl._set_last_indices(data)
+        self._used_shm_names.add(data.pop("_lavender_data_shm"))
+        self._dl._set_last_indices(data.pop("_lavender_data_indices"))
         return data
 
     def __iter__(self):
         try:
             while True:
-                _start = time.perf_counter()
-                data = next(self)
-                yield data
-                # print(f"next: {(time.perf_counter() - _start)*1000:.2f}ms")
-                # print(self._arrived.keys())
+                yield next(self)
         except StopIteration:
             pass
         finally:
