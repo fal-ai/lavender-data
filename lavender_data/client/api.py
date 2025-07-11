@@ -379,7 +379,10 @@ class LavenderDataClient:
                 max_retry_count=max_retry_count,
             )
 
-        current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
+        try:
+            current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
+        except TypeError:
+            current = None
         return self._check_response(response).payload.read(), current
 
     def submit_next_item(
@@ -414,7 +417,10 @@ class LavenderDataClient:
             )
         if response.status_code == 202:
             raise LavenderDataApiError(response.content.decode("utf-8"))
-        current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
+        try:
+            current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
+        except TypeError:
+            current = None
         return self._check_response(response).payload.read(), current
 
     def complete_index(self, iteration_id: str, index: int):
