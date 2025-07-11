@@ -19,7 +19,14 @@ class TestSerializeSample(unittest.TestCase):
             "dict_of_list": {"g": [6, 7]},
             "string": "hello",
             "bytes": b"\x00\x01\x02\x03\x04",
-            "ndarray": np.array([[1, 2, 3], [4, 5, 6]]),
+            "ndarray_int32": np.array([[1, 2, 3], [4, 5, 6]], dtype=np.int32),
+            "ndarray_int8": np.array([[1, 2, 3], [4, 5, 6]], dtype=np.int8),
+            "ndarray_float32": np.array(
+                [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=np.float32
+            ),
+            "ndarray_float64": np.array(
+                [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=np.float64
+            ),
             "tensor": torch.tensor([[1, 2, 3], [4, 5, 6]]),
             "none": None,
         }
@@ -32,7 +39,7 @@ class TestSerializeSample(unittest.TestCase):
         self.assertEqual(len(sample), len(deserialized))
 
         for key in sample.keys():
-            if key == "ndarray" or key == "tensor":
+            if key.startswith("ndarray") or key.startswith("tensor"):
                 self.assertTrue((sample[key] == deserialized[key]).all())
             else:
                 self.assertEqual(sample[key], deserialized[key])

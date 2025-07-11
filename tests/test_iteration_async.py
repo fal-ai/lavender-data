@@ -122,7 +122,7 @@ class TestIterationAsync(unittest.TestCase):
             enumerate(
                 LavenderDataLoader(
                     dataset_id=self.dataset_id, shardsets=[self.shardset_id]
-                ).to_async(prefetch_factor=4)
+                ).to_async(prefetch_factor=4, in_order=True)
             ),
             total=self.total_samples,
             desc="test_iteration",
@@ -155,7 +155,7 @@ class TestIterationAsync(unittest.TestCase):
                     shardsets=[self.shardset_id],
                     preprocessors=["fail_25_percent_samples"],
                     max_retry_count=8,
-                ).to_async(prefetch_factor=4)
+                ).to_async(prefetch_factor=4, in_order=True)
             ),
             total=self.total_samples,
             desc="test_iteration_with_max_retry_count",

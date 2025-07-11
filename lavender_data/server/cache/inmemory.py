@@ -360,11 +360,14 @@ class InMemoryCache(CacheInterface):
     def lock(self, key: str, timeout: Optional[int] = None) -> Iterator[None]:
         """Lock a key for a given timeout"""
         _key = self._ensure_bytes(key)
-        if _key not in self._lock_data:
-            self._lock_data[_key] = threading.Lock()
-        self._lock_data[_key].acquire(timeout)
+        while True:
+            with self._lock:
+                if _key not in self._lock_data:
+                    self._lock_data[_key] = True
+                    break
+            time.sleep(0.01)
         yield
-        self._lock_data[_key].release()
+        del self._lock_data[_key]
 
     @contextmanager
     def pipeline(self):
