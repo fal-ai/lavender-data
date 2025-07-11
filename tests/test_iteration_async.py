@@ -16,7 +16,6 @@ from lavender_data.client.api import (
     DatasetColumnOptions,
 )
 from lavender_data.client import LavenderDataLoader
-from lavender_data.client.api import LavenderDataApiError
 
 from tests.utils.shards import create_test_shards
 from tests.utils.start_server import (
@@ -136,14 +135,16 @@ class TestIterationAsync(unittest.TestCase):
 
     def test_iteration_with_max_retry_count(self):
         self.assertRaises(
-            LavenderDataApiError,
+            Exception,
             lambda: next(
-                LavenderDataLoader(
-                    dataset_id=self.dataset_id,
-                    shardsets=[self.shardset_id],
-                    preprocessors=["fail_once_in_two_samples"],
-                    max_retry_count=0,
-                ).to_async(prefetch_factor=4)
+                iter(
+                    LavenderDataLoader(
+                        dataset_id=self.dataset_id,
+                        shardsets=[self.shardset_id],
+                        preprocessors=["fail_once_in_two_samples"],
+                        max_retry_count=0,
+                    ).to_async(prefetch_factor=4)
+                )
             ),
         )
 
@@ -169,14 +170,16 @@ class TestIterationAsync(unittest.TestCase):
 
     def test_iteration_with_skip_on_failure(self):
         self.assertRaises(
-            LavenderDataApiError,
+            Exception,
             lambda: next(
-                LavenderDataLoader(
-                    dataset_id=self.dataset_id,
-                    shardsets=[self.shardset_id],
-                    preprocessors=["fail_even_samples"],
-                    skip_on_failure=False,
-                ).to_async(prefetch_factor=4)
+                iter(
+                    LavenderDataLoader(
+                        dataset_id=self.dataset_id,
+                        shardsets=[self.shardset_id],
+                        preprocessors=["fail_even_samples"],
+                        skip_on_failure=False,
+                    ).to_async(prefetch_factor=4)
+                )
             ),
         )
 

@@ -332,7 +332,7 @@ def _fetch_worker(
     stopped,
     shm_names,
     error_queue,
-    join_queue,
+    completed_queue,
 ):
     _stop_local = False
 
@@ -424,19 +424,19 @@ def _fetch_worker(
                         + EOF_SIGNATURE
                     )
 
-                try:
-                    shm.buf[: len(serialized)] = serialized
-                except ValueError as e:
-                    if "memoryview assignment" in str(e):
-                        error_queue.put(
-                            (
-                                -1,
-                                f"shm_size is too small ({shm_size} bytes, {len(serialized)} bytes requested). Please increase it.",
+                    try:
+                        shm.buf[: len(serialized)] = serialized
+                    except ValueError as e:
+                        if "memoryview assignment" in str(e):
+                            error_queue.put(
+                                (
+                                    -1,
+                                    f"shm_size is too small ({shm_size} bytes, {len(serialized)} bytes requested). Please increase it.",
+                                )
                             )
-                        )
-                        break
-                    else:
-                        raise e
+                            break
+                        else:
+                            raise e
 
                 if error is not None:
                     error_queue.put(error)
@@ -447,9 +447,8 @@ def _fetch_worker(
             except KeyboardInterrupt as e:
                 break
 
+    completed_queue.put(1)
     _watch_stopped_thread.join()
-
-    join_queue.put(1)
 
 
 class AsyncLavenderDataLoader:
@@ -490,7 +489,7 @@ class AsyncLavenderDataLoader:
             for i in range(self._num_workers)
         }
         self._error_queue = self._mp_ctx.Queue()
-        self._join_queue = self._mp_ctx.Queue()
+        self._completed_queue = self._mp_ctx.Queue()
         self._fetch_processes: list[mp.Process] = []
         self._joined_fetch_processes = 0
 
@@ -504,7 +503,7 @@ class AsyncLavenderDataLoader:
         self._watch_data_threads: list[threading.Thread] = []
         self._watch_used_shm_thread: Optional[threading.Thread] = None
         self._watch_error_queue_thread: Optional[threading.Thread] = None
-        self._watch_join_queue_thread: Optional[threading.Thread] = None
+        self._watch_completed_queue_thread: Optional[threading.Thread] = None
         self._watch_stopped_thread: Optional[threading.Thread] = None
 
     def _stop(self):
@@ -513,17 +512,16 @@ class AsyncLavenderDataLoader:
         for thread in self._watch_data_threads:
             thread.join()
         self._watch_error_queue_thread.join()
-        self._watch_join_queue_thread.join()
+        self._watch_completed_queue_thread.join()
         for shm_names in self._shm_names.values():
             for shm_name in shm_names:
                 try:
                     shm = mp_shared_memory.SharedMemory(name=shm_name)
-                    shm.close()
                     shm.unlink()
                 except FileNotFoundError:
                     continue
         self._error_queue.close()
-        self._join_queue.close()
+        self._completed_queue.close()
         for process in self._fetch_processes:
             process.join()
         self._dl._stop()
@@ -595,10 +593,10 @@ class AsyncLavenderDataLoader:
             except queue.Empty:
                 pass
 
-    def _watch_join_queue(self):
+    def _watch_completed_queue(self):
         while not self._stopped_local:
             try:
-                self._joined_fetch_processes += self._join_queue.get(timeout=0.1)
+                self._joined_fetch_processes += self._completed_queue.get(timeout=0.1)
             except queue.Empty:
                 pass
 
@@ -624,10 +622,10 @@ class AsyncLavenderDataLoader:
             target=self._watch_error_queue, daemon=True
         )
         self._watch_error_queue_thread.start()
-        self._watch_join_queue_thread = threading.Thread(
-            target=self._watch_join_queue, daemon=True
+        self._watch_completed_queue_thread = threading.Thread(
+            target=self._watch_completed_queue, daemon=True
         )
-        self._watch_join_queue_thread.start()
+        self._watch_completed_queue_thread.start()
         self._watch_stopped_thread = threading.Thread(
             target=self._watch_stopped, daemon=True
         )
@@ -648,7 +646,7 @@ class AsyncLavenderDataLoader:
                     self._stopped,
                     self._shm_names[i],
                     self._error_queue,
-                    self._join_queue,
+                    self._completed_queue,
                 ),
             )
             process.start()
@@ -671,14 +669,14 @@ class AsyncLavenderDataLoader:
         self._mark_shm_used()
         self._dl._mark_completed()
 
+        if self._joined_fetch_processes == len(self._fetch_processes):
+            raise StopIteration
+
         shm_name = None
         data = None
         while data is None or shm_name is None:
             if self._stopped_local:
                 raise self._error or StopIteration
-
-            if self._joined_fetch_processes == len(self._fetch_processes):
-                raise StopIteration
 
             try:
                 if self._in_order:
