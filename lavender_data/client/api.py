@@ -3,7 +3,6 @@ from contextlib import contextmanager, nullcontext
 import base64
 import os
 import json
-from lavender_data.serialize import deserialize_sample
 
 from openapi_lavender_data_rest import Client, AuthenticatedClient
 from openapi_lavender_data_rest.types import Response
@@ -378,7 +377,9 @@ class LavenderDataClient:
                 no_cache=no_cache,
                 max_retry_count=max_retry_count,
             )
-        return self._check_response(response).payload.read()
+
+        current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
+        return self._check_response(response).payload.read(), current
 
     def submit_next_item(
         self,
@@ -412,7 +413,8 @@ class LavenderDataClient:
             )
         if response.status_code == 202:
             raise LavenderDataApiError(response.content.decode("utf-8"))
-        return self._check_response(response).payload.read()
+        current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
+        return self._check_response(response).payload.read(), current
 
     def complete_index(self, iteration_id: str, index: int):
         with self._get_client() as client:

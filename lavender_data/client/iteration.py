@@ -237,7 +237,7 @@ class LavenderDataLoader:
 
     def _get_next_item(self):
         try:
-            serialized = self._api.get_next_item(
+            serialized, _ = self._api.get_next_item(
                 iteration_id=self._iteration_id,
                 rank=self._rank,
                 no_cache=self._no_cache,
@@ -372,19 +372,21 @@ def _fetch_worker(
                 else:
                     raise e
 
+            current = None
             serialized = None
             error = None
             while (serialized is None and error is None) and not _stop_local:
                 time.sleep(poll_interval)
 
                 try:
-                    serialized = api.get_submitted_result(
+                    serialized, current = api.get_submitted_result(
                         iteration_id=iteration_id,
                         cache_key=cache_key,
                         client=client,
                     )
                 except LavenderDataSampleProcessingError as e:
-                    error = (e.current, e.msg)
+                    current = e.current
+                    error = (current, e.msg)
                 except LavenderDataApiError as e:
                     if "Data is still being processed" in str(e):
                         continue
@@ -395,7 +397,7 @@ def _fetch_worker(
                     else:
                         raise e
 
-            return serialized, error
+            return current, serialized, error
 
         shm_idx = 0
         while not _stop_local:
@@ -408,11 +410,12 @@ def _fetch_worker(
                     break
 
                 fetched = _fetch_one()
-                serialized, error = fetched
+                current, serialized, error = fetched
 
                 if serialized is not None:
                     serialized = (
                         _int_to_bytes(0)
+                        + _int_to_bytes(current)
                         + _int_to_bytes(len(serialized))
                         + serialized
                         + EOF_SIGNATURE
@@ -519,16 +522,16 @@ class AsyncLavenderDataLoader:
                     time.sleep(self._poll_poll_inerval)
                     continue
 
-                length = _bytes_to_int(shm.buf[8:16].tobytes())
+                current = _bytes_to_int(shm.buf[8:16].tobytes())
+                length = _bytes_to_int(shm.buf[16:24].tobytes())
                 if (
-                    shm.buf[length + 16 : length + 16 + len(EOF_SIGNATURE)].tobytes()
+                    shm.buf[length + 24 : length + 24 + len(EOF_SIGNATURE)].tobytes()
                     != EOF_SIGNATURE
                 ):
                     continue
 
                 try:
-                    data = deserialize_sample(shm.buf[16 : length + 16])
-                    current = data.pop("_lavender_data_current")
+                    data = deserialize_sample(shm.buf[24 : length + 24])
                     data["_lavender_data_shm"] = shm_name
                     self._arrived[current] = data
                 except DeserializeException as e:
