@@ -424,7 +424,19 @@ def _fetch_worker(
                         + EOF_SIGNATURE
                     )
 
+                try:
                     shm.buf[: len(serialized)] = serialized
+                except ValueError as e:
+                    if "memoryview assignment" in str(e):
+                        error_queue.put(
+                            (
+                                -1,
+                                f"shm_size is too small ({shm_size} bytes, {len(serialized)} bytes requested). Please increase it.",
+                            )
+                        )
+                        break
+                    else:
+                        raise e
 
                 if error is not None:
                     error_queue.put(error)
@@ -629,8 +641,8 @@ class AsyncLavenderDataLoader:
                     self._dl._rank,
                     self._dl._no_cache,
                     self._dl._max_retry_count,
-                    self._dl._api_url,
-                    self._dl._api_key,
+                    self._dl._api.api_url,
+                    self._dl._api.api_key,
                     self._poll_interval,
                     self._shm_size,
                     self._stopped,

@@ -3,6 +3,7 @@ from contextlib import contextmanager, nullcontext
 import base64
 import os
 import json
+import httpx
 
 from openapi_lavender_data_rest import Client, AuthenticatedClient
 from openapi_lavender_data_rest.types import Response
@@ -102,7 +103,7 @@ class LavenderDataClient:
 
         try:
             self.version = self.get_version().version
-        except Exception as e:
+        except httpx.ConnectError as e:
             raise ValueError(
                 "Failed to initialize lavender_data client. Please check if the server is running."
             ) from e
