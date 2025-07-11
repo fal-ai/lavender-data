@@ -2,6 +2,7 @@ import io
 import numpy as np
 import ujson as json
 import warnings
+from typing import Union
 
 try:
     import torch
@@ -9,23 +10,44 @@ except ImportError:
     torch = None
 
 
+def _int_to_bytes(i: int):
+    return i.to_bytes(4, "big")
+
+
+def _bytes_to_int(b: bytes):
+    return int.from_bytes(b, "big")
+
+
+def _ensure_bytes(content: Union[bytes, memoryview]):
+    if isinstance(content, memoryview):
+        return content.tobytes()
+    return content
+
+
 def attach_length(content: bytes):
-    return len(content).to_bytes(4, "big") + content
+    return _int_to_bytes(len(content)) + content
 
 
-def detach_length(content: bytes):
-    return int.from_bytes(content[:4], "big"), content[4:]
+def detach_length(content: Union[bytes, memoryview]):
+    return _bytes_to_int(_ensure_bytes(content[:4])), content[4:]
 
 
 def serialize_ndarray(ndarray: np.ndarray) -> bytes:
-    memfile = io.BytesIO()
-    np.save(memfile, ndarray)
-    return memfile.getvalue()
+    shape = ndarray.shape
+    dtype = str(ndarray.dtype)
+    strides = ndarray.strides
+    header = serialize_list([shape, dtype, strides])
+    header_length = len(header)
+    return _int_to_bytes(header_length) + header + ndarray.data.tobytes()
 
 
-def deserialize_ndarray(data: bytes) -> np.ndarray:
-    memfile = io.BytesIO(data)
-    return np.load(memfile)
+def deserialize_ndarray(data: Union[bytes, memoryview]) -> np.ndarray:
+    header_length, data = detach_length(data)
+    header = data[:header_length]
+    data = data[header_length:]
+    shape, dtype, strides = deserialize_list(header)
+    ndarray = np.ndarray(shape, dtype, buffer=data, strides=strides)
+    return ndarray
 
 
 def serialize_item(item):
@@ -56,7 +78,7 @@ def serialize_item(item):
             )
 
 
-def deserialize_item(content: bytes):
+def deserialize_item(content: Union[bytes, memoryview]):
     type_flag = content[:2]
     value = content[2:]
     if type_flag == b"by":
@@ -75,7 +97,7 @@ def deserialize_item(content: bytes):
     elif type_flag == b"ls":
         return deserialize_list(value)
     elif type_flag == b"js":
-        return json.loads(value.decode("utf-8"))
+        return json.loads(_ensure_bytes(value).decode("utf-8"))
     else:
         raise ValueError(f"Unknown type flag: {type_flag}")
 
@@ -87,7 +109,7 @@ def serialize_list(items: list):
     return body
 
 
-def deserialize_list(content: bytes):
+def deserialize_list(content: Union[bytes, memoryview]):
     current = content[:]
     items = []
     while current:
@@ -105,13 +127,13 @@ def serialize_dict(items: dict):
     return body
 
 
-def deserialize_dict(content: bytes):
+def deserialize_dict(content: Union[bytes, memoryview]):
     current = content[:]
     items = {}
     while current:
         length, key = detach_length(current)
         current = key[length:]
-        key = key[:length].decode("utf-8")
+        key = _ensure_bytes(key[:length]).decode("utf-8")
         length, value = detach_length(current)
         items[key] = deserialize_item(value[:length])
         current = value[length:]
@@ -132,21 +154,22 @@ class DeserializeException(Exception):
     pass
 
 
-def deserialize_sample(content: bytes, strict: bool = True):
+def deserialize_sample(content: Union[bytes, memoryview], strict: bool = True):
     header_length, current = detach_length(content)
-    keys = json.loads(current[:header_length].decode("utf-8"))
-    values = []
+    keys = json.loads(_ensure_bytes(current[:header_length]).decode("utf-8"))
     current = current[header_length:]
-    signature = current[:2]
+    signature = _ensure_bytes(current[:2])
     if signature != b"sa":
         raise ValueError(f"Unknown signature: {signature}")
     current = current[2:]
     i = 0
+
+    result = {}
     while current and i < len(keys):
         value_length, value = detach_length(current)
         current_value = value[:value_length]
         try:
-            values.append(deserialize_item(current_value))
+            result[keys[i]] = deserialize_item(current_value)
         except Exception as e:
             msg = (
                 f"Failed to deserialize item {keys[i]}: {e}\n"
@@ -154,7 +177,7 @@ def deserialize_sample(content: bytes, strict: bool = True):
             )
             if not strict:
                 warnings.warn(msg)
-                values.append(None)
+                result[keys[i]] = None
             else:
                 raise DeserializeException(msg)
         current = value[value_length:]
@@ -163,4 +186,4 @@ def deserialize_sample(content: bytes, strict: bool = True):
     if len(current) > 0:
         warnings.warn(f"Remaining {len(current)} bytes")
 
-    return dict(zip(keys, values))
+    return result
