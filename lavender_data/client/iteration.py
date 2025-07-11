@@ -135,7 +135,7 @@ class LavenderDataLoader:
         self._iteration_id = iteration_response.id
         self._total = iteration_response.total
 
-        self._last_indices = set()
+        self._using_indices = set()
         self._completed_indices = set()
         self._no_cache = no_cache
         self._max_retry_count = max_retry_count
@@ -225,15 +225,15 @@ class LavenderDataLoader:
             index = self._completed_indices.pop()
             self.complete(index)
 
-    def _complete_last_indices(self):
-        self._completed_indices.update(self._last_indices)
-        self._last_indices = set()
+    def _mark_completed(self):
+        self._completed_indices.update(self._using_indices)
+        self._using_indices = set()
 
-    def _set_last_indices(self, indices: Union[list[int], int]):
+    def _mark_using(self, indices: Union[list[int], int]):
         if isinstance(indices, list):
-            self._last_indices = set(indices)
+            self._using_indices = set(indices)
         else:
-            self._last_indices = {indices}
+            self._using_indices = {indices}
 
     def _get_next_item(self):
         try:
@@ -258,7 +258,7 @@ class LavenderDataLoader:
         self._complete_thread.join()
 
     def __next__(self):
-        self._complete_last_indices()
+        self._mark_completed()
 
         while True:
             try:
@@ -270,7 +270,7 @@ class LavenderDataLoader:
                 else:
                     raise e
 
-        self._set_last_indices(sample_or_batch.pop("_lavender_data_indices"))
+        self._mark_using(sample_or_batch.pop("_lavender_data_indices"))
         return sample_or_batch
 
     def __iter__(self):
@@ -475,6 +475,7 @@ class AsyncLavenderDataLoader:
         self._error: Optional[Exception] = None
         self._arrived: dict[int, dict] = {}
 
+        self._using_shm_names: set[str] = set()
         self._used_shm_names: set[str] = set()
 
         self._watch_data_threads: list[threading.Thread] = []
@@ -630,6 +631,13 @@ class AsyncLavenderDataLoader:
             process.start()
             self._fetch_processes.append(process)
 
+    def _mark_shm_using(self, shm_name: str):
+        self._using_shm_names.add(shm_name)
+
+    def _mark_shm_used(self):
+        self._used_shm_names.update(self._using_shm_names)
+        self._using_shm_names = set()
+
     def __len__(self):
         return len(self._dl)
 
@@ -637,7 +645,8 @@ class AsyncLavenderDataLoader:
         if len(self._fetch_processes) == 0:
             self._start_fetch_processes()
 
-        self._dl._complete_last_indices()
+        self._mark_shm_used()
+        self._dl._mark_completed()
 
         data = None
         while data is None:
@@ -658,8 +667,8 @@ class AsyncLavenderDataLoader:
 
             self._current += 1
 
-        self._used_shm_names.add(data.pop("_lavender_data_shm"))
-        self._dl._set_last_indices(data.pop("_lavender_data_indices"))
+        self._mark_shm_using(data.pop("_lavender_data_shm"))
+        self._dl._mark_using(data.pop("_lavender_data_indices"))
         return data
 
     def __iter__(self):
