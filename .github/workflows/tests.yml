@@ -11,6 +11,7 @@ on:
   pull_request:
     branches: [main, release/*]
     paths:
+      - '.github/workflows/tests.yml'
       - 'lavender_data/**'
       - 'tests/**'
       - 'pyproject.toml'
