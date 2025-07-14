@@ -286,7 +286,9 @@ class LavenderDataLoader:
             return
 
         self._started = True
-        self._complete_thread = threading.Thread(target=self._keep_complete_indices)
+        self._complete_thread = threading.Thread(
+            target=self._keep_complete_indices, daemon=True
+        )
         self._complete_thread.start()
 
     def _stop(self):
@@ -313,6 +315,7 @@ class LavenderDataLoader:
                 if self._skip_on_failure:
                     continue
                 else:
+                    self._stop()
                     raise e
 
         self._mark_using(sample_or_batch.pop("_lavender_data_indices"))
