@@ -3,6 +3,9 @@ import secrets
 import queue
 import traceback
 import threading
+import os
+import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import multiprocessing as mp
 import multiprocessing.shared_memory as mp_shared_memory
 from typing import Optional, Union, Literal
@@ -156,14 +159,12 @@ class LavenderDataLoader:
 
     def torch(
         self,
-        pin_memory: bool = False,
-        timeout: float = 0,
-        multiprocessing_context=None,
         *,
         num_workers: Optional[int] = None,
         prefetch_factor: Optional[int] = None,
-        persistent_workers: bool = False,
         pin_memory_device: str = "",
+        pin_memory: bool = False,
+        timeout: float = 0,
         in_order: bool = True,
         poll_interval: float = 0.01,
         shm_size: int = 4 * 1024**2,
@@ -187,12 +188,9 @@ class LavenderDataLoader:
 
         return DataLoader(
             iteration,
-            num_workers=1 if is_async else 0,
+            num_workers=0,
             timeout=timeout,
             collate_fn=noop_collate_fn,
-            multiprocessing_context=multiprocessing_context,
-            prefetch_factor=prefetch_factor or 1,
-            persistent_workers=persistent_workers,
             pin_memory=pin_memory,
             pin_memory_device=pin_memory_device,
             in_order=in_order,
@@ -225,13 +223,36 @@ class LavenderDataLoader:
         return self._total
 
     def _keep_complete_indices(self):
+        max_workers = min(32, (os.process_cpu_count() or 1) + 4)
+        futures = []
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+
         while not self._stopped:
             if len(self._completed_indices) == 0:
                 time.sleep(0.1)
                 continue
 
             index = self._completed_indices.pop()
-            self.complete(index)
+            try:
+                futures.append(executor.submit(self.complete, index))
+            except Exception as e:
+                warnings.warn(f"Failed to complete index {index}: {e}")
+
+            while len(futures) > max_workers:
+                future = next(as_completed(futures))
+                futures.remove(future)
+                try:
+                    future.result()
+                except Exception as e:
+                    warnings.warn(f"Failed to complete index {index}: {e}")
+
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                warnings.warn(f"Failed to complete index {index}: {e}")
+
+        executor.shutdown()
 
     def _mark_completed(self):
         self._completed_indices.update(self._using_indices)
@@ -262,13 +283,17 @@ class LavenderDataLoader:
             raise ValueError(f"Failed to deserialize sample: {e}")
 
     def _start(self):
+        if self._started:
+            return
+
         self._started = True
-        self._complete_thread = threading.Thread(
-            target=self._keep_complete_indices, daemon=True
-        )
+        self._complete_thread = threading.Thread(target=self._keep_complete_indices)
         self._complete_thread.start()
 
     def _stop(self):
+        if self._stopped:
+            return
+
         self._stopped = True
         self._complete_thread.join()
 
@@ -296,6 +321,9 @@ class LavenderDataLoader:
 
     def __iter__(self):
         return self
+
+    def __del__(self):
+        self._stop()
 
     def __getitem__(self, index: int):
         return next(self)
@@ -342,16 +370,16 @@ def _fetch_worker(
     api_key: Optional[str],
     poll_interval: float,
     shm_size: int,
-    stopped,
+    stopped_event,
     shm_names,
     error_queue,
-    completed_queue,
 ):
     _stop_local = False
 
     def _watch_stopped():
         nonlocal _stop_local
-        stopped.wait()
+        while not stopped_event.is_set() and not _stop_local:
+            time.sleep(poll_interval)
         _stop_local = True
 
     _watch_stopped_thread = threading.Thread(target=_watch_stopped, daemon=True)
@@ -454,14 +482,15 @@ def _fetch_worker(
                 if error is not None:
                     error_queue.put(error)
             except StopIteration:
+                _stop_local = True
                 break
             except Exception as e:
                 error_queue.put((-1, _format_exception(e)))
             except KeyboardInterrupt as e:
                 break
 
-    completed_queue.put(1)
     _watch_stopped_thread.join()
+    exit(0)
 
 
 class AsyncLavenderDataLoader:
@@ -492,7 +521,7 @@ class AsyncLavenderDataLoader:
         self._shm_size = shm_size
 
         self._mp_ctx = mp.get_context("spawn")
-        self._stopped = self._mp_ctx.Event()
+        self._stopped_event = self._mp_ctx.Event()
         self._stopped_local = False
         self._started = False
         self._shm_names = {
@@ -503,7 +532,6 @@ class AsyncLavenderDataLoader:
             for i in range(self._num_workers)
         }
         self._error_queue = self._mp_ctx.Queue()
-        self._completed_queue = self._mp_ctx.Queue()
         self._fetch_processes: list[mp.Process] = []
         self._joined_fetch_processes = 0
 
@@ -517,34 +545,16 @@ class AsyncLavenderDataLoader:
         self._watch_data_threads: list[threading.Thread] = []
         self._watch_used_shm_thread: Optional[threading.Thread] = None
         self._watch_error_queue_thread: Optional[threading.Thread] = None
-        self._watch_completed_queue_thread: Optional[threading.Thread] = None
+        self._watch_processes_thread: Optional[threading.Thread] = None
         self._watch_stopped_thread: Optional[threading.Thread] = None
 
     def _start(self):
+        if self._started:
+            return
+
         self._started = True
         self._dl._start()
         self._start_fetch_processes()
-
-    def _stop(self):
-        self._stopped.set()
-        self._watch_stopped_thread.join()
-        for thread in self._watch_data_threads:
-            thread.join()
-        self._watch_used_shm_thread.join()
-        self._watch_error_queue_thread.join()
-        self._watch_completed_queue_thread.join()
-        for shm_names in self._shm_names.values():
-            for shm_name in shm_names:
-                try:
-                    shm = mp_shared_memory.SharedMemory(name=shm_name)
-                    shm.unlink()
-                except FileNotFoundError:
-                    continue
-        self._error_queue.close()
-        self._completed_queue.close()
-        for process in self._fetch_processes:
-            process.join()
-        self._dl._stop()
 
     def _watch_data(self, shm_name: str):
         try:
@@ -607,22 +617,45 @@ class AsyncLavenderDataLoader:
                 if failed_index == -1 or not self._dl._skip_on_failure:
                     # fatal
                     self._error = _ExceptionFromWorker(error)
-                    self._stopped.set()
+                    self._stopped_event.set()
                 else:
                     self._arrived[failed_index] = (None, None)
             except queue.Empty:
                 pass
 
-    def _watch_completed_queue(self):
-        while not self._stopped_local:
-            try:
-                self._joined_fetch_processes += self._completed_queue.get(timeout=0.1)
-            except queue.Empty:
-                pass
+    def _watch_processes(self):
+        while self._joined_fetch_processes < len(self._fetch_processes):
+            for process in self._fetch_processes:
+                if process.exitcode is not None:
+                    self._joined_fetch_processes += 1
+
+        self._stopped_event.set()
 
     def _watch_stopped(self):
-        self._stopped.wait()
+        self._stopped_event.wait()
         self._stopped_local = True
+
+        for thread in self._watch_data_threads:
+            thread.join()
+
+        self._watch_used_shm_thread.join()
+        self._watch_error_queue_thread.join()
+        self._watch_processes_thread.join()
+        for shm_names in self._shm_names.values():
+            for shm_name in shm_names:
+                try:
+                    shm = mp_shared_memory.SharedMemory(name=shm_name)
+                    shm.unlink()
+                except FileNotFoundError:
+                    continue
+        self._error_queue.close()
+        for process in self._fetch_processes:
+            process.join()
+        self._dl._stop()
+
+    def _wait_cleanup(self):
+        while not self._dl._stopped:
+            time.sleep(0.1)
 
     def _start_fetch_processes(self):
         for shm_names in self._shm_names.values():
@@ -642,10 +675,6 @@ class AsyncLavenderDataLoader:
             target=self._watch_error_queue, daemon=True
         )
         self._watch_error_queue_thread.start()
-        self._watch_completed_queue_thread = threading.Thread(
-            target=self._watch_completed_queue, daemon=True
-        )
-        self._watch_completed_queue_thread.start()
         self._watch_stopped_thread = threading.Thread(
             target=self._watch_stopped, daemon=True
         )
@@ -663,14 +692,18 @@ class AsyncLavenderDataLoader:
                     self._dl._api.api_key,
                     self._poll_interval,
                     self._shm_size,
-                    self._stopped,
+                    self._stopped_event,
                     self._shm_names[i],
                     self._error_queue,
-                    self._completed_queue,
                 ),
             )
             process.start()
             self._fetch_processes.append(process)
+
+        self._watch_processes_thread = threading.Thread(
+            target=self._watch_processes, daemon=True
+        )
+        self._watch_processes_thread.start()
 
     def _mark_shm_using(self, shm_name: str):
         self._using_shm_names.add(shm_name)
@@ -689,15 +722,13 @@ class AsyncLavenderDataLoader:
         self._mark_shm_used()
         self._dl._mark_completed()
 
-        if self._joined_fetch_processes == len(self._fetch_processes):
-            self._stop()
-            raise StopIteration
-
         shm_name = None
         data = None
         while data is None or shm_name is None:
+            if self._joined_fetch_processes == len(self._fetch_processes):
+                raise self._error or StopIteration
+
             if self._stopped_local:
-                self._stop()
                 raise self._error or StopIteration
 
             try:
@@ -716,7 +747,14 @@ class AsyncLavenderDataLoader:
         return data
 
     def __iter__(self):
-        return self
+        try:
+            while True:
+                yield next(self)
+        except StopIteration:
+            pass
+        finally:
+            self._stopped_event.set()
+            self._wait_cleanup()
 
     def __getitem__(self, index: int):
         return next(self)

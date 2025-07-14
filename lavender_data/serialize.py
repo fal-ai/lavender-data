@@ -99,7 +99,7 @@ def deserialize_item(content: Union[bytes, memoryview]):
     elif type_flag == b"js":
         return json.loads(_ensure_bytes(value).decode("utf-8"))
     else:
-        raise ValueError(f"Unknown type flag: {type_flag}")
+        raise ValueError(f"Unknown type flag: {_ensure_bytes(type_flag)}")
 
 
 def serialize_list(items: list):
