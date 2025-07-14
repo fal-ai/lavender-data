@@ -3,7 +3,6 @@ import secrets
 import queue
 import traceback
 import threading
-import os
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import multiprocessing as mp
@@ -223,7 +222,7 @@ class LavenderDataLoader:
         return self._total
 
     def _keep_complete_indices(self):
-        max_workers = min(32, (os.process_cpu_count() or 1) + 4)
+        max_workers = 16
         futures = []
         executor = ThreadPoolExecutor(max_workers=max_workers)
 
