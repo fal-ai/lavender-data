@@ -15,6 +15,7 @@ on:
       - 'tests/**'
       - 'pyproject.toml'
       - 'poetry.lock'
+  workflow_dispatch:
 
 jobs:
   test:
