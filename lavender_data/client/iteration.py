@@ -266,6 +266,9 @@ class LavenderDataLoader:
             try:
                 sample_or_batch = self._get_next_item()
                 break
+            except StopIteration:
+                self._stop()
+                raise
             except LavenderDataSampleProcessingError as e:
                 if self._skip_on_failure:
                     continue
@@ -276,13 +279,7 @@ class LavenderDataLoader:
         return sample_or_batch
 
     def __iter__(self):
-        try:
-            while True:
-                yield next(self)
-        except StopIteration:
-            pass
-        finally:
-            self._stop()
+        return self
 
     def __getitem__(self, index: int):
         return next(self)
@@ -511,6 +508,7 @@ class AsyncLavenderDataLoader:
         self._watch_stopped_thread.join()
         for thread in self._watch_data_threads:
             thread.join()
+        self._watch_used_shm_thread.join()
         self._watch_error_queue_thread.join()
         self._watch_completed_queue_thread.join()
         for shm_names in self._shm_names.values():
@@ -670,12 +668,14 @@ class AsyncLavenderDataLoader:
         self._dl._mark_completed()
 
         if self._joined_fetch_processes == len(self._fetch_processes):
+            self._stop()
             raise StopIteration
 
         shm_name = None
         data = None
         while data is None or shm_name is None:
             if self._stopped_local:
+                self._stop()
                 raise self._error or StopIteration
 
             try:
@@ -694,13 +694,7 @@ class AsyncLavenderDataLoader:
         return data
 
     def __iter__(self):
-        try:
-            while True:
-                yield next(self)
-        except StopIteration:
-            pass
-        finally:
-            self._stop()
+        return self
 
     def __getitem__(self, index: int):
         return next(self)
