@@ -3,7 +3,9 @@ from typing import Optional
 from lavender_data.server.registries.filter import Filter
 
 
-class MinMaxFilter(Filter, name="min_max"):
+class MinMaxFilter(Filter):
+    name = "min_max"
+
     def filter(
         self,
         sample: dict,

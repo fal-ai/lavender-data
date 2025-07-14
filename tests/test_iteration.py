@@ -27,17 +27,23 @@ from tests.utils.start_server import (
 )
 
 
-class TestFilter(Filter, name="test_filter"):
+class TestFilter(Filter):
+    name = "test_filter"
+
     def filter(self, sample: dict) -> bool:
         return sample["id"] % 2 == 0
 
 
-class TestPreprocessor(Preprocessor, name="test_preprocessor"):
+class TestPreprocessor(Preprocessor):
+    name = "test_preprocessor"
+
     def process(self, sample: dict) -> dict:
         return {"double_id": i * 2 for i in sample["id"]}
 
 
-class FailOnceInTwoSamples(Preprocessor, name="fail_once_in_two_samples"):
+class FailOnceInTwoSamples(Preprocessor):
+    name = "fail_once_in_two_samples"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.failed = False
@@ -51,7 +57,9 @@ class FailOnceInTwoSamples(Preprocessor, name="fail_once_in_two_samples"):
             return sample
 
 
-class AspectRatioCategorizer(Categorizer, name="aspect_ratio_categorizer"):
+class AspectRatioCategorizer(Categorizer):
+    name = "aspect_ratio_categorizer"
+
     def categorize(self, sample: dict) -> str:
         return f"{sample['width']}x{sample['height']}"
 

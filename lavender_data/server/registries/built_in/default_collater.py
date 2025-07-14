@@ -1,7 +1,9 @@
 from lavender_data.server.registries.collater import Collater
 
 
-class DefaultCollater(Collater, name="default"):
+class DefaultCollater(Collater):
+    name = "default"
+
     def __init__(self):
         try:
             from torch.utils.data import default_collate
