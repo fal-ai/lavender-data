@@ -198,3 +198,26 @@ class TestIterationAsync(unittest.TestCase):
         ):
             read_samples += 1
         self.assertEqual(read_samples, self.total_samples // 2)
+
+    def test_iteration_torch_dataloader_with_prefetch_factor(self):
+        read_samples = 0
+
+        dataloader = LavenderDataLoader(
+            self.dataset_id,
+            shardsets=[self.shardset_id],
+            api_url=self.api_url,
+        ).torch(
+            prefetch_factor=4,
+        )
+
+        for i, sample in enumerate(
+            tqdm.tqdm(
+                dataloader, desc="test_iteration_torch_dataloader_with_prefetch_factor"
+            )
+        ):
+            self.assertEqual(
+                sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
+            )
+            self.assertEqual(sample["caption"], f"Caption for image {i:05d}")
+            read_samples += 1
+        self.assertEqual(read_samples, self.total_samples)

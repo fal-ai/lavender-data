@@ -147,14 +147,12 @@ class LavenderDataLoader:
         self._api = _api(self._api_url, self._api_key)
 
         self._bytes = 0
+        self._started = False
         self._stopped = False
 
         self.id = self._iteration_id
 
-        self._complete_thread = threading.Thread(
-            target=self._keep_complete_indices, daemon=True
-        )
-        self._complete_thread.start()
+        self._complete_thread: Optional[threading.Thread] = None
 
     def torch(
         self,
@@ -263,11 +261,21 @@ class LavenderDataLoader:
         except DeserializeException as e:
             raise ValueError(f"Failed to deserialize sample: {e}")
 
+    def _start(self):
+        self._started = True
+        self._complete_thread = threading.Thread(
+            target=self._keep_complete_indices, daemon=True
+        )
+        self._complete_thread.start()
+
     def _stop(self):
         self._stopped = True
         self._complete_thread.join()
 
     def __next__(self):
+        if not self._started:
+            self._start()
+
         self._mark_completed()
 
         while True:
@@ -486,6 +494,7 @@ class AsyncLavenderDataLoader:
         self._mp_ctx = mp.get_context("spawn")
         self._stopped = self._mp_ctx.Event()
         self._stopped_local = False
+        self._started = False
         self._shm_names = {
             i: [
                 f"shm-{i}-{j}-{secrets.token_hex(4)}"
@@ -510,6 +519,11 @@ class AsyncLavenderDataLoader:
         self._watch_error_queue_thread: Optional[threading.Thread] = None
         self._watch_completed_queue_thread: Optional[threading.Thread] = None
         self._watch_stopped_thread: Optional[threading.Thread] = None
+
+    def _start(self):
+        self._started = True
+        self._dl._start()
+        self._start_fetch_processes()
 
     def _stop(self):
         self._stopped.set()
@@ -669,8 +683,8 @@ class AsyncLavenderDataLoader:
         return len(self._dl)
 
     def __next__(self):
-        if len(self._fetch_processes) == 0:
-            self._start_fetch_processes()
+        if not self._started:
+            self._start()
 
         self._mark_shm_used()
         self._dl._mark_completed()
