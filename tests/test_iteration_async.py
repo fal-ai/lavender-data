@@ -27,17 +27,23 @@ from tests.utils.start_server import (
 )
 
 
-class TestFilter(Filter, name="test_filter"):
+class TestFilter(Filter):
+    name = "test_filter"
+
     def filter(self, sample: dict) -> bool:
         return sample["id"] % 2 == 0
 
 
-class TestPreprocessor(Preprocessor, name="test_preprocessor"):
+class TestPreprocessor(Preprocessor):
+    name = "test_preprocessor"
+
     def process(self, sample: dict) -> dict:
         return {"double_id": i * 2 for i in sample["id"]}
 
 
-class Fail25PercentSamples(Preprocessor, name="fail_25_percent_samples"):
+class Fail25PercentSamples(Preprocessor):
+    name = "fail_25_percent_samples"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -47,7 +53,9 @@ class Fail25PercentSamples(Preprocessor, name="fail_25_percent_samples"):
         return sample
 
 
-class FailEvenSamples(Preprocessor, name="fail_even_samples"):
+class FailEvenSamples(Preprocessor):
+    name = "fail_even_samples"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
