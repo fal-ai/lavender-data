@@ -1,11 +1,11 @@
-id,image_url,caption,width,height
-0,https://example.com/image-00000.jpg,Caption for image 00000,640,360
-1,https://example.com/image-00001.jpg,Caption for image 00001,640,720
-2,https://example.com/image-00002.jpg,Caption for image 00002,640,720
-3,https://example.com/image-00003.jpg,Caption for image 00003,1280,360
-4,https://example.com/image-00004.jpg,Caption for image 00004,640,360
-5,https://example.com/image-00005.jpg,Caption for image 00005,640,720
-6,https://example.com/image-00006.jpg,Caption for image 00006,640,720
-7,https://example.com/image-00007.jpg,Caption for image 00007,1280,360
-8,https://example.com/image-00008.jpg,Caption for image 00008,640,720
-9,https://example.com/image-00009.jpg,Caption for image 00009,1280,720
+id,caption,image_url,width,height
+789723cdbbcd1892156e72af5436cce1,A futuristic cityscape at night with neon lights,https://v3.fal.media/files/panda/dx7GsRzUHlXmV-kEs4xME.png,1024,768
+2d49959bafdd79c4887c1b1b89524b00,A dragon flying over a medieval castle,https://v3.fal.media/files/panda/ji4bC5rtHsefNZ5X40L7k.png,1024,768
+f4231708a9d3bae732da16e6ea689bee,A serene Japanese garden in spring,https://v3.fal.media/files/zebra/zK9nGV0NoioFG4ibN3R3g.png,1024,768
+0ee6cfb194119fa470eda4b32470200a,A steampunk-inspired airship in the clouds,https://v3.fal.media/files/koala/VBJqdLknBhpQ2m1h3kbS-.png,1024,768
+84867deea7e8a653b3e8c061711df68f,A cyberpunk street market at dusk,https://v3.fal.media/files/zebra/B0gDAUSgU-ezaEFEAgtZW.png,1024,768
+a70fdc5eb607b665506fbec31cd4e30e,A cozy cabin in a snowy forest,https://v3.fal.media/files/elephant/Sytv8SexlT2RwsHRx5rOo.png,1024,768
+def2769faee48605cd79bf82fc1e6fcd,A realistic portrait of a lion wearing glasses,https://v3.fal.media/files/rabbit/UVLkEYjqlw22IJ3vqmi2m.png,1024,768
+3d0ad35609d2c64007f4762b498c3e95,A high-tech laboratory with robots working,https://v3.fal.media/files/monkey/CcwE2_5rnqL5bK73F7mKo.png,1024,768
+9e8abdd55437950c55690eddb1275f53,An astronaut exploring an alien jungle,https://v3.fal.media/files/panda/cYtKOL813LvgV6Ks3oKr5.png,1024,768
+ac0c4aab8a74a32ab192d4b86957110c,A fantasy forest with glowing mushrooms,https://v3.fal.media/files/lion/l9Dig-sUfxKjxJQdTpCNS.png,1024,768

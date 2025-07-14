@@ -12,6 +12,10 @@ export async function createDataset(formData: FormData) {
     return { success: false, error: 'Name is required' };
   }
 
+  if (!uidColumnName) {
+    return { success: false, error: 'UID column name is required' };
+  }
+
   try {
     const response = await (
       await getClient()

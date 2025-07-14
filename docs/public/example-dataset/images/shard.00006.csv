@@ -1,11 +1,11 @@
-id,image_url,caption,width,height
-60,https://example.com/image-00060.jpg,Caption for image 00060,1280,720
-61,https://example.com/image-00061.jpg,Caption for image 00061,640,720
-62,https://example.com/image-00062.jpg,Caption for image 00062,640,360
-63,https://example.com/image-00063.jpg,Caption for image 00063,640,360
-64,https://example.com/image-00064.jpg,Caption for image 00064,640,720
-65,https://example.com/image-00065.jpg,Caption for image 00065,1280,360
-66,https://example.com/image-00066.jpg,Caption for image 00066,1280,360
-67,https://example.com/image-00067.jpg,Caption for image 00067,640,720
-68,https://example.com/image-00068.jpg,Caption for image 00068,640,360
-69,https://example.com/image-00069.jpg,Caption for image 00069,1280,720
+id,caption,image_url,width,height
+2662430787bf2892ac8dc47c3dae41c5,A photorealistic close-up of a tree frog,https://v3.fal.media/files/monkey/mt1URp7Y1ntXFHMGPyvzJ.png,1024,768
+3b0fb3f8720031c18ad5f93cd1881243,A wizard casting a spell in a forest,https://v3.fal.media/files/penguin/r30lU46A3CTbZrKiN89I9.png,1024,768
+e3426f96c626b72d4b2906e94975d360,A group of explorers entering an ice cave,https://v3.fal.media/files/kangaroo/DQfXpROP55tKcBLprOtdD.png,1024,768
+6d1eb056cbb5f81573fc7acd0c892288,A New Year celebration with fireworks in Tokyo,https://v3.fal.media/files/penguin/uDLhW0AHLTK2ZxZ83dsWf.png,1024,768
+8303f8afb3f833cdd6bae9e22b4f4895,A medieval banquet hall filled with guests,https://v3.fal.media/files/tiger/s3-0gB7aAOSABTHM9cAtu.png,1024,768
+23b36a059374e03ab1790cf17642f940,A haunted pirate ship on a stormy sea,https://v3.fal.media/files/koala/fHY1Qdhuf2S28riWviOBZ.png,1024,768
+64872866322405cef011b93e9b11523a,A cinematic alien invasion scene,https://v3.fal.media/files/zebra/vK18fMcuqocj0zXLnObVo.png,1024,768
+a7658e764e66de48578c63ca9ef89a78,A cat café with cats lounging on bookshelves,https://v3.fal.media/files/panda/fo5B3E5bvrnHBpQe2g2iF.png,1024,768
+121946c8b0afdb702f7bf8a0249d6eb8,A top-down view of a sushi chef at work,https://v3.fal.media/files/zebra/epvHNi1tXaV7kfzUpIATD.png,1024,768
+76bf570fddbbc4031008acfd9873afeb,A fairy tale village under the stars,https://v3.fal.media/files/monkey/20tWw-ljAARB9pxGa_24d.png,1024,768

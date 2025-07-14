@@ -126,7 +126,9 @@ class TestIterationAsync(unittest.TestCase):
         # Create test data
         location = create_test_shards(dataset_name, shard_count, samples_per_shard)
 
-        response = create_dataset(dataset_name, shardset_location=location)
+        response = create_dataset(
+            dataset_name, uid_column_name="id", shardset_location=location
+        )
         dataset_id = response.id
 
         # Create shardset containing image_url and caption
@@ -168,5 +170,9 @@ class TestIterationAsync(unittest.TestCase):
         location = ".cache/not-a-real-location"
 
         self.assertRaises(
-            Exception, create_dataset, dataset_name, shardset_location=location
+            Exception,
+            create_dataset,
+            dataset_name,
+            uid_column_name="id",
+            shardset_location=location,
         )

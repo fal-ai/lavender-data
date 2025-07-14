@@ -26,5 +26,8 @@ class VersionResponse(BaseModel):
 
 @root_router.get("/version", response_model=VersionResponse)
 def version():
-    version = importlib.metadata.version("lavender-data")
+    try:
+        version = importlib.metadata.version("lavender-data")
+    except importlib.metadata.PackageNotFoundError:
+        version = "dev"
     return {"version": version}

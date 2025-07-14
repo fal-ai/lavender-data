@@ -198,7 +198,7 @@ def get_dataset_statistics(
 
 class CreateDatasetParams(BaseModel):
     name: str
-    uid_column_name: Optional[str] = None
+    uid_column_name: str
     shardset_location: Optional[str] = None
 
 

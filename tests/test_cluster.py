@@ -76,7 +76,7 @@ class TestCluster(unittest.TestCase):
 
     def test_sync_changes_dataset(self):
         head = api.LavenderDataClient(self.head_url)
-        dataset = head.create_dataset("test-dataset")
+        dataset = head.create_dataset("test-dataset", "id")
 
         location = create_test_shards(dataset.id, 10, 10)
         shardset = head.create_shardset(dataset.id, location)
