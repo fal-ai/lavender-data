@@ -1,4 +1,10 @@
-from typing import Literal, TypedDict, Union
+import sys
+from typing import Literal, Union
+
+if sys.version_info >= (3, 12):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
 
 import numpy as np
 from sqlmodel import select
