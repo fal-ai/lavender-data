@@ -1,6 +1,12 @@
 import math
 import numpy as np
-from typing import Any, Literal, Optional, TypedDict, Union
+import sys
+from typing import Any, Literal, Optional, Union
+
+if sys.version_info >= (3, 12):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
 
 from lavender_data.logging import get_logger
 

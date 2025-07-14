@@ -24,13 +24,17 @@ from tests.utils.start_server import (
 )
 
 
-class ConcatPreprocessor(Preprocessor, name="concat"):
+class ConcatPreprocessor(Preprocessor):
+    name = "concat"
+
     def process(self, batch: dict, *, concat: str = "") -> dict:
         batch["concat"] = [c + concat for c in batch["caption"]]
         return batch
 
 
-class ErrorPreprocessor(Preprocessor, name="error"):
+class ErrorPreprocessor(Preprocessor):
+    name = "error"
+
     def process(self, batch: dict) -> dict:
         raise Exception("Error")
 

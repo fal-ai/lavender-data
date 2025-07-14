@@ -296,7 +296,8 @@ class LavenderDataLoader:
             return
 
         self._stopped = True
-        self._complete_thread.join()
+        if self._complete_thread is not None:
+            self._complete_thread.join()
 
     def __next__(self):
         if not self._started:
@@ -640,9 +641,15 @@ class AsyncLavenderDataLoader:
         for thread in self._watch_data_threads:
             thread.join()
 
-        self._watch_used_shm_thread.join()
-        self._watch_error_queue_thread.join()
-        self._watch_processes_thread.join()
+        if self._watch_used_shm_thread is not None:
+            self._watch_used_shm_thread.join()
+
+        if self._watch_error_queue_thread is not None:
+            self._watch_error_queue_thread.join()
+
+        if self._watch_processes_thread is not None:
+            self._watch_processes_thread.join()
+
         for shm_names in self._shm_names.values():
             for shm_name in shm_names:
                 try:

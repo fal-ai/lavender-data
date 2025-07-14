@@ -5,7 +5,6 @@ import threading
 import os
 from concurrent.futures import ThreadPoolExecutor, Future
 
-from datetime import datetime, UTC
 from typing import Callable, Optional, NamedTuple
 
 from pydantic import BaseModel

@@ -1,6 +1,7 @@
 import time
 import unittest
 import numpy as np
+import sys
 
 from lavender_data.server.registries.abc import Registry
 from lavender_data.server.registries import (
@@ -29,59 +30,120 @@ class TestComponent:
         pass
 
 
-class TestComponent1(TestComponent, name="test1"):
-    def process(self):
-        return "test1_result"
+if sys.version_info >= (3, 11):
 
+    class TestComponent1(TestComponent, name="test1"):
+        def process(self):
+            return "test1_result"
 
-class TestComponent2(TestComponent, name="test2"):
-    def process(self):
-        return "test2_result"
+    class TestComponent2(TestComponent, name="test2"):
+        def process(self):
+            return "test2_result"
 
+    # Test preprocessors
+    class MultiplyPreprocessor(Preprocessor, name="multiply"):
+        def process(self, batch: dict, *, multiply: int = 1) -> dict:
+            batch["multiplied"] = batch["value"] * multiply
+            return batch
 
-# Test preprocessors
-class MultiplyPreprocessor(Preprocessor, name="multiply"):
-    def process(self, batch: dict, *, multiply: int = 1) -> dict:
-        batch["multiplied"] = batch["value"] * multiply
-        return batch
+    class AddPreprocessor(Preprocessor, name="add"):
+        def process(self, batch: dict, *, add: int = 1) -> dict:
+            batch["added"] = batch["value"] + add
+            return batch
 
+    class SlowPreprocessor(Preprocessor, name="slow"):
+        def process(self, batch: dict, *, wait: int = 1) -> dict:
+            time.sleep(wait)
+            return batch
 
-class AddPreprocessor(Preprocessor, name="add"):
-    def process(self, batch: dict, *, add: int = 1) -> dict:
-        batch["added"] = batch["value"] + add
-        return batch
+    class AddAfterMultiplyPreprocessor(
+        Preprocessor, name="add_after_multiply", depends_on=["multiply"]
+    ):
+        def process(self, batch: dict, *, add: int = 1) -> dict:
+            batch["added"] = batch["multiplied"] + add
+            return batch
 
+    # Test filters
+    class ModFilter(Filter, name="mod"):
+        def filter(self, sample: dict, *, mod: int = 1) -> bool:
+            return sample["value"] % mod == 0
 
-class SlowPreprocessor(Preprocessor, name="slow"):
-    def process(self, batch: dict, *, wait: int = 1) -> dict:
-        time.sleep(wait)
-        return batch
+    # Test categorizers
+    class AspectRatioCategorizer(Categorizer, name="aspect_ratio"):
+        def categorize(self, sample: dict) -> str:
+            return f"{sample['width']}x{sample['height']}"
 
+    # Test collaters
+    class CountCollater(Collater, name="count"):
+        def collate(self, samples: list[dict]) -> dict:
+            return {"count": len(samples)}
 
-class AddAfterMultiplyPreprocessor(
-    Preprocessor, name="add_after_multiply", depends_on=["multiply"]
-):
-    def process(self, batch: dict, *, add: int = 1) -> dict:
-        batch["added"] = batch["multiplied"] + add
-        return batch
+else:
 
+    class TestComponent1(TestComponent):
+        name = "test1"
 
-# Test filters
-class ModFilter(Filter, name="mod"):
-    def filter(self, sample: dict, *, mod: int = 1) -> bool:
-        return sample["value"] % mod == 0
+        def process(self):
+            return "test1_result"
 
+    class TestComponent2(TestComponent):
+        name = "test2"
 
-# Test categorizers
-class AspectRatioCategorizer(Categorizer, name="aspect_ratio"):
-    def categorize(self, sample: dict) -> str:
-        return f"{sample['width']}x{sample['height']}"
+        def process(self):
+            return "test2_result"
 
+    # Test preprocessors
+    class MultiplyPreprocessor(Preprocessor):
+        name = "multiply"
 
-# Test collaters
-class CountCollater(Collater, name="count"):
-    def collate(self, samples: list[dict]) -> dict:
-        return {"count": len(samples)}
+        def process(self, batch: dict, *, multiply: int = 1) -> dict:
+            batch["multiplied"] = batch["value"] * multiply
+            return batch
+
+    class AddPreprocessor(Preprocessor):
+        name = "add"
+
+        def process(self, batch: dict, *, add: int = 1) -> dict:
+            batch["added"] = batch["value"] + add
+            return batch
+
+    class SlowPreprocessor(Preprocessor):
+        name = "slow"
+
+        def process(self, batch: dict, *, wait: int = 1) -> dict:
+            time.sleep(wait)
+            return batch
+
+    class AddAfterMultiplyPreprocessor(
+        Preprocessor,
+    ):
+        name = "add_after_multiply"
+        depends_on = ["multiply"]
+
+        def process(self, batch: dict, *, add: int = 1) -> dict:
+            batch["added"] = batch["multiplied"] + add
+            return batch
+
+    # Test filters
+    class ModFilter(Filter):
+        name = "mod"
+
+        def filter(self, sample: dict, *, mod: int = 1) -> bool:
+            return sample["value"] % mod == 0
+
+    # Test categorizers
+    class AspectRatioCategorizer(Categorizer):
+        name = "aspect_ratio"
+
+        def categorize(self, sample: dict) -> str:
+            return f"{sample['width']}x{sample['height']}"
+
+    # Test collaters
+    class CountCollater(Collater):
+        name = "count"
+
+        def collate(self, samples: list[dict]) -> dict:
+            return {"count": len(samples)}
 
 
 class RegistriesTest(unittest.TestCase):

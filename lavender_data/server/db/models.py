@@ -2,8 +2,14 @@ import time
 import random
 import string
 import secrets
+import sys
 from typing import Optional, Any
-from typing_extensions import TypedDict
+
+if sys.version_info >= (3, 12):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
+
 from datetime import datetime
 from sqlmodel import (
     Field,
