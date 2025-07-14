@@ -12,7 +12,7 @@ except ImportError:
     torch = None
 
 from lavender_data.logging import get_logger
-from lavender_data.serialize import serialize_sample
+from lavender_data.serialize import serialize_sample, _int_to_bytes
 from lavender_data.server.background_worker import SharedMemory, pool_task
 from lavender_data.server.db.models import (
     IterationPreprocessor,
@@ -196,7 +196,9 @@ def process_next_samples_and_store(
         _process_time = time.perf_counter()
         content = serialize_sample(batch)
         _serialize_time = time.perf_counter()
-        shared_memory.set(cache_key, content, ex=cache_ttl)
+        shared_memory.set(
+            cache_key, _int_to_bytes(params.current) + content, ex=cache_ttl
+        )
         _store_time = time.perf_counter()
         logger.debug(
             f"Done processing {cache_key} in {_ms(_store_time - _start)}, "

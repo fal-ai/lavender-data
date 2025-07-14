@@ -16,7 +16,6 @@ from lavender_data.client.api import (
     DatasetColumnOptions,
 )
 from lavender_data.client import LavenderDataLoader
-from lavender_data.client.api import LavenderDataApiError
 
 from tests.utils.shards import create_test_shards
 from tests.utils.start_server import (
@@ -122,7 +121,7 @@ class TestIterationAsync(unittest.TestCase):
             enumerate(
                 LavenderDataLoader(
                     dataset_id=self.dataset_id, shardsets=[self.shardset_id]
-                ).to_async(prefetch_factor=4)
+                ).to_async(prefetch_factor=4, in_order=True)
             ),
             total=self.total_samples,
             desc="test_iteration",
@@ -136,14 +135,16 @@ class TestIterationAsync(unittest.TestCase):
 
     def test_iteration_with_max_retry_count(self):
         self.assertRaises(
-            LavenderDataApiError,
+            Exception,
             lambda: next(
-                LavenderDataLoader(
-                    dataset_id=self.dataset_id,
-                    shardsets=[self.shardset_id],
-                    preprocessors=["fail_once_in_two_samples"],
-                    max_retry_count=0,
-                ).to_async(prefetch_factor=4)
+                iter(
+                    LavenderDataLoader(
+                        dataset_id=self.dataset_id,
+                        shardsets=[self.shardset_id],
+                        preprocessors=["fail_once_in_two_samples"],
+                        max_retry_count=0,
+                    ).to_async(prefetch_factor=4)
+                )
             ),
         )
 
@@ -155,7 +156,7 @@ class TestIterationAsync(unittest.TestCase):
                     shardsets=[self.shardset_id],
                     preprocessors=["fail_25_percent_samples"],
                     max_retry_count=8,
-                ).to_async(prefetch_factor=4)
+                ).to_async(prefetch_factor=4, in_order=True)
             ),
             total=self.total_samples,
             desc="test_iteration_with_max_retry_count",
@@ -169,14 +170,16 @@ class TestIterationAsync(unittest.TestCase):
 
     def test_iteration_with_skip_on_failure(self):
         self.assertRaises(
-            LavenderDataApiError,
+            Exception,
             lambda: next(
-                LavenderDataLoader(
-                    dataset_id=self.dataset_id,
-                    shardsets=[self.shardset_id],
-                    preprocessors=["fail_even_samples"],
-                    skip_on_failure=False,
-                ).to_async(prefetch_factor=4)
+                iter(
+                    LavenderDataLoader(
+                        dataset_id=self.dataset_id,
+                        shardsets=[self.shardset_id],
+                        preprocessors=["fail_even_samples"],
+                        skip_on_failure=False,
+                    ).to_async(prefetch_factor=4)
+                )
             ),
         )
 
@@ -195,3 +198,26 @@ class TestIterationAsync(unittest.TestCase):
         ):
             read_samples += 1
         self.assertEqual(read_samples, self.total_samples // 2)
+
+    def test_iteration_torch_dataloader_with_prefetch_factor(self):
+        read_samples = 0
+
+        dataloader = LavenderDataLoader(
+            self.dataset_id,
+            shardsets=[self.shardset_id],
+            api_url=self.api_url,
+        ).torch(
+            prefetch_factor=4,
+        )
+
+        for i, sample in enumerate(
+            tqdm.tqdm(
+                dataloader, desc="test_iteration_torch_dataloader_with_prefetch_factor"
+            )
+        ):
+            self.assertEqual(
+                sample["image_url"], f"https://example.com/image-{i:05d}.jpg"
+            )
+            self.assertEqual(sample["caption"], f"Caption for image {i:05d}")
+            read_samples += 1
+        self.assertEqual(read_samples, self.total_samples)

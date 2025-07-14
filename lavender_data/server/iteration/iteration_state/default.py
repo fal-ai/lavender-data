@@ -480,7 +480,7 @@ class IterationState(IterationStateOps):
         filters = self._filters()
         categorizer = self._categorizer()
 
-        current = int(self.cache.incr(self._key("batch_count"), 1)) - 1
+        current = int(self.cache.incr(self._key(f"batch_count:{rank}"), 1)) - 1
         global_sample_indices = []
         samples = []
         while len(samples) < max(batch_size, 1):

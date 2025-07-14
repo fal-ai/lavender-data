@@ -24,6 +24,7 @@ from lavender_data.server.db.models import (
     IterationPreprocessor,
     IterationShardsetLink,
 )
+from lavender_data.serialize import _bytes_to_int
 from lavender_data.server.background_worker import (
     CurrentBackgroundWorker,
     CurrentSharedMemory,
@@ -380,7 +381,15 @@ def get_next(
     if content.startswith(b"error:"):
         raise HTTPException(status_code=500, detail=content[6:].decode("utf-8"))
 
-    return Response(content=content, media_type="application/octet-stream")
+    content = content[4:]
+
+    return Response(
+        content=content,
+        media_type="application/octet-stream",
+        headers={
+            "X-Lavender-Data-Sample-Current": str(params.current),
+        },
+    )
 
 
 class SubmitNextResponse(BaseModel):
@@ -436,7 +445,17 @@ def get_submitted_result(
         raise e.to_http_exception()
     if content.startswith(b"error:"):
         raise HTTPException(status_code=500, detail=content[6:].decode("utf-8"))
-    return Response(content=content, media_type="application/octet-stream")
+
+    current = _bytes_to_int(content[:4])
+    content = content[4:]
+
+    return Response(
+        content=content,
+        media_type="application/octet-stream",
+        headers={
+            "X-Lavender-Data-Sample-Current": str(current),
+        },
+    )
 
 
 @router.post("/{iteration_id}/complete/{index}")
