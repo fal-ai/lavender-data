@@ -162,20 +162,28 @@ class LavenderDataLoader:
         timeout: float = 0,
         multiprocessing_context=None,
         *,
+        num_workers: Optional[int] = None,
         prefetch_factor: Optional[int] = None,
         persistent_workers: bool = False,
         pin_memory_device: str = "",
         in_order: bool = True,
         poll_interval: float = 0.01,
+        shm_size: int = 4 * 1024**2,
     ):
         try:
             from torch.utils.data import DataLoader
         except ImportError:
             raise ImportError("torch is not installed. Please install it first.")
 
-        is_async = prefetch_factor is not None
+        is_async = prefetch_factor is not None or num_workers is not None
         if is_async:
-            iteration = self.to_async(prefetch_factor, poll_interval, in_order)
+            iteration = self.to_async(
+                num_workers=num_workers or 1,
+                prefetch_factor=prefetch_factor or 1,
+                poll_interval=poll_interval,
+                in_order=in_order,
+                shm_size=shm_size,
+            )
         else:
             iteration = self
 
@@ -185,7 +193,7 @@ class LavenderDataLoader:
             timeout=timeout,
             collate_fn=noop_collate_fn,
             multiprocessing_context=multiprocessing_context,
-            prefetch_factor=prefetch_factor,
+            prefetch_factor=prefetch_factor or 1,
             persistent_workers=persistent_workers,
             pin_memory=pin_memory,
             pin_memory_device=pin_memory_device,
@@ -194,16 +202,16 @@ class LavenderDataLoader:
 
     def to_async(
         self,
-        prefetch_factor: int = 1,
         num_workers: int = 1,
+        prefetch_factor: int = 1,
         poll_interval: float = 0.1,
         in_order: bool = True,
         shm_size: int = 4 * 1024**2,
     ):
         return AsyncLavenderDataLoader(
             self,
-            prefetch_factor,
             num_workers,
+            prefetch_factor,
             poll_interval,
             in_order,
             shm_size,
@@ -452,8 +460,8 @@ class AsyncLavenderDataLoader:
     def __init__(
         self,
         dl: LavenderDataLoader,
-        prefetch_factor: int = 1,
         num_workers: int = 1,
+        prefetch_factor: int = 1,
         poll_interval: float = 0.1,
         in_order: bool = True,
         shm_size: int = 4 * 1024**2,
@@ -468,8 +476,8 @@ class AsyncLavenderDataLoader:
             raise ValueError("shm_size must be greater than 4KB")
 
         self._dl = dl
-        self._prefetch_factor = prefetch_factor
         self._num_workers = num_workers
+        self._prefetch_factor = prefetch_factor
         self._poll_interval = poll_interval
         self._poll_poll_inerval = poll_interval / 10
         self._in_order = in_order
