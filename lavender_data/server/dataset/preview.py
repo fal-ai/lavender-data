@@ -177,6 +177,14 @@ def refine_value_previewable(value: Any):
         return f"<torch.Tensor shape={value.shape} dtype={value.dtype}>"
     elif isinstance(value, np.ndarray):
         return f"<numpy.ndarray shape={value.shape} dtype={value.dtype}>"
+    elif isinstance(value, list):
+        return [refine_value_previewable(item) for item in value]
+    elif isinstance(value, tuple):
+        return tuple(refine_value_previewable(item) for item in value)
+    elif isinstance(value, set):
+        return set(refine_value_previewable(item) for item in value)
+    elif isinstance(value, dict):
+        return {key: refine_value_previewable(value[key]) for key in value.keys()}
 
     return value
 
