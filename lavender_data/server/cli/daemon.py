@@ -68,7 +68,6 @@ def start(*args, **kwargs):
     ctx = mp.get_context("spawn")
     process = ctx.Process(target=_run, args=args, kwargs=kwargs)
     process.start()
-    atexit.register(lambda: os.kill(process.pid, signal.SIGINT))
 
     settings = get_settings()
 
@@ -80,12 +79,18 @@ def start(*args, **kwargs):
 
         if not process.is_alive():
             print(f"Failed to start server (check {LOG_FILE} for more details)")
+            with open(LOG_FILE, "r") as f:
+                f.seek(log_file_position)
+                print(f.read())
             exit(1)
 
         if time.time() - start_time > timeout:
             print(
                 f"Timeout waiting for server to start (check {LOG_FILE} for more details)"
             )
+            with open(LOG_FILE, "r") as f:
+                f.seek(log_file_position)
+                print(f.read())
             exit(1)
 
         time.sleep(0.1)
@@ -107,6 +112,7 @@ def start(*args, **kwargs):
     print(
         f"lavender-data is running on http://{settings.lavender_data_host}:{settings.lavender_data_port}"
     )
+    atexit.register(lambda: os.kill(process.pid, signal.SIGINT))
     with daemon.DaemonContext(
         working_directory=WORKING_DIRECTORY,
         umask=0o002,
