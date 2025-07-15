@@ -547,6 +547,7 @@ def get_shardset_shards(
         .where(
             Shard.shardset_id == shardset_id,
         )
+        .order_by(Shard.index)
         .offset(offset)
         .limit(limit)
     ).all()
