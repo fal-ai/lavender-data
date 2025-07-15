@@ -469,7 +469,10 @@ def _fetch_worker(
                 while not _stop_local:
                     shm = shms[shm_names[shm_idx]]
                     shm_idx = (shm_idx + 1) % len(shm_names)
-                    if _bytes_to_int(shm.buf[0:8].tobytes()) == SAMPLE_NEW:
+                    if _bytes_to_int(shm.buf[0:8].tobytes()) in [
+                        SAMPLE_NEW,
+                        SAMPLE_QUEUED,
+                    ]:
                         continue
                     break
 
@@ -601,7 +604,6 @@ class MultiProcessLavenderDataLoader:
                     continue
 
                 shm.buf[0:8] = _int_to_bytes(SAMPLE_QUEUED)
-
                 try:
                     data = deserialize_sample(shm.buf[24 : length + 24])
                     self._arrived[current] = (shm_name, data)
@@ -652,6 +654,9 @@ class MultiProcessLavenderDataLoader:
             for process in self._fetch_processes:
                 if process.exitcode is not None:
                     self._joined_fetch_processes += 1
+
+        while len(self._arrived.keys()) > 0:
+            time.sleep(self._poll_poll_inerval)
 
         self._stopped_event.set()
 
@@ -756,9 +761,6 @@ class MultiProcessLavenderDataLoader:
         shm_name = None
         data = None
         while data is None or shm_name is None:
-            if self._joined_fetch_processes == len(self._fetch_processes):
-                raise self._error or StopIteration
-
             if self._stopped_local:
                 raise self._error or StopIteration
 
