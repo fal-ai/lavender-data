@@ -156,6 +156,7 @@ class LavenderDataLoader:
 
         self.id = self._iteration_id
 
+        self._stop_completed_thread = False
         self._complete_thread: Optional[threading.Thread] = None
 
     def torch(
@@ -177,7 +178,7 @@ class LavenderDataLoader:
 
         is_async = prefetch_factor is not None or num_workers is not None
         if is_async:
-            iteration = self.multiprocessing(
+            dl = self.multiprocessing(
                 num_workers=num_workers or 1,
                 prefetch_factor=prefetch_factor or 1,
                 poll_interval=poll_interval,
@@ -185,10 +186,11 @@ class LavenderDataLoader:
                 shm_size=shm_size,
             )
         else:
-            iteration = self
+            dl = self
 
+        self._total += 1
         return DataLoader(
-            iteration,
+            dl,
             num_workers=0,
             timeout=timeout,
             collate_fn=noop_collate_fn,
@@ -231,7 +233,7 @@ class LavenderDataLoader:
         futures = []
         executor = ThreadPoolExecutor(max_workers=max_workers)
 
-        while not self._stopped:
+        while not self._stop_completed_thread:
             if len(self._completed_indices) == 0:
                 time.sleep(0.1)
                 continue
@@ -300,9 +302,12 @@ class LavenderDataLoader:
         if self._stopped:
             return
 
-        self._stopped = True
         if self._complete_thread is not None:
+            self._stop_completed_thread = True
             self._complete_thread.join()
+            self._complete_thread = None
+
+        self._stopped = True
 
     def __next__(self):
         if not self._started:
@@ -689,7 +694,7 @@ class MultiProcessLavenderDataLoader:
         self._dl._stop()
 
     def _wait_cleanup(self):
-        while not self._dl._stopped:
+        while not self._dl._stopped or not self._stopped_local:
             time.sleep(0.1)
 
     def _start_fetch_processes(self):
@@ -790,4 +795,8 @@ class MultiProcessLavenderDataLoader:
             self._wait_cleanup()
 
     def __getitem__(self, index: int):
-        return next(self)
+        try:
+            return next(self)
+        except StopIteration:
+            self._wait_cleanup()
+            raise
