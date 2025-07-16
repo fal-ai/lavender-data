@@ -129,7 +129,9 @@ class TestIterationAsync(unittest.TestCase):
         for i, sample in tqdm.tqdm(
             enumerate(
                 LavenderDataLoader(
-                    dataset_id=self.dataset_id, shardsets=[self.shardset_id]
+                    dataset_id=self.dataset_id,
+                    shardsets=[self.shardset_id],
+                    fetch_mode="async",
                 ).to_async(prefetch_factor=4, in_order=True)
             ),
             total=self.total_samples,
@@ -152,6 +154,7 @@ class TestIterationAsync(unittest.TestCase):
                         shardsets=[self.shardset_id],
                         preprocessors=["fail_once_in_two_samples"],
                         max_retry_count=0,
+                        fetch_mode="async",
                     ).to_async(prefetch_factor=4)
                 )
             ),
@@ -165,6 +168,7 @@ class TestIterationAsync(unittest.TestCase):
                     shardsets=[self.shardset_id],
                     preprocessors=["fail_25_percent_samples"],
                     max_retry_count=8,
+                    fetch_mode="async",
                 ).to_async(prefetch_factor=4, in_order=True)
             ),
             total=self.total_samples,
@@ -187,6 +191,7 @@ class TestIterationAsync(unittest.TestCase):
                         shardsets=[self.shardset_id],
                         preprocessors=["fail_even_samples"],
                         skip_on_failure=False,
+                        fetch_mode="async",
                     ).to_async(prefetch_factor=4)
                 )
             ),
@@ -200,6 +205,7 @@ class TestIterationAsync(unittest.TestCase):
                     shardsets=[self.shardset_id],
                     preprocessors=["fail_even_samples"],
                     skip_on_failure=True,
+                    fetch_mode="async",
                 ).to_async(prefetch_factor=4)
             ),
             total=self.total_samples,
@@ -215,6 +221,7 @@ class TestIterationAsync(unittest.TestCase):
             self.dataset_id,
             shardsets=[self.shardset_id],
             api_url=self.api_url,
+            fetch_mode="async",
         ).torch(
             prefetch_factor=4,
         )

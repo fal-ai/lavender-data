@@ -86,6 +86,7 @@ class LavenderDataLoader:
         iteration_id: Optional[str] = None,
         cluster_sync: bool = False,
         no_cache: bool = False,
+        fetch_mode: Literal["async", "sync"] = "sync",
         api_url: Optional[str] = None,
         api_key: Optional[str] = None,
     ):
@@ -143,6 +144,7 @@ class LavenderDataLoader:
         self._max_retry_count = max_retry_count
         self._skip_on_failure = skip_on_failure
         self._rank = rank
+        self._fetch_mode = fetch_mode
 
         self._api_url = api_url
         self._api_key = api_key
@@ -154,6 +156,7 @@ class LavenderDataLoader:
 
         self.id = self._iteration_id
 
+        self._stop_completed_thread = False
         self._complete_thread: Optional[threading.Thread] = None
 
     def torch(
@@ -175,7 +178,7 @@ class LavenderDataLoader:
 
         is_async = prefetch_factor is not None or num_workers is not None
         if is_async:
-            iteration = self.to_async(
+            dl = self.multiprocessing(
                 num_workers=num_workers or 1,
                 prefetch_factor=prefetch_factor or 1,
                 poll_interval=poll_interval,
@@ -183,10 +186,11 @@ class LavenderDataLoader:
                 shm_size=shm_size,
             )
         else:
-            iteration = self
+            dl = self
 
+        self._total += 1
         return DataLoader(
-            iteration,
+            dl,
             num_workers=0,
             timeout=timeout,
             collate_fn=noop_collate_fn,
@@ -195,7 +199,10 @@ class LavenderDataLoader:
             in_order=in_order,
         )
 
-    def to_async(
+    def to_async(self, *args, **kwargs):
+        return self.multiprocessing(*args, **kwargs)
+
+    def multiprocessing(
         self,
         num_workers: int = 1,
         prefetch_factor: int = 1,
@@ -203,7 +210,7 @@ class LavenderDataLoader:
         in_order: bool = True,
         shm_size: int = 4 * 1024**2,
     ):
-        return AsyncLavenderDataLoader(
+        return MultiProcessLavenderDataLoader(
             self,
             num_workers,
             prefetch_factor,
@@ -226,7 +233,7 @@ class LavenderDataLoader:
         futures = []
         executor = ThreadPoolExecutor(max_workers=max_workers)
 
-        while not self._stopped:
+        while not self._stop_completed_thread:
             if len(self._completed_indices) == 0:
                 time.sleep(0.1)
                 continue
@@ -295,9 +302,12 @@ class LavenderDataLoader:
         if self._stopped:
             return
 
-        self._stopped = True
         if self._complete_thread is not None:
+            self._stop_completed_thread = True
             self._complete_thread.join()
+            self._complete_thread = None
+
+        self._stopped = True
 
     def __next__(self):
         if not self._started:
@@ -352,8 +362,9 @@ def _format_exception(e: Exception):
 
 
 EOF_SIGNATURE = b"EOF"
-SAMPLE_USED = 1
 SAMPLE_NEW = 0
+SAMPLE_QUEUED = 1
+SAMPLE_USED = 2
 
 
 def _int_to_bytes(i: int):
@@ -369,6 +380,7 @@ def _fetch_worker(
     rank: int,
     no_cache: bool,
     max_retry_count: int,
+    fetch_mode: Literal["async", "sync"],
     api_url: Optional[str],
     api_key: Optional[str],
     poll_interval: float,
@@ -405,32 +417,42 @@ def _fetch_worker(
     with api._get_client() as client:
 
         def _fetch_one():
-            try:
-                cache_key = api.submit_next_item(
-                    iteration_id=iteration_id,
-                    rank=rank,
-                    no_cache=no_cache,
-                    max_retry_count=max_retry_count,
-                    client=client,
-                ).cache_key
-            except LavenderDataApiError as e:
-                if "No more indices to pop" in str(e):
-                    raise StopIteration
-                else:
-                    raise e
+            if fetch_mode == "async":
+                try:
+                    cache_key = api.submit_next_item(
+                        iteration_id=iteration_id,
+                        rank=rank,
+                        no_cache=no_cache,
+                        max_retry_count=max_retry_count,
+                        client=client,
+                    ).cache_key
+                except LavenderDataApiError as e:
+                    if "No more indices to pop" in str(e):
+                        raise StopIteration
+                    else:
+                        raise e
+            else:
+                cache_key = None
 
             current = None
             serialized = None
             error = None
             while (serialized is None and error is None) and not _stop_local:
-                time.sleep(poll_interval)
-
                 try:
-                    serialized, current = api.get_submitted_result(
-                        iteration_id=iteration_id,
-                        cache_key=cache_key,
-                        client=client,
-                    )
+                    if cache_key is not None:
+                        serialized, current = api.get_submitted_result(
+                            iteration_id=iteration_id,
+                            cache_key=cache_key,
+                            client=client,
+                        )
+                    else:
+                        serialized, current = api.get_next_item(
+                            iteration_id=iteration_id,
+                            rank=rank,
+                            no_cache=no_cache,
+                            max_retry_count=max_retry_count,
+                            client=client,
+                        )
                 except LavenderDataSampleProcessingError as e:
                     current = e.current
                     error = (current, e.msg)
@@ -452,12 +474,14 @@ def _fetch_worker(
                 while not _stop_local:
                     shm = shms[shm_names[shm_idx]]
                     shm_idx = (shm_idx + 1) % len(shm_names)
-                    if _bytes_to_int(shm.buf[0:8].tobytes()) == SAMPLE_NEW:
+                    if _bytes_to_int(shm.buf[0:8].tobytes()) in [
+                        SAMPLE_NEW,
+                        SAMPLE_QUEUED,
+                    ]:
                         continue
                     break
 
-                fetched = _fetch_one()
-                current, serialized, error = fetched
+                current, serialized, error = _fetch_one()
 
                 if serialized is not None:
                     serialized = (
@@ -496,7 +520,7 @@ def _fetch_worker(
     exit(0)
 
 
-class AsyncLavenderDataLoader:
+class MultiProcessLavenderDataLoader:
     def __init__(
         self,
         dl: LavenderDataLoader,
@@ -569,7 +593,10 @@ class AsyncLavenderDataLoader:
                     continue
 
             while not self._stopped_local:
-                if _bytes_to_int(shm.buf[0:8].tobytes()) == SAMPLE_USED:
+                if _bytes_to_int(shm.buf[0:8].tobytes()) in [
+                    SAMPLE_QUEUED,
+                    SAMPLE_USED,
+                ]:
                     time.sleep(self._poll_poll_inerval)
                     continue
 
@@ -581,6 +608,7 @@ class AsyncLavenderDataLoader:
                 ):
                     continue
 
+                shm.buf[0:8] = _int_to_bytes(SAMPLE_QUEUED)
                 try:
                     data = deserialize_sample(shm.buf[24 : length + 24])
                     self._arrived[current] = (shm_name, data)
@@ -632,6 +660,9 @@ class AsyncLavenderDataLoader:
                 if process.exitcode is not None:
                     self._joined_fetch_processes += 1
 
+        while len(self._arrived.keys()) > 0:
+            time.sleep(self._poll_poll_inerval)
+
         self._stopped_event.set()
 
     def _watch_stopped(self):
@@ -663,7 +694,7 @@ class AsyncLavenderDataLoader:
         self._dl._stop()
 
     def _wait_cleanup(self):
-        while not self._dl._stopped:
+        while not self._dl._stopped or not self._stopped_local:
             time.sleep(0.1)
 
     def _start_fetch_processes(self):
@@ -697,6 +728,7 @@ class AsyncLavenderDataLoader:
                     self._dl._rank,
                     self._dl._no_cache,
                     self._dl._max_retry_count,
+                    self._dl._fetch_mode,
                     self._dl._api.api_url,
                     self._dl._api.api_key,
                     self._poll_interval,
@@ -734,9 +766,6 @@ class AsyncLavenderDataLoader:
         shm_name = None
         data = None
         while data is None or shm_name is None:
-            if self._joined_fetch_processes == len(self._fetch_processes):
-                raise self._error or StopIteration
-
             if self._stopped_local:
                 raise self._error or StopIteration
 
@@ -766,4 +795,8 @@ class AsyncLavenderDataLoader:
             self._wait_cleanup()
 
     def __getitem__(self, index: int):
-        return next(self)
+        try:
+            return next(self)
+        except StopIteration:
+            self._wait_cleanup()
+            raise
