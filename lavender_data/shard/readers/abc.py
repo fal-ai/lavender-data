@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Iterator, Optional, Union
 from typing_extensions import Self
 
-from lavender_data.storage import download_file
+from lavender_data.storage import download_file, list_files
 from lavender_data.logging import get_logger
 
 from .exceptions import (
@@ -18,6 +18,22 @@ __all__ = ["Reader"]
 
 class Reader(ABC):
     format: str = ""
+
+    @classmethod
+    def is_readable(cls, location: str) -> bool:
+        shard_format = os.path.splitext(location)[1].lstrip(".")
+        for subcls in cls._reader_classes():
+            if shard_format == subcls.format:
+                return True
+        return False
+
+    @classmethod
+    def list_readables(cls, location: str) -> list[str]:
+        return [
+            basename
+            for basename in sorted(list_files(location))
+            if cls.is_readable(os.path.join(location, basename))
+        ]
 
     @classmethod
     def get(

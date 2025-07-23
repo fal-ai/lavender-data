@@ -31,7 +31,12 @@ class HuggingfaceStorage(Storage):
     def _parse_remote_path(self, remote_path: str) -> tuple[str, str]:
         parsed = urllib.parse.urlparse(remote_path)
         org = parsed.netloc
-        repo, path = parsed.path.lstrip("/").split("/", 1)
+        splitted = parsed.path.lstrip("/").split("/", 1)
+        repo = splitted[0]
+        if len(splitted) > 1:
+            path = splitted[1]
+        else:
+            path = ""
         repo_id = f"{org}/{repo}"
         return repo_id, path
 
