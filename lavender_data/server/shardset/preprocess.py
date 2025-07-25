@@ -109,7 +109,10 @@ def preprocess_shardset(
 
     for main_shard in sorted(main_shardset.shards, key=lambda x: x.index):
         shard_basename = os.path.basename(main_shard.location)
+        filename, extension = os.path.splitext(shard_basename)
+        shard_basename = f"{filename}.parquet"
         location = os.path.join(shardset_location, shard_basename)
+        
 
         if shard_basename in existing_shard_basenames:
             logger.info(

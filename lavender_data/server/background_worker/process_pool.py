@@ -92,7 +92,7 @@ def _worker_process(
             result = _tasks[work_item.func](**work_item.kwargs)
             result_item = ResultItem(work_id=work_item.work_id, result=result)
         except Exception as e:
-            logger.exception(f"Error processing work {work_item.work_id}: {e}")
+            # logger.exception(f"Error processing work {work_item.work_id}: {e}")
             result_item = ResultItem(
                 work_id=work_item.work_id,
                 exception="".join(

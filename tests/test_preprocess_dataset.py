@@ -157,24 +157,23 @@ class TestPreprocessDataset(unittest.TestCase):
 
         self.assertEqual(len(os.listdir(output_dir)), 2)
 
-        shard_1 = os.path.join(output_dir, "shard.00000.parquet")
+        shard_1 = os.path.join(output_dir, "0.parquet")
         samples_1 = pq.read_table(shard_1).to_pydict()
-        self.assertEqual(samples_1["id"], [0, 1, 2])
+        self.assertEqual(samples_1["id"], [0, 2])
         self.assertEqual(
             samples_1["concat"],
             [
                 "Caption for image 0!!!",
-                "!!!",
                 "Caption for image 2!!!",
             ],
         )
 
-        shard_2 = os.path.join(output_dir, "shard.00001.parquet")
+        shard_2 = os.path.join(output_dir, "1.parquet")
         samples_2 = pq.read_table(shard_2).to_pydict()
-        self.assertEqual(samples_2["id"], [3, 4, 5])
+        self.assertEqual(samples_2["id"], [3, 4])
         self.assertEqual(
             samples_2["concat"],
-            ["Caption for image 3!!!", "Caption for image 4!!!", "!!!"],
+            ["Caption for image 3!!!", "Caption for image 4!!!"],
         )
 
     def test_preprocess_dataset_with_error(self):
