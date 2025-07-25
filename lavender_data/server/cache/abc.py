@@ -76,6 +76,7 @@ class CacheOperations(ABC):
 
 
 class CacheInterface(CacheOperations):
+    @contextmanager
     @abstractmethod
     def lock(self, key: str, timeout: Optional[int] = None) -> Iterator[None]: ...
 

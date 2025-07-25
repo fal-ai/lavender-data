@@ -97,7 +97,7 @@ export function MultiSelect({
       <PopoverContent className="w-full p-0">
         <Command>
           <CommandInput placeholder={placeholder} className="h-9" />
-          <CommandList>
+          <CommandList className="max-h-[480px]">
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {value.map((option) => (

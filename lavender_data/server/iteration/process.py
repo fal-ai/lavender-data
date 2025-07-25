@@ -21,6 +21,8 @@ from lavender_data.server.db.models import (
 from lavender_data.server.reader import (
     get_reader_instance,
     GlobalSampleIndex,
+    JoinMethod,
+    InnerJoinSampleInsufficient,
 )
 from lavender_data.server.registries import (
     PreprocessorRegistry,
@@ -107,7 +109,13 @@ def _decollate(batch: dict) -> dict:
     return _batch
 
 
-def _process_next_samples(params: ProcessNextSamplesParams) -> dict:
+class NoSamplesFound(Exception):
+    pass
+
+
+def _process_next_samples(
+    params: ProcessNextSamplesParams, join_method: JoinMethod = "left"
+) -> dict:
     reader = get_reader_instance()
 
     current = params.current
@@ -118,7 +126,15 @@ def _process_next_samples(params: ProcessNextSamplesParams) -> dict:
     batch_size = params.batch_size
 
     if samples is None:
-        samples = [reader.get_sample(i, join="left") for i in global_sample_indices]
+        samples = []
+        for i in global_sample_indices:
+            try:
+                samples.append(reader.get_sample(i, join_method))
+            except InnerJoinSampleInsufficient:
+                pass
+
+    if len(samples) == 0:
+        raise NoSamplesFound()
 
     batch = (
         CollaterRegistry.get(collater["name"]).collate(samples)
@@ -146,18 +162,24 @@ def _process_next_samples(params: ProcessNextSamplesParams) -> dict:
 def process_next_samples(
     params: ProcessNextSamplesParams,
     max_retry_count: int,
+    join_method: JoinMethod = "left",
 ) -> dict:
-    logger = get_logger(__name__)
-
     for i in range(max_retry_count + 1):
         try:
-            return _process_next_samples(params)
+            return _process_next_samples(params, join_method)
+        except NoSamplesFound as e:
+            raise ProcessNextSamplesException(
+                e=e,
+                current=params.current,
+                global_sample_indices=params.global_sample_indices,
+            )
         except Exception as e:
             error = ProcessNextSamplesException(
                 e=e,
                 current=params.current,
                 global_sample_indices=params.global_sample_indices,
             )
+            logger = get_logger(__name__)
             if i < max_retry_count:
                 logger.warning(f"{str(error)}, retrying... ({i+1}/{max_retry_count})")
             else:

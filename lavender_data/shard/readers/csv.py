@@ -15,13 +15,13 @@ class CsvReader(UntypedReader):
     format = "csv"
     typed_columns = False
 
-    def resolve_type(self, value: Any, typestr: str) -> type:
+    def resolve_type(self, value: Any, typestr: str) -> Any:
         if typestr in ["int", "int32", "int64"]:
-            if value == "":
+            if value == "" or value is None:
                 return np.nan
             return int(value)
         elif typestr in ["float", "double"]:
-            if value == "":
+            if value == "" or value is None:
                 return np.nan
             return float(value)
         elif typestr in ["string", "text", "str"]:
@@ -29,15 +29,15 @@ class CsvReader(UntypedReader):
         elif typestr in ["bool", "boolean"]:
             return value.lower() in ["true", "t", "yes", "y", "1"]
         elif typestr in ["list"]:
-            if value == "":
+            if value == "" or value is None:
                 return []
             return ast.literal_eval(value)
         elif typestr in ["map"]:
-            if value == "":
+            if value == "" or value is None:
                 return {}
             return ast.literal_eval(value)
         elif typestr in ["binary"]:
-            if value == "":
+            if value == "" or value is None:
                 return b""
             return ast.literal_eval(value)
         return value
@@ -45,7 +45,7 @@ class CsvReader(UntypedReader):
     def read_columns(self) -> dict[str, str]:
         with open(self.filepath, "r") as f:
             reader = csv.DictReader(f)
-            return {name: "string" for name in reader.fieldnames}
+            return {name: "string" for name in reader.fieldnames or []}
 
     def read_samples(self) -> list[dict[str, Any]]:
         samples = []

@@ -8,6 +8,7 @@ from sqlalchemy.exc import NoResultFound, IntegrityError
 from pydantic import BaseModel
 
 from lavender_data.logging import get_logger
+from lavender_data.shard.readers import Reader
 from lavender_data.server.db import DbSession
 from lavender_data.server.db.models import (
     Dataset,
@@ -42,7 +43,6 @@ from lavender_data.server.shardset import (
     preprocess_shardset,
 )
 from lavender_data.server.auth import AppAuth
-from lavender_data.storage import list_files
 from lavender_data.shard import inspect_shard
 from lavender_data.serialize import deserialize_list
 
@@ -139,7 +139,11 @@ def get_dataset_preview(
         raise HTTPException(status_code=404, detail="Dataset not found")
 
     if cache.exists(f"preview:{dataset_id}:{preview_id}:error"):
-        error = cache.get(f"preview:{dataset_id}:{preview_id}:error").decode()
+        error = cache.get(f"preview:{dataset_id}:{preview_id}:error")
+        if error is None:
+            error = "Unknown error"
+        else:
+            error = error.decode()
         cache.delete(f"preview:{dataset_id}:{preview_id}:error")
         raise HTTPException(
             status_code=500,
@@ -235,8 +239,7 @@ def create_dataset(
                 cluster=cluster,
             )
         except:
-            if cluster:
-                cluster.sync_changes([dataset], delete=True)
+            delete_dataset(dataset.id, session, cluster)
             raise
 
     return dataset
@@ -390,7 +393,7 @@ def create_shardset(
         uid_column = None
 
     try:
-        shard_basenames = sorted(list_files(params.location, limit=1))
+        shard_basenames = Reader.list_readables(params.location)
     except Exception as e:
         shard_basenames = []
         logger.warning(f"Failed to list shardset location: {e}")

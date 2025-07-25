@@ -5,8 +5,8 @@ from typing import Generator, Optional
 from sqlmodel import update, insert, select, delete
 
 from lavender_data.logging import get_logger
-from lavender_data.storage import list_files
 from lavender_data.shard.inspect import OrphanShardInfo, inspect_shard
+from lavender_data.shard.readers import Reader
 from lavender_data.shard.readers.exceptions import ReaderException
 from lavender_data.server.background_worker import (
     TaskStatus,
@@ -43,7 +43,7 @@ def inspect_shardset_location(
     try:
         shard_index = 0
 
-        shard_basenames = sorted(list_files(shardset_location))
+        shard_basenames = Reader.list_readables(os.path.join(shardset_location))
 
         shard_locations: list[str] = []
         for shard_basename in shard_basenames:

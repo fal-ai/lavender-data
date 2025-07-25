@@ -8,8 +8,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from sqlmodel import select
 from sqlalchemy.orm import selectinload
 
+from lavender_data.shard.readers import Reader
 from lavender_data.logging import get_logger
-from lavender_data.storage import list_files, upload_file
+from lavender_data.storage import upload_file
 from lavender_data.server.reader import GlobalSampleIndex, MainShardInfo, ShardInfo
 from lavender_data.server.iteration import (
     process_next_samples,
@@ -102,17 +103,16 @@ def preprocess_shardset(
     existing_shard_basenames = []
     if not overwrite:
         try:
-            existing_shard_basenames = [
-                basename
-                for basename in sorted(list_files(shardset_location))
-                if basename.endswith(".parquet") or basename.endswith(".csv")
-            ]
+            existing_shard_basenames = Reader.list_readables(shardset_location)
         except Exception as e:
             pass
 
-    for main_shard in main_shardset.shards:
-        shard_basename = f"shard.{main_shard.index:05d}.parquet"
+    for main_shard in sorted(main_shardset.shards, key=lambda x: x.index):
+        shard_basename = os.path.basename(main_shard.location)
+        filename, extension = os.path.splitext(shard_basename)
+        shard_basename = f"{filename}.parquet"
         location = os.path.join(shardset_location, shard_basename)
+        
 
         if shard_basename in existing_shard_basenames:
             logger.info(
@@ -187,6 +187,7 @@ def preprocess_shardset(
                         process_next_samples,
                         params=params,
                         max_retry_count=max_retry_count,
+                        join_method="inner",
                     )
                 )
 
@@ -196,7 +197,12 @@ def preprocess_shardset(
                 try:
                     batch = process_pool.result(work_id)
                 except Exception as e:
+                    if "NoSamplesFound" in str(e):
+                        continue
                     logger.error(e)
+                    continue
+
+                if batch is None:
                     continue
 
                 keys = list(batch.keys())

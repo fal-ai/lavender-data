@@ -31,7 +31,7 @@ from lavender_data.server.reader import (
 )
 from lavender_data.server.shardset import get_main_shardset, span
 from lavender_data.storage import get_url
-from lavender_data.serialize import serialize_list
+from lavender_data.serialize import serialize_list, deserialize_item
 from lavender_data.logging import get_logger
 
 try:
@@ -150,14 +150,20 @@ def _set_file(content: bytes):
 
 def refine_value_previewable(value: Any):
     if type(value) == bytes:
-        if len(value) > 0:
-            try:
-                local_path = _set_file(value)
-                return f"file://{local_path}"
-            except ValueError:
-                return f"<bytes>"
-        else:
+        if len(value) == 0:
             return ""
+
+        try:
+            return f"file://{_set_file(value)}"
+        except ValueError:
+            pass
+
+        try:
+            return refine_value_previewable(deserialize_item(value))
+        except Exception:
+            pass
+
+        return f"<bytes>"
     elif type(value) == dict:
         if value.get("bytes"):
             try:
