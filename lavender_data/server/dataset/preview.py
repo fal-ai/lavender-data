@@ -196,9 +196,10 @@ def refine_value_previewable(value: Any):
 
 
 def refine_sample_previewable(sample: dict[str, Any]):
+    refined = {}
     for key in sample.keys():
-        sample[key] = refine_value_previewable(sample[key])
-    return sample
+        refined[key] = refine_value_previewable(sample[key])
+    return refined
 
 
 def preview_dataset(
@@ -262,12 +263,19 @@ def preview_dataset_task(
     start_time = time.time()
     try:
         samples = preview_dataset(dataset_id, offset, limit)
-        # cache for 60 minutes
         cache.hset(f"preview:{dataset_id}", preview_id, serialize_list(samples))
     except Exception as e:
         logger.exception(f"Failed to preview dataset {dataset_id}: {e}")
         cache.set(f"preview:{dataset_id}:{preview_id}:error", str(e), ex=3 * 60)
         raise e
+    
+    try:
+        # cache for 60 minutes
+        cache.expire(f"preview:{dataset_id}", 60 * 60)
+    except Exception as e:
+        logger.warning(f"Failed to expire preview {dataset_id}: {e}")
+        raise e
+
     end_time = time.time()
     logger.info(
         f"Previewed dataset {dataset_id} {offset}-{offset+limit-1} in {end_time - start_time:.2f}s"
