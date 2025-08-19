@@ -27,6 +27,7 @@ from .iteration_state import (
     set_cluster_sync,
     get_iteration_id_from_hash_from_head,
 )
+from .prefetcher import IterationPrefetcherPool, IterationPrefetcher, NotFetchedYet
 
 __all__ = [
     "ProcessNextSamplesParams",
@@ -47,6 +48,11 @@ __all__ = [
     "set_cluster_sync",
     "get_iteration_state",
     "CurrentIterationState",
+    "CurrentIterationPrefetcher",
+    "CurrentIterationPrefetcherPool",
+    "setup_iteration_prefetcher_pool",
+    "shutdown_iteration_prefetcher_pool",
+    "NotFetchedYet",
 ]
 
 
@@ -71,3 +77,40 @@ def get_iteration_state(
 
 
 CurrentIterationState = Annotated[IterationStateOps, Depends(get_iteration_state)]
+
+
+iteration_prefetcher_pool = None
+
+
+def setup_iteration_prefetcher_pool():
+    global iteration_prefetcher_pool
+    iteration_prefetcher_pool = IterationPrefetcherPool()
+
+
+def shutdown_iteration_prefetcher_pool():
+    global iteration_prefetcher_pool
+    iteration_prefetcher_pool.shutdown()
+
+
+def get_iteration_prefetcher_pool():
+    global iteration_prefetcher_pool
+    if iteration_prefetcher_pool is None:
+        raise Exception("Iteration prefetcher pool not initialized")
+    return iteration_prefetcher_pool
+
+
+CurrentIterationPrefetcherPool = Annotated[
+    IterationPrefetcherPool, Depends(get_iteration_prefetcher_pool)
+]
+
+
+def get_iteration_prefetcher(iteration_id: str) -> IterationPrefetcher:
+    global iteration_prefetcher_pool
+    if iteration_prefetcher_pool is None:
+        raise Exception("Iteration prefetcher pool not initialized")
+    return iteration_prefetcher_pool.get_prefetcher(iteration_id)
+
+
+CurrentIterationPrefetcher = Annotated[
+    IterationPrefetcher, Depends(get_iteration_prefetcher)
+]
