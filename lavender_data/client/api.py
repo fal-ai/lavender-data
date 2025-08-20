@@ -382,11 +382,14 @@ class LavenderDataClient:
                 iteration_id=iteration_id,
                 rank=rank,
             )
-
         try:
             current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
         except TypeError:
             current = None
+
+        if response.status_code == 202:
+            raise LavenderDataApiError(response.content.decode("utf-8"))
+
         return self._check_response(response).payload.read(), current
 
     def complete_index(self, iteration_id: str, index: int):

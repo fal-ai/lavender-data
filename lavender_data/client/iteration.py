@@ -83,6 +83,7 @@ class LavenderDataLoader:
         no_cache: Optional[bool] = None,
         num_workers: Optional[int] = None,
         prefetch_factor: Optional[int] = None,
+        poll_interval: Optional[float] = None,
         in_order: Optional[bool] = None,
         api_url: Optional[str] = None,
         api_key: Optional[str] = None,
@@ -90,6 +91,7 @@ class LavenderDataLoader:
         self._bytes = 0
         self._started = False
         self._stopped = False
+        self._poll_interval = poll_interval or 0.01
 
         self._current = -1
         self._stop_completed_thread = False
@@ -182,7 +184,7 @@ class LavenderDataLoader:
 
         while not self._stop_completed_thread:
             if len(self._completed_indices) == 0:
-                time.sleep(0.1)
+                time.sleep(self._poll_interval)
                 continue
 
             index = self._completed_indices.pop()

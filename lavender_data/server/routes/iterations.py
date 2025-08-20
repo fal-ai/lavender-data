@@ -366,7 +366,7 @@ def get_next(
     except StopIteration:
         raise HTTPException(status_code=400, detail="No more indices to pop")
     except NotFetchedYet as e:
-        raise HTTPException(status_code=400, detail="Data is still being processed")
+        raise HTTPException(status_code=202, detail="Data is still being processed")
     except ProcessNextSamplesException as e:
         raise e.to_http_exception()
     except Exception as e:

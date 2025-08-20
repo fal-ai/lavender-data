@@ -20,7 +20,10 @@ from .background_worker import (
     setup_shared_memory,
     shutdown_shared_memory,
 )
-from .iteration import setup_iteration_prefetcher_pool, shutdown_iteration_prefetcher_pool
+from .iteration import (
+    setup_iteration_prefetcher_pool,
+    shutdown_iteration_prefetcher_pool,
+)
 from .routes import (
     datasets_router,
     iterations_router,
@@ -112,6 +115,7 @@ async def lifespan(app: FastAPI):
         shutdown_iteration_prefetcher_pool()
     except Exception as e:
         logger.warning(f"Iteration prefetcher pool failed to shutdown: {e}")
+
 
 app = FastAPI(lifespan=lifespan)
 
