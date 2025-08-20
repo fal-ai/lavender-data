@@ -25,8 +25,6 @@ from openapi_lavender_data_rest.api.datasets import (
 from openapi_lavender_data_rest.api.iterations import (
     create_iteration_iterations_post,
     get_next_iterations_iteration_id_next_get,
-    submit_next_iterations_iteration_id_next_post,
-    get_submitted_result_iterations_iteration_id_next_cache_key_get,
     get_iteration_iterations_iteration_id_get,
     get_iterations_iterations_get,
     complete_index_iterations_iteration_id_complete_index_post,
@@ -307,7 +305,11 @@ class LavenderDataClient:
         rank: int = 0,
         world_size: Optional[int] = None,
         wait_participant_threshold: Optional[float] = None,
-        cluster_sync: bool = False,
+        no_cache: Optional[bool] = None,
+        num_workers: Optional[int] = None,
+        prefetch_factor: Optional[int] = None,
+        in_order: Optional[bool] = None,
+        cluster_sync: Optional[bool] = None,
     ):
         with self._get_client() as client:
             response = create_iteration_iterations_post.sync_detailed(
@@ -327,6 +329,10 @@ class LavenderDataClient:
                     rank=rank,
                     world_size=world_size,
                     wait_participant_threshold=wait_participant_threshold,
+                    no_cache=no_cache,
+                    num_workers=num_workers,
+                    prefetch_factor=prefetch_factor,
+                    in_order=in_order,
                     cluster_sync=cluster_sync,
                 ),
             )
@@ -366,8 +372,6 @@ class LavenderDataClient:
         self,
         iteration_id: str,
         rank: int = 0,
-        no_cache: bool = False,
-        max_retry_count: int = 0,
         client: Optional[Client] = None,
     ):
         with self._get_client() if client is None else nullcontext() as _client:
@@ -375,48 +379,8 @@ class LavenderDataClient:
                 client=client or _client,
                 iteration_id=iteration_id,
                 rank=rank,
-                no_cache=no_cache,
-                max_retry_count=max_retry_count,
             )
 
-        try:
-            current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
-        except TypeError:
-            current = None
-        return self._check_response(response).payload.read(), current
-
-    def submit_next_item(
-        self,
-        iteration_id: str,
-        rank: int = 0,
-        no_cache: bool = False,
-        max_retry_count: int = 0,
-        client: Optional[Client] = None,
-    ):
-        with self._get_client() if client is None else nullcontext() as _client:
-            response = submit_next_iterations_iteration_id_next_post.sync_detailed(
-                client=client or _client,
-                iteration_id=iteration_id,
-                rank=rank,
-                no_cache=no_cache,
-                max_retry_count=max_retry_count,
-            )
-        return self._check_response(response)
-
-    def get_submitted_result(
-        self,
-        iteration_id: str,
-        cache_key: str,
-        client: Optional[Client] = None,
-    ):
-        with self._get_client() if client is None else nullcontext() as _client:
-            response = get_submitted_result_iterations_iteration_id_next_cache_key_get.sync_detailed(
-                client=client or _client,
-                iteration_id=iteration_id,
-                cache_key=cache_key,
-            )
-        if response.status_code == 202:
-            raise LavenderDataApiError(response.content.decode("utf-8"))
         try:
             current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
         except TypeError:
@@ -605,7 +569,11 @@ def create_iteration(
     rank: int = 0,
     world_size: Optional[int] = None,
     wait_participant_threshold: Optional[float] = None,
-    cluster_sync: bool = False,
+    no_cache: Optional[bool] = None,
+    num_workers: Optional[int] = None,
+    prefetch_factor: Optional[int] = None,
+    in_order: Optional[bool] = None,
+    cluster_sync: Optional[bool] = None,
 ):
     return _client_instance.create_iteration(
         dataset_id=dataset_id,
@@ -622,6 +590,10 @@ def create_iteration(
         rank=rank,
         world_size=world_size,
         wait_participant_threshold=wait_participant_threshold,
+        no_cache=no_cache,
+        num_workers=num_workers,
+        prefetch_factor=prefetch_factor,
+        in_order=in_order,
         cluster_sync=cluster_sync,
     )
 
@@ -644,36 +616,10 @@ def get_iteration(iteration_id: str):
 def get_next_item(
     iteration_id: str,
     rank: int = 0,
-    no_cache: bool = False,
-    max_retry_count: int = 0,
 ):
     return _client_instance.get_next_item(
         iteration_id=iteration_id,
         rank=rank,
-        no_cache=no_cache,
-        max_retry_count=max_retry_count,
-    )
-
-
-@ensure_client()
-def submit_next_item(
-    iteration_id: str,
-    rank: int = 0,
-    no_cache: bool = False,
-    max_retry_count: int = 0,
-):
-    return _client_instance.submit_next_item(
-        iteration_id=iteration_id,
-        rank=rank,
-        no_cache=no_cache,
-        max_retry_count=max_retry_count,
-    )
-
-
-@ensure_client()
-def get_submitted_result(iteration_id: str, cache_key: str):
-    return _client_instance.get_submitted_result(
-        iteration_id=iteration_id, cache_key=cache_key
     )
 
 

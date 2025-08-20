@@ -75,39 +75,11 @@ def get_next_item(
     api_key: str,
     iteration_id: str,
     rank: int,
-    no_cache: bool,
-    max_retry_count: int,
 ):
     return deserialize_sample(
         _api(api_url=api_url, api_key=api_key).get_next_item(
             iteration_id=iteration_id,
             rank=rank,
-            no_cache=no_cache,
-            max_retry_count=max_retry_count,
-        )[0]
-    )
-
-
-def submit_next_item(
-    api_url: str,
-    api_key: str,
-    iteration_id: str,
-    rank: int,
-    no_cache: bool,
-    max_retry_count: int,
-):
-    return _api(api_url=api_url, api_key=api_key).submit_next_item(
-        iteration_id=iteration_id,
-        rank=rank,
-        no_cache=no_cache,
-        max_retry_count=max_retry_count,
-    )
-
-
-def get_submitted_result(api_url: str, api_key: str, iteration_id: str, cache_key: str):
-    return deserialize_sample(
-        _api(api_url=api_url, api_key=api_key).get_submitted_result(
-            iteration_id=iteration_id, cache_key=cache_key
         )[0]
     )
 

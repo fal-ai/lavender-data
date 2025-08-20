@@ -34,6 +34,11 @@ class CreateIterationParams:
         rank (Union[None, Unset, int]):
         world_size (Union[None, Unset, int]):
         wait_participant_threshold (Union[None, Unset, float]):
+        no_cache (Union[None, Unset, bool]):
+        max_retry_count (Union[None, Unset, int]):
+        num_workers (Union[None, Unset, int]):
+        prefetch_factor (Union[None, Unset, int]):
+        in_order (Union[None, Unset, bool]):
         cluster_sync (Union[None, Unset, bool]):
     """
 
@@ -51,6 +56,11 @@ class CreateIterationParams:
     rank: Union[None, Unset, int] = UNSET
     world_size: Union[None, Unset, int] = UNSET
     wait_participant_threshold: Union[None, Unset, float] = UNSET
+    no_cache: Union[None, Unset, bool] = UNSET
+    max_retry_count: Union[None, Unset, int] = UNSET
+    num_workers: Union[None, Unset, int] = UNSET
+    prefetch_factor: Union[None, Unset, int] = UNSET
+    in_order: Union[None, Unset, bool] = UNSET
     cluster_sync: Union[None, Unset, bool] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -164,6 +174,36 @@ class CreateIterationParams:
         else:
             wait_participant_threshold = self.wait_participant_threshold
 
+        no_cache: Union[None, Unset, bool]
+        if isinstance(self.no_cache, Unset):
+            no_cache = UNSET
+        else:
+            no_cache = self.no_cache
+
+        max_retry_count: Union[None, Unset, int]
+        if isinstance(self.max_retry_count, Unset):
+            max_retry_count = UNSET
+        else:
+            max_retry_count = self.max_retry_count
+
+        num_workers: Union[None, Unset, int]
+        if isinstance(self.num_workers, Unset):
+            num_workers = UNSET
+        else:
+            num_workers = self.num_workers
+
+        prefetch_factor: Union[None, Unset, int]
+        if isinstance(self.prefetch_factor, Unset):
+            prefetch_factor = UNSET
+        else:
+            prefetch_factor = self.prefetch_factor
+
+        in_order: Union[None, Unset, bool]
+        if isinstance(self.in_order, Unset):
+            in_order = UNSET
+        else:
+            in_order = self.in_order
+
         cluster_sync: Union[None, Unset, bool]
         if isinstance(self.cluster_sync, Unset):
             cluster_sync = UNSET
@@ -203,6 +243,16 @@ class CreateIterationParams:
             field_dict["world_size"] = world_size
         if wait_participant_threshold is not UNSET:
             field_dict["wait_participant_threshold"] = wait_participant_threshold
+        if no_cache is not UNSET:
+            field_dict["no_cache"] = no_cache
+        if max_retry_count is not UNSET:
+            field_dict["max_retry_count"] = max_retry_count
+        if num_workers is not UNSET:
+            field_dict["num_workers"] = num_workers
+        if prefetch_factor is not UNSET:
+            field_dict["prefetch_factor"] = prefetch_factor
+        if in_order is not UNSET:
+            field_dict["in_order"] = in_order
         if cluster_sync is not UNSET:
             field_dict["cluster_sync"] = cluster_sync
 
@@ -398,6 +448,51 @@ class CreateIterationParams:
 
         wait_participant_threshold = _parse_wait_participant_threshold(d.pop("wait_participant_threshold", UNSET))
 
+        def _parse_no_cache(data: object) -> Union[None, Unset, bool]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(Union[None, Unset, bool], data)
+
+        no_cache = _parse_no_cache(d.pop("no_cache", UNSET))
+
+        def _parse_max_retry_count(data: object) -> Union[None, Unset, int]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(Union[None, Unset, int], data)
+
+        max_retry_count = _parse_max_retry_count(d.pop("max_retry_count", UNSET))
+
+        def _parse_num_workers(data: object) -> Union[None, Unset, int]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(Union[None, Unset, int], data)
+
+        num_workers = _parse_num_workers(d.pop("num_workers", UNSET))
+
+        def _parse_prefetch_factor(data: object) -> Union[None, Unset, int]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(Union[None, Unset, int], data)
+
+        prefetch_factor = _parse_prefetch_factor(d.pop("prefetch_factor", UNSET))
+
+        def _parse_in_order(data: object) -> Union[None, Unset, bool]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(Union[None, Unset, bool], data)
+
+        in_order = _parse_in_order(d.pop("in_order", UNSET))
+
         def _parse_cluster_sync(data: object) -> Union[None, Unset, bool]:
             if data is None:
                 return data
@@ -422,6 +517,11 @@ class CreateIterationParams:
             rank=rank,
             world_size=world_size,
             wait_participant_threshold=wait_participant_threshold,
+            no_cache=no_cache,
+            max_retry_count=max_retry_count,
+            num_workers=num_workers,
+            prefetch_factor=prefetch_factor,
+            in_order=in_order,
             cluster_sync=cluster_sync,
         )
 

@@ -24,11 +24,6 @@ from lavender_data.server.db.models import (
     IterationPreprocessor,
     IterationShardsetLink,
 )
-from lavender_data.serialize import _bytes_to_int, serialize_sample
-from lavender_data.server.background_worker import (
-    CurrentBackgroundWorker,
-    CurrentSharedMemory,
-)
 from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.reader import ReaderInstance
 from lavender_data.server.dataset import refine_sample_previewable
@@ -105,6 +100,7 @@ class CreateIterationParams(BaseModel):
     max_retry_count: Optional[int] = None
     num_workers: Optional[int] = None
     prefetch_factor: Optional[int] = None
+    in_order: Optional[bool] = None
 
     cluster_sync: Optional[bool] = None
 
@@ -288,9 +284,9 @@ def create_iteration(
     state = IterationState(iteration.id, cache)
     state.init(iteration)
 
-    if prefetcher_pool.get_prefetcher(iteration.id):
+    try:
         prefetcher = prefetcher_pool.get_prefetcher(iteration.id)
-    else:
+    except KeyError:
         prefetcher = prefetcher_pool.create(
             iteration.id,
             state,
@@ -298,6 +294,7 @@ def create_iteration(
             params.no_cache or False,
             params.num_workers or 1,
             params.prefetch_factor or 1,
+            params.in_order or False,
         )
     prefetcher.start(params.rank or 0)
 
@@ -363,11 +360,13 @@ def get_next(
     iteration_id: str,
     prefetcher: CurrentIterationPrefetcher,
     rank: int = 0,
-):
+) -> bytes:
     try:
         current, content = prefetcher.get_next(rank)
+    except StopIteration:
+        raise HTTPException(status_code=400, detail="No more indices to pop")
     except NotFetchedYet as e:
-        raise HTTPException(status_code=202, detail="Not prefetched yet")
+        raise HTTPException(status_code=400, detail="Data is still being processed")
     except ProcessNextSamplesException as e:
         raise e.to_http_exception()
     except Exception as e:

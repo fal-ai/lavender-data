@@ -1,6 +1,7 @@
 import time
 import threading
 
+from lavender_data.logging import get_logger
 from lavender_data.server.settings import get_settings
 from lavender_data.server.cache import get_cache
 from lavender_data.server.iteration.iteration_state import (
@@ -14,9 +15,9 @@ from lavender_data.server.iteration.process import (
 from lavender_data.serialize import serialize_sample
 
 
-
 class NotFetchedYet(Exception):
     pass
+
 
 class IterationPrefetcher:
     def __init__(
@@ -40,14 +41,17 @@ class IterationPrefetcher:
 
         self.cache = next(get_cache())
         self.settings = get_settings()
+        self.logger = get_logger(__name__)
 
         self.fetched: dict[int, dict[int, str]] = {}
         self.current: dict[int, int] = {}
 
         self.threads: dict[int, list[threading.Thread]] = {}
         self.stop_event: dict[int, threading.Event] = {}
+        self.done_event: dict[int, threading.Event] = {}
 
     def _prefetch(self, rank: int):
+        _start = time.time()
         cache_key = None
         try:
             cache_key, params = self.state.get_next_samples(rank)
@@ -64,9 +68,11 @@ class IterationPrefetcher:
                 content = serialize_sample(batch)
                 self.cache.set(cache_key, content, ex=cache_ttl)
                 self.fetched[rank][params.current] = cache_key
+            self.logger.debug(
+                f"[{rank=}] Prefetched {params.current} in {time.time() - _start:.2f}s"
+            )
         except IterationStateException as e:
-            if "No more indices to pop" in e.detail:
-                raise StopIteration
+            raise StopIteration
         except ProcessNextSamplesException as e:
             if cache_key:
                 self.cache.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)
@@ -74,7 +80,9 @@ class IterationPrefetcher:
             if cache_key:
                 self.cache.set(cache_key, f"error:{e}", ex=cache_ttl)
 
-    def _keep_prefetching(self, rank: int, stop_event: threading.Event) -> None:
+    def _keep_prefetching(
+        self, rank: int, stop_event: threading.Event, done_event: threading.Event
+    ) -> None:
         while not stop_event.is_set():
             while len(self.fetched[rank]) >= (self.prefetch_factor * self.num_workers):
                 time.sleep(0.01)
@@ -82,21 +90,21 @@ class IterationPrefetcher:
             try:
                 self._prefetch(rank)
             except StopIteration:
+                done_event.set()
                 break
 
     def get_next(self, rank: int) -> tuple[int, bytes]:
-        if self.in_order:
-            try:
+        try:
+            if self.in_order:
                 current = self.current[rank]
                 cache_key = self.fetched[rank].pop(current)
                 self.current[rank] += 1
-            except KeyError:
-                raise NotFetchedYet()
-        else:
-            try:
+            else:
                 current, cache_key = self.fetched[rank].popitem()
-            except KeyError:
-                raise NotFetchedYet()
+        except KeyError:
+            if self.done_event[rank].is_set():
+                raise StopIteration
+            raise NotFetchedYet()
 
         content = self.cache.get(cache_key)
         if not content:
@@ -112,9 +120,11 @@ class IterationPrefetcher:
         self.current[rank] = 0
         self.fetched[rank] = {}
         self.stop_event[rank] = threading.Event()
+        self.done_event[rank] = threading.Event()
         self.threads[rank] = [
             threading.Thread(
-                target=self._keep_prefetching, args=(rank, self.stop_event[rank])
+                target=self._keep_prefetching,
+                args=(rank, self.stop_event[rank], self.done_event[rank]),
             )
             for _ in range(self.num_workers)
         ]
@@ -122,7 +132,8 @@ class IterationPrefetcher:
             thread.start()
 
     def join(self, rank: int) -> None:
-        self.threads[rank].join()
+        for thread in self.threads[rank]:
+            thread.join()
         del self.threads[rank]
 
     def stop(self, rank: int) -> None:

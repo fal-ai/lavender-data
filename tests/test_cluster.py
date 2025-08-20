@@ -127,7 +127,7 @@ class TestCluster(unittest.TestCase):
         ]
 
         self.assertEqual(
-            len(set(iteration.id for iteration in iteration_from_nodes)), 1
+            len(set(iteration._iteration_id for iteration in iteration_from_nodes)), 1
         )
 
         read_samples = 0
