@@ -97,8 +97,6 @@ class LavenderDataLoader:
 
         self._using_indices = set()
         self._completed_indices = set()
-        self._no_cache = no_cache
-        self._max_retry_count = max_retry_count
         self._skip_on_failure = skip_on_failure
         self._rank = rank
 
@@ -149,6 +147,7 @@ class LavenderDataLoader:
                 no_cache=no_cache,
                 num_workers=num_workers,
                 prefetch_factor=prefetch_factor,
+                max_retry_count=max_retry_count,
                 in_order=in_order,
             )
         else:

@@ -50,6 +50,9 @@ class IterationPrefetcher:
         self.stop_event: dict[int, threading.Event] = {}
         self.done_event: dict[int, threading.Event] = {}
 
+    def _log(self, rank: int, message: str):
+        self.logger.debug(f"[{self.state.iteration_id} {rank=}] {message}")
+
     def _prefetch(self, rank: int):
         _start = time.time()
         cache_key = None
@@ -68,30 +71,45 @@ class IterationPrefetcher:
                 content = serialize_sample(batch)
                 self.cache.set(cache_key, content, ex=cache_ttl)
                 self.fetched[rank][params.current] = cache_key
-            self.logger.debug(
-                f"[{rank=}] Prefetched {params.current} in {time.time() - _start:.2f}s"
+            self._log(
+                rank, f"Prefetched {params.current} in {time.time() - _start:.2f}s"
             )
         except IterationStateException as e:
-            raise StopIteration
+            if "No more indices to pop" in e.detail:
+                self._log(rank, "Iteration finished")
+                raise StopIteration
+            elif cache_key:
+                self.cache.set(cache_key, f"error:{e.detail}", ex=cache_ttl)
+                self.fetched[rank][params.current] = cache_key
         except ProcessNextSamplesException as e:
             if cache_key:
                 self.cache.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)
+                self.fetched[rank][params.current] = cache_key
         except Exception as e:
             if cache_key:
                 self.cache.set(cache_key, f"error:{e}", ex=cache_ttl)
+                self.fetched[rank][params.current] = cache_key
 
     def _keep_prefetching(
         self, rank: int, stop_event: threading.Event, done_event: threading.Event
     ) -> None:
         while not stop_event.is_set():
-            while len(self.fetched[rank]) >= (self.prefetch_factor * self.num_workers):
+            while (
+                len(self.fetched[rank]) >= (self.prefetch_factor * self.num_workers)
+                and not stop_event.is_set()
+            ):
                 time.sleep(0.01)
+
+            if stop_event.is_set():
+                break
 
             try:
                 self._prefetch(rank)
             except StopIteration:
                 done_event.set()
                 break
+
+        self._log(rank, "Prefetcher finished")
 
     def get_next(self, rank: int) -> tuple[int, bytes]:
         try:
@@ -132,17 +150,29 @@ class IterationPrefetcher:
             thread.start()
 
     def join(self, rank: int) -> None:
-        for thread in self.threads[rank]:
-            thread.join()
-        del self.threads[rank]
+        for i, thread in enumerate(self.threads[rank]):
+            thread.join(timeout=5.0)
+            if thread.is_alive():
+                self._log(
+                    rank,
+                    f"Warning: Thread {i} ({thread.name}) did not terminate within timeout",
+                )
+                self._log(
+                    rank,
+                    f"Thread {i} status: alive={thread.is_alive()}, daemon={thread.daemon}",
+                )
 
     def stop(self, rank: int) -> None:
+        self._log(rank, "Stopping prefetcher threads")
         self.stop_event[rank].set()
         self.join(rank)
+        self._log(rank, "Prefetcher stopped")
 
     def shutdown(self):
-        for rank in self.threads:
+        for rank in list(self.threads.keys()):
             self.stop(rank)
+
+        self.logger.debug(f"[{self.state.iteration_id}] Prefetcher pool shutdown")
 
 
 class IterationPrefetcherPool:

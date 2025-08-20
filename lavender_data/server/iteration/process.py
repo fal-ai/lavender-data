@@ -1,7 +1,6 @@
 import ujson as json
 from typing import Optional
 import traceback
-import time
 
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -12,8 +11,7 @@ except ImportError:
     torch = None
 
 from lavender_data.logging import get_logger
-from lavender_data.serialize import serialize_sample, _int_to_bytes
-from lavender_data.server.background_worker import SharedMemory, pool_task
+from lavender_data.server.background_worker import pool_task
 from lavender_data.server.db.models import (
     IterationPreprocessor,
     IterationCollater,
@@ -185,51 +183,3 @@ def process_next_samples(
             else:
                 logger.exception(error)
                 raise error
-
-
-def _format_number(number: int):
-    if number < 1000:
-        return f"{number} "
-    elif number < 1000**2:
-        return f"{number/1000:.2f} K"
-    elif number < 1000**3:
-        return f"{number/1000**2:.2f} M"
-    else:
-        return f"{number/1000**3:.2f} G"
-
-
-def _ms(seconds: float):
-    return f"{seconds*1000:.2f} ms"
-
-
-@pool_task()
-def process_next_samples_and_store(
-    params: ProcessNextSamplesParams,
-    max_retry_count: int,
-    cache_key: str,
-    cache_ttl: int,
-    *,
-    shared_memory: SharedMemory,
-):
-    logger = get_logger(__name__)
-    try:
-        _start = time.perf_counter()
-        batch = process_next_samples(params, max_retry_count)
-        _process_time = time.perf_counter()
-        content = serialize_sample(batch)
-        _serialize_time = time.perf_counter()
-        shared_memory.set(
-            cache_key, _int_to_bytes(params.current) + content, ex=cache_ttl
-        )
-        _store_time = time.perf_counter()
-        logger.debug(
-            f"Done processing {cache_key} in {_ms(_store_time - _start)}, "
-            f"process: {_ms(_process_time - _start)}, "
-            f"serialize: {_ms(_serialize_time - _process_time)}, "
-            f"store: {_ms(_store_time - _serialize_time)}, "
-            f"size: {_format_number(len(content))}B"
-        )
-    except ProcessNextSamplesException as e:
-        shared_memory.set(cache_key, f"processing_error:{e.json()}", ex=cache_ttl)
-    except Exception as e:
-        shared_memory.set(cache_key, f"error:{e}", ex=cache_ttl)

@@ -290,11 +290,11 @@ def create_iteration(
         prefetcher = prefetcher_pool.create(
             iteration.id,
             state,
-            params.max_retry_count or 0,
-            params.no_cache or False,
-            params.num_workers or 1,
-            params.prefetch_factor or 1,
-            params.in_order or False,
+            params.max_retry_count if params.max_retry_count is not None else 0,
+            params.no_cache if params.no_cache is not None else False,
+            params.num_workers if params.num_workers is not None else 1,
+            params.prefetch_factor if params.prefetch_factor is not None else 1,
+            params.in_order if params.in_order is not None else True,
         )
     prefetcher.start(params.rank or 0)
 

@@ -9,7 +9,6 @@ from .process import (
     ProcessNextSamplesParams,
     ProcessNextSamplesException,
     process_next_samples,
-    process_next_samples_and_store,
 )
 from .hash import (
     get_iteration_hash,
@@ -33,7 +32,6 @@ __all__ = [
     "ProcessNextSamplesParams",
     "ProcessNextSamplesException",
     "process_next_samples",
-    "process_next_samples_and_store",
     "get_iteration_hash",
     "set_iteration_hash",
     "get_iteration_id_from_hash",
@@ -108,7 +106,10 @@ def get_iteration_prefetcher(iteration_id: str) -> IterationPrefetcher:
     global iteration_prefetcher_pool
     if iteration_prefetcher_pool is None:
         raise Exception("Iteration prefetcher pool not initialized")
-    return iteration_prefetcher_pool.get_prefetcher(iteration_id)
+    try:
+        return iteration_prefetcher_pool.get_prefetcher(iteration_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Iteration prefetcher not found")
 
 
 CurrentIterationPrefetcher = Annotated[
