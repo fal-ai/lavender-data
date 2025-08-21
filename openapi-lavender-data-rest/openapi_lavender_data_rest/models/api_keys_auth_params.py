@@ -1,65 +1,54 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..types import UNSET, Unset
-
-T = TypeVar("T", bound="IterationShardsetLink")
+T = TypeVar("T", bound="ApiKeysAuthParams")
 
 
 @_attrs_define
-class IterationShardsetLink:
+class ApiKeysAuthParams:
     """
     Attributes:
-        iteration_id (str):
-        shardset_id (str):
-        id (Union[Unset, str]):
+        api_key_id (str):
+        api_key_secret (str):
     """
 
-    iteration_id: str
-    shardset_id: str
-    id: Union[Unset, str] = UNSET
+    api_key_id: str
+    api_key_secret: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        iteration_id = self.iteration_id
+        api_key_id = self.api_key_id
 
-        shardset_id = self.shardset_id
-
-        id = self.id
+        api_key_secret = self.api_key_secret
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "iteration_id": iteration_id,
-                "shardset_id": shardset_id,
+                "api_key_id": api_key_id,
+                "api_key_secret": api_key_secret,
             }
         )
-        if id is not UNSET:
-            field_dict["id"] = id
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        iteration_id = d.pop("iteration_id")
+        api_key_id = d.pop("api_key_id")
 
-        shardset_id = d.pop("shardset_id")
+        api_key_secret = d.pop("api_key_secret")
 
-        id = d.pop("id", UNSET)
-
-        iteration_shardset_link = cls(
-            iteration_id=iteration_id,
-            shardset_id=shardset_id,
-            id=id,
+        api_keys_auth_params = cls(
+            api_key_id=api_key_id,
+            api_key_secret=api_key_secret,
         )
 
-        iteration_shardset_link.additional_properties = d
-        return iteration_shardset_link
+        api_keys_auth_params.additional_properties = d
+        return api_keys_auth_params
 
     @property
     def additional_keys(self) -> list[str]:

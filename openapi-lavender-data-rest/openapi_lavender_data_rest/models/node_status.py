@@ -13,10 +13,12 @@ class NodeStatus:
     Attributes:
         node_url (str):
         last_heartbeat (Union[None, float]):
+        is_head (bool):
     """
 
     node_url: str
     last_heartbeat: Union[None, float]
+    is_head: bool
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -25,12 +27,15 @@ class NodeStatus:
         last_heartbeat: Union[None, float]
         last_heartbeat = self.last_heartbeat
 
+        is_head = self.is_head
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
                 "node_url": node_url,
                 "last_heartbeat": last_heartbeat,
+                "is_head": is_head,
             }
         )
 
@@ -48,9 +53,12 @@ class NodeStatus:
 
         last_heartbeat = _parse_last_heartbeat(d.pop("last_heartbeat"))
 
+        is_head = d.pop("is_head")
+
         node_status = cls(
             node_url=node_url,
             last_heartbeat=last_heartbeat,
+            is_head=is_head,
         )
 
         node_status.additional_properties = d

@@ -74,20 +74,6 @@ class TestCluster(unittest.TestCase):
         node_urls = [node.node_url for node in node_statuses]
         self.assertEqual(set(node_urls), set(self.node_urls + [self.head_url]))
 
-    def test_sync_changes_dataset(self):
-        head = api.LavenderDataClient(self.head_url)
-        dataset = head.create_dataset("test-dataset", "id")
-
-        location = create_test_shards(dataset.id, 10, 10)
-        shardset = head.create_shardset(dataset.id, location)
-
-        for node_url in self.node_urls:
-            node = api.LavenderDataClient(node_url)
-            retreived_dataset = node.get_dataset(dataset.id)
-            self.assertEqual(retreived_dataset.id, dataset.id)
-            self.assertEqual(len(retreived_dataset.shardsets), 1)
-            self.assertEqual(retreived_dataset.shardsets[0].id, shardset.id)
-
     def test_iteration(self):
         head = api.LavenderDataClient(self.head_url)
 

@@ -5,18 +5,29 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.create_iteration_params import CreateIterationParams
 from ...models.http_validation_error import HTTPValidationError
 from ...types import Response
 
 
 def _get_kwargs(
     iteration_id: str,
+    *,
+    body: CreateIterationParams,
 ) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": f"/iterations/{iteration_id}/state/set-cluster-sync",
+        "url": f"/iterations/{iteration_id}/start-prefetcher",
     }
 
+    _body = body.to_dict()
+
+    _kwargs["json"] = _body
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -51,11 +62,13 @@ def sync_detailed(
     iteration_id: str,
     *,
     client: AuthenticatedClient,
+    body: CreateIterationParams,
 ) -> Response[Union[Any, HTTPValidationError]]:
-    """Cluster Set Cluster Sync
+    """Cluster Start Prefetcher
 
     Args:
         iteration_id (str):
+        body (CreateIterationParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -67,6 +80,7 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         iteration_id=iteration_id,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -80,11 +94,13 @@ def sync(
     iteration_id: str,
     *,
     client: AuthenticatedClient,
+    body: CreateIterationParams,
 ) -> Optional[Union[Any, HTTPValidationError]]:
-    """Cluster Set Cluster Sync
+    """Cluster Start Prefetcher
 
     Args:
         iteration_id (str):
+        body (CreateIterationParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -97,6 +113,7 @@ def sync(
     return sync_detailed(
         iteration_id=iteration_id,
         client=client,
+        body=body,
     ).parsed
 
 
@@ -104,11 +121,13 @@ async def asyncio_detailed(
     iteration_id: str,
     *,
     client: AuthenticatedClient,
+    body: CreateIterationParams,
 ) -> Response[Union[Any, HTTPValidationError]]:
-    """Cluster Set Cluster Sync
+    """Cluster Start Prefetcher
 
     Args:
         iteration_id (str):
+        body (CreateIterationParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -120,6 +139,7 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         iteration_id=iteration_id,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -131,11 +151,13 @@ async def asyncio(
     iteration_id: str,
     *,
     client: AuthenticatedClient,
+    body: CreateIterationParams,
 ) -> Optional[Union[Any, HTTPValidationError]]:
-    """Cluster Set Cluster Sync
+    """Cluster Start Prefetcher
 
     Args:
         iteration_id (str):
+        body (CreateIterationParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -149,5 +171,6 @@ async def asyncio(
         await asyncio_detailed(
             iteration_id=iteration_id,
             client=client,
+            body=body,
         )
     ).parsed

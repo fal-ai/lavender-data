@@ -126,6 +126,11 @@ def log_filter(request: Request, response):
         and response.status_code == 202
     ):
         return False
+    if (
+        re.match(r"/iterations/.*/prefetch-node-map.*", request.url.path)
+        and response.status_code == 200
+    ):
+        return False
     return True
 
 

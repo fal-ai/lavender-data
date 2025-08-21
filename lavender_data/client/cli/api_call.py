@@ -1,3 +1,5 @@
+from typing import Optional
+
 from lavender_data.client import LavenderDataClient
 from lavender_data.serialize import deserialize_sample
 
@@ -75,11 +77,13 @@ def get_next_item(
     api_key: str,
     iteration_id: str,
     rank: int,
+    seq: Optional[int] = None,
 ):
     return deserialize_sample(
         _api(api_url=api_url, api_key=api_key).get_next_item(
             iteration_id=iteration_id,
             rank=rank,
+            seq=seq,
         )[0]
     )
 

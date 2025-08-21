@@ -1,8 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+import hashlib
 
 from fastapi import Depends, HTTPException
 from sqlmodel import select, update
 
+from lavender_data.server.distributed import CurrentCluster
+from lavender_data.server.cache import CacheClient
 from lavender_data.server.db import DbSession
 from lavender_data.server.db.models import ApiKey
 from lavender_data.server.settings import AppSettings
@@ -10,19 +13,41 @@ from lavender_data.server.settings import AppSettings
 from .header import AuthorizationHeader
 
 
-def api_key_auth(auth: AuthorizationHeader, session: DbSession, settings: AppSettings):
+def api_key_auth(
+    auth: AuthorizationHeader,
+    session: DbSession,
+    settings: AppSettings,
+    cache: CacheClient,
+    cluster: CurrentCluster,
+):
     if settings.lavender_data_disable_auth:
         return None
 
     api_key_id = auth.username
     api_key_secret = auth.password
 
-    api_key = session.exec(
-        select(ApiKey).where(
-            ApiKey.id == api_key_id,
-            ApiKey.secret == api_key_secret,
+    cache_key = f"api_key:{hashlib.sha256((api_key_id+':'+api_key_secret).encode()).hexdigest()}"
+    cached = cache.get(cache_key)
+    if cached:
+        expires_at, locked = cached.decode("utf-8").split(";")
+        expires_at = datetime.fromisoformat(expires_at)
+        api_key = ApiKey(
+            id=api_key_id,
+            secret=api_key_secret,
+            note="",
+            expires_at=expires_at,
+            locked=locked == "locked",
         )
-    ).one_or_none()
+    else:
+        if cluster is None or cluster.is_head:
+            api_key = session.exec(
+                select(ApiKey).where(
+                    ApiKey.id == api_key_id,
+                    ApiKey.secret == api_key_secret,
+                )
+            ).one_or_none()
+        else:
+            api_key = cluster.get_api_key(api_key_id, api_key_secret)
 
     try:
         if api_key is None:
@@ -37,12 +62,25 @@ def api_key_auth(auth: AuthorizationHeader, session: DbSession, settings: AppSet
         session.close()
         raise e
 
-    session.exec(
-        update(ApiKey)
-        .where(ApiKey.id == api_key_id)
-        .values(last_accessed_at=datetime.now())
+    cache.set(
+        cache_key,
+        (
+            api_key.expires_at
+            if api_key.expires_at
+            else datetime.now() + timedelta(days=30)
+        ).isoformat()
+        + ";"
+        + ("locked" if api_key.locked else ""),
+        ex=60 * 60,
     )
-    session.close()
+
+    if cluster is None or cluster.is_head:
+        session.exec(
+            update(ApiKey)
+            .where(ApiKey.id == api_key_id)
+            .values(last_accessed_at=datetime.now())
+        )
+        session.close()
 
     return api_key
 

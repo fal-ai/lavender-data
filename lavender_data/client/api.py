@@ -30,6 +30,7 @@ from openapi_lavender_data_rest.api.iterations import (
     complete_index_iterations_iteration_id_complete_index_post,
     pushback_iterations_iteration_id_pushback_post,
     get_progress_iterations_iteration_id_progress_get,
+    get_prefetcher_node_map_iterations_iteration_id_prefetcher_node_map_get,
 )
 from openapi_lavender_data_rest.api.cluster import (
     get_nodes_cluster_nodes_get,
@@ -75,6 +76,13 @@ class LavenderDataApiError(Exception):
     pass
 
 
+class LavenderDataStillProcessingError(LavenderDataApiError):
+    upcoming_samples: Optional[list[int]]
+
+    def __init__(self, upcoming_samples: Optional[list[int]]):
+        self.upcoming_samples = upcoming_samples
+
+
 class LavenderDataSampleProcessingError(LavenderDataApiError):
     current: int
     msg: str
@@ -96,8 +104,10 @@ class LavenderDataClient:
         api_url: Optional[str] = None,
         api_key: Optional[str] = None,
     ):
-        self.api_url = api_url or os.getenv("LAVENDER_DATA_API_URL")
-        self.api_key = api_key or os.getenv("LAVENDER_DATA_API_KEY")
+        self.api_url = (
+            api_url or os.getenv("LAVENDER_DATA_API_URL") or "http://localhost:8000"
+        )
+        self.api_key = api_key or os.getenv("LAVENDER_DATA_API_KEY") or None
 
         try:
             self.version = self.get_version().version
@@ -310,7 +320,6 @@ class LavenderDataClient:
         num_workers: Optional[int] = None,
         prefetch_factor: Optional[int] = None,
         in_order: Optional[bool] = None,
-        cluster_sync: Optional[bool] = None,
     ):
         with self._get_client() as client:
             response = create_iteration_iterations_post.sync_detailed(
@@ -335,7 +344,6 @@ class LavenderDataClient:
                     num_workers=num_workers,
                     prefetch_factor=prefetch_factor,
                     in_order=in_order,
-                    cluster_sync=cluster_sync,
                 ),
             )
         return self._check_response(response)
@@ -370,10 +378,20 @@ class LavenderDataClient:
             )
         return self._check_response(response)
 
+    def get_prefetcher_node_map(self, iteration_id: str, rank: int = 0):
+        with self._get_client() as client:
+            response = get_prefetcher_node_map_iterations_iteration_id_prefetcher_node_map_get.sync_detailed(
+                client=client,
+                iteration_id=iteration_id,
+                rank=rank,
+            )
+        return self._check_response(response)
+
     def get_next_item(
         self,
         iteration_id: str,
         rank: int = 0,
+        seq: Optional[int] = None,
         client: Optional[Client] = None,
     ):
         with self._get_client() if client is None else nullcontext() as _client:
@@ -381,16 +399,19 @@ class LavenderDataClient:
                 client=client or _client,
                 iteration_id=iteration_id,
                 rank=rank,
+                seq=seq,
             )
-        try:
-            current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
-        except TypeError:
-            current = None
+
+        upcoming_samples = json.loads(
+            response.headers.get("X-Lavender-Data-Upcoming-Samples")
+        )
 
         if response.status_code == 202:
-            raise LavenderDataApiError(response.content.decode("utf-8"))
+            raise LavenderDataStillProcessingError(upcoming_samples)
 
-        return self._check_response(response).payload.read(), current
+        current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
+
+        return self._check_response(response).payload.read(), current, upcoming_samples
 
     def complete_index(self, iteration_id: str, index: int):
         with self._get_client() as client:
@@ -456,6 +477,7 @@ def init(api_url: str = "http://localhost:8000", api_key: Optional[str] = None):
     """
     global _client_instance
     _client_instance = LavenderDataClient(api_url=api_url, api_key=api_key)
+    os.environ["LAVENDER_DATA_API_KEY"] = _client_instance.api_key
     return _client_instance
 
 
@@ -579,7 +601,6 @@ def create_iteration(
     num_workers: Optional[int] = None,
     prefetch_factor: Optional[int] = None,
     in_order: Optional[bool] = None,
-    cluster_sync: Optional[bool] = None,
 ):
     return _client_instance.create_iteration(
         dataset_id=dataset_id,
@@ -601,7 +622,6 @@ def create_iteration(
         num_workers=num_workers,
         prefetch_factor=prefetch_factor,
         in_order=in_order,
-        cluster_sync=cluster_sync,
     )
 
 
@@ -620,13 +640,22 @@ def get_iteration(iteration_id: str):
 
 
 @ensure_client()
+def get_prefetcher_node_map(iteration_id: str, rank: int = 0):
+    return _client_instance.get_prefetcher_node_map(
+        iteration_id=iteration_id, rank=rank
+    )
+
+
+@ensure_client()
 def get_next_item(
     iteration_id: str,
     rank: int = 0,
+    seq: Optional[int] = None,
 ):
     return _client_instance.get_next_item(
         iteration_id=iteration_id,
         rank=rank,
+        seq=seq,
     )
 
 

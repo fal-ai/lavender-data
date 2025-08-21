@@ -1,38 +1,40 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, Union
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.api_keys_auth_params import ApiKeysAuthParams
 from ...models.http_validation_error import HTTPValidationError
-from ...types import UNSET, Response
+from ...types import Response
 
 
 def _get_kwargs(
     *,
-    iteration_hash: str,
+    body: ApiKeysAuthParams,
 ) -> dict[str, Any]:
-    params: dict[str, Any] = {}
-
-    params["iteration_hash"] = iteration_hash
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+    headers: dict[str, Any] = {}
 
     _kwargs: dict[str, Any] = {
-        "method": "get",
-        "url": "/iterations/iteration-id-from-hash",
-        "params": params,
+        "method": "post",
+        "url": "/cluster/get-api-keys",
     }
 
+    _body = body.to_dict()
+
+    _kwargs["json"] = _body
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[HTTPValidationError, str]]:
+) -> Optional[Union[Any, HTTPValidationError]]:
     if response.status_code == 200:
-        response_200 = cast(str, response.json())
+        response_200 = response.json()
         return response_200
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())
@@ -46,7 +48,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[HTTPValidationError, str]]:
+) -> Response[Union[Any, HTTPValidationError]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -58,23 +60,23 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    iteration_hash: str,
-) -> Response[Union[HTTPValidationError, str]]:
-    """Cluster Get Iteration Id From Hash
+    body: ApiKeysAuthParams,
+) -> Response[Union[Any, HTTPValidationError]]:
+    """Get Api Keys
 
     Args:
-        iteration_hash (str):
+        body (ApiKeysAuthParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[HTTPValidationError, str]]
+        Response[Union[Any, HTTPValidationError]]
     """
 
     kwargs = _get_kwargs(
-        iteration_hash=iteration_hash,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -87,47 +89,47 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    iteration_hash: str,
-) -> Optional[Union[HTTPValidationError, str]]:
-    """Cluster Get Iteration Id From Hash
+    body: ApiKeysAuthParams,
+) -> Optional[Union[Any, HTTPValidationError]]:
+    """Get Api Keys
 
     Args:
-        iteration_hash (str):
+        body (ApiKeysAuthParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[HTTPValidationError, str]
+        Union[Any, HTTPValidationError]
     """
 
     return sync_detailed(
         client=client,
-        iteration_hash=iteration_hash,
+        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    iteration_hash: str,
-) -> Response[Union[HTTPValidationError, str]]:
-    """Cluster Get Iteration Id From Hash
+    body: ApiKeysAuthParams,
+) -> Response[Union[Any, HTTPValidationError]]:
+    """Get Api Keys
 
     Args:
-        iteration_hash (str):
+        body (ApiKeysAuthParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[HTTPValidationError, str]]
+        Response[Union[Any, HTTPValidationError]]
     """
 
     kwargs = _get_kwargs(
-        iteration_hash=iteration_hash,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -138,24 +140,24 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    iteration_hash: str,
-) -> Optional[Union[HTTPValidationError, str]]:
-    """Cluster Get Iteration Id From Hash
+    body: ApiKeysAuthParams,
+) -> Optional[Union[Any, HTTPValidationError]]:
+    """Get Api Keys
 
     Args:
-        iteration_hash (str):
+        body (ApiKeysAuthParams):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[HTTPValidationError, str]
+        Union[Any, HTTPValidationError]
     """
 
     return (
         await asyncio_detailed(
             client=client,
-            iteration_hash=iteration_hash,
+            body=body,
         )
     ).parsed

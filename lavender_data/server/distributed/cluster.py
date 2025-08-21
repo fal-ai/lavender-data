@@ -3,32 +3,15 @@ import threading
 import base64
 import hashlib
 import secrets
-from typing import Optional, Type
-from datetime import datetime
+from typing import Optional
 import httpx
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from pydantic import BaseModel
-from sqlmodel import SQLModel, select, delete, insert, update
 
 from lavender_data.logging import get_logger
 from lavender_data.server.cache import CacheInterface, get_cache
-from lavender_data.server.db import DbSession, get_session
-from lavender_data.server.db.models import (
-    Dataset,
-    DatasetBase,
-    DatasetColumn,
-    DatasetColumnBase,
-    Shardset,
-    ShardsetBase,
-    Shard,
-    ShardBase,
-    Iteration,
-    IterationBase,
-    IterationShardsetLink,
-    ApiKey,
-    ApiKeyBase,
-)
+from lavender_data.server.db.models import ApiKey
 
 
 def only_head(f):
@@ -55,56 +38,10 @@ def only_worker(f):
     return wrapper
 
 
-class SyncParams(BaseModel):
-    datasets: list[DatasetBase]
-    dataset_columns: list[DatasetColumnBase]
-    shardsets: list[ShardsetBase]
-    shards: list[ShardBase]
-    iterations: list[IterationBase]
-    iteration_shardset_links: list[IterationShardsetLink]
-    api_keys: list[ApiKeyBase]
-
-
 class NodeStatus(BaseModel):
     node_url: str
     last_heartbeat: Optional[float]
-
-
-def _dump(publics: list[SQLModel]) -> list[dict]:
-    return [public.model_dump() for public in publics]
-
-
-def _get_table_and_rows(
-    params: SyncParams,
-) -> list[tuple[Type[SQLModel], list[SQLModel]]]:
-    return [
-        (ApiKey, params.api_keys),
-        (Dataset, params.datasets),
-        (Shardset, params.shardsets),
-        (DatasetColumn, params.dataset_columns),
-        (Shard, params.shards),
-        (Iteration, params.iterations),
-        (IterationShardsetLink, params.iteration_shardset_links),
-    ]
-
-
-def _table_name(entity: SQLModel) -> str:
-    if isinstance(entity, Dataset) or isinstance(entity, DatasetBase):
-        return "datasets"
-    elif isinstance(entity, DatasetColumn) or isinstance(entity, DatasetColumnBase):
-        return "dataset_columns"
-    elif isinstance(entity, Shardset) or isinstance(entity, ShardsetBase):
-        return "shardsets"
-    elif isinstance(entity, Shard) or isinstance(entity, ShardBase):
-        return "shards"
-    elif isinstance(entity, Iteration) or isinstance(entity, IterationBase):
-        return "iterations"
-    elif isinstance(entity, IterationShardsetLink):
-        return "iteration_shardset_links"
-    elif isinstance(entity, ApiKey) or isinstance(entity, ApiKeyBase):
-        return "api_keys"
-    else:
-        raise ValueError(f"Unknown table: {entity.__class__.__name__}")
+    is_head: bool
 
 
 def to_http_basic_auth(username: str, password: str) -> dict:
@@ -158,10 +95,13 @@ class Cluster:
         password = self._get_auth_password(username)
         return to_http_basic_auth(username, password)
 
-    def _post(self, node_url: str, path: str, json: dict = {}):
+    def _post(self, node_url: str, path: str, json: dict = {}, timeout: float = 5.0):
         _path = path.lstrip("/")
         response = httpx.post(
-            f"{node_url}/{_path}", json=json, headers=self._auth_header()
+            f"{node_url}/{_path}",
+            json=json,
+            headers=self._auth_header(),
+            timeout=timeout,
         )
         if response.status_code == 401:
             raise RuntimeError(
@@ -239,8 +179,8 @@ class Cluster:
         return results
 
     @only_worker
-    def head_post(self, path: str, json: dict):
-        return self._post(self.head_url, path, json)
+    def head_post(self, path: str, json: dict, timeout: float = 5.0):
+        return self._post(self.head_url, path, json, timeout)
 
     @only_worker
     def head_get(self, path: str):
@@ -251,23 +191,6 @@ class Cluster:
 
     def _cache(self) -> CacheInterface:
         return next(get_cache())
-
-    def _db(self) -> DbSession:
-        return next(get_session())
-
-    def _model_to_dict(self, model: SQLModel) -> dict:
-        d = model.model_dump()
-        for k, v in d.items():
-            if isinstance(v, datetime):
-                d[k] = v.isoformat()
-        return d
-
-    def _dump_table(self, table: Type[SQLModel]) -> list[dict]:
-        session = self._db()
-        rows = session.exec(select(table)).all()
-        dicts = [self._model_to_dict(row) for row in rows]
-        session.close()
-        return dicts
 
     def _node_urls(self, include_self: bool = False) -> list[str]:
         urls = [
@@ -295,9 +218,26 @@ class Cluster:
 
     def get_node_statuses(self) -> list[NodeStatus]:
         return [
-            NodeStatus(node_url=node_url, last_heartbeat=self._last_heartbeat(node_url))
+            NodeStatus(
+                node_url=node_url,
+                last_heartbeat=self._last_heartbeat(node_url),
+                is_head=node_url == self.head_url,
+            )
             for node_url in self._node_urls(include_self=True)
         ]
+
+    def get_api_key(self, api_key_id: str, api_key_secret: str) -> Optional[ApiKey]:
+        api_key = self._post(
+            self.head_url,
+            "/cluster/get-api-keys",
+            {
+                "api_key_id": api_key_id,
+                "api_key_secret": api_key_secret,
+            },
+        )
+        if api_key is None:
+            return None
+        return ApiKey(**api_key)
 
     @only_worker
     def register(self):
@@ -311,7 +251,6 @@ class Cluster:
         if node_url != self.head_url:
             self._wait_until_node_ready(node_url)
             self.on_heartbeat(node_url)
-            self.sync_initial(node_url)
             self.logger.info(f"Node {node_url} registered")
 
     @only_worker
@@ -388,110 +327,5 @@ class Cluster:
         self.check_heartbeat_thread.start()
 
     @only_head
-    def sync_initial(self, target_node_url: Optional[str] = None):
-        json = {
-            "datasets": self._dump_table(Dataset),
-            "dataset_columns": self._dump_table(DatasetColumn),
-            "shardsets": self._dump_table(Shardset),
-            "shards": self._dump_table(Shard),
-            "iterations": self._dump_table(Iteration),
-            "iteration_shardset_links": self._dump_table(IterationShardsetLink),
-            "api_keys": self._dump_table(ApiKey),
-        }
-        if target_node_url is None:
-            self.broadcast_post("/cluster/sync", json)
-        else:
-            self._post(target_node_url, "/cluster/sync", json)
-
-    @only_worker
-    def on_sync_initial(self, params: SyncParams):
-        session = self._db()
-
-        for table, _ in reversed(_get_table_and_rows(params)):
-            if isinstance(table, Shard):
-                continue
-
-            session.exec(delete(table))
-
-        for table, rows in _get_table_and_rows(params):
-            if isinstance(table, Shard):
-                continue
-
-            if len(rows) == 0:
-                continue
-            session.exec(insert(table).values(_dump(rows)))
-
-        session.commit()
-        session.close()
-
-    def sync_changes(
-        self,
-        resources: list[SQLModel],
-        delete: bool = False,
-        target_node_url: Optional[str] = None,
-    ):
-        d = {
-            "datasets": [],
-            "dataset_columns": [],
-            "shardsets": [],
-            "shards": [],
-            "iterations": [],
-            "iteration_shardset_links": [],
-            "api_keys": [],
-        }
-
-        for entity in resources:
-            d[_table_name(entity)].append(self._model_to_dict(entity))
-
-        _delete = "true" if delete else "false"
-        if target_node_url is None:
-            if self.is_head:
-                self.broadcast_post(f"/cluster/sync-changes?delete={_delete}", d)
-            else:
-                self._post(self.head_url, f"/cluster/sync-changes?delete={_delete}", d)
-        else:
-            self._post(target_node_url, f"/cluster/sync-changes?delete={_delete}", d)
-
-    def on_sync_changes(
-        self,
-        params: SyncParams,
-        delete: bool = False,
-    ):
-        session = self._db()
-
-        for table, rows in _get_table_and_rows(params):
-            if isinstance(table, Shard):
-                continue
-
-            if len(rows) == 0:
-                continue
-
-            if delete:
-                # delete
-                session.exec(delete(table).where(table.id.in_([r.id for r in rows])))
-            else:
-                # upsert
-                existings = session.exec(
-                    select(table).where(table.id.in_([r.id for r in rows]))
-                ).all()
-                existing_ids = [e.id for e in existings]
-
-                update_params = [r for r in rows if r.id in existing_ids]
-                for r in update_params:
-                    session.exec(
-                        update(table).where(table.id == r.id).values(r.model_dump())
-                    )
-
-                insert_params = [r for r in rows if r.id not in existing_ids]
-                if len(insert_params) > 0:
-                    session.exec(insert(table).values(_dump(insert_params)))
-
-        session.commit()
-        session.close()
-
-        if self.is_head:
-            # propagate changes to other nodes
-            self.sync_changes(
-                [row for _, rows in _get_table_and_rows(params) for row in rows],
-                delete,
-            )
+    def start_prefetcher(self, iteration_id: str, params: dict):
+        self.broadcast_post(f"/iterations/{iteration_id}/start-prefetcher", params)

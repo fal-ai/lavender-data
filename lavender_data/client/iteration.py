@@ -14,6 +14,7 @@ from lavender_data.client.api import (
     IterationPreprocessor,
     IterationCollater,
     IterationCategorizer,
+    LavenderDataStillProcessingError,
 )
 
 __all__ = ["LavenderDataLoader"]
@@ -79,7 +80,6 @@ class LavenderDataLoader:
         world_size: Optional[int] = None,
         wait_participant_threshold: Optional[float] = None,
         iteration_id: Optional[str] = None,
-        cluster_sync: Optional[bool] = None,
         no_cache: Optional[bool] = None,
         num_workers: Optional[int] = None,
         prefetch_factor: Optional[int] = None,
@@ -145,7 +145,6 @@ class LavenderDataLoader:
                 rank=rank,
                 world_size=world_size,
                 wait_participant_threshold=wait_participant_threshold,
-                cluster_sync=cluster_sync,
                 no_cache=no_cache,
                 num_workers=num_workers,
                 prefetch_factor=prefetch_factor,
@@ -154,6 +153,27 @@ class LavenderDataLoader:
             )
         else:
             iteration_response = self._api.get_iteration(iteration_id)
+
+        try:
+            nodes = self._api.get_node_statuses()
+        except LavenderDataApiError as e:
+            if "Cluster not enabled" in str(e):
+                nodes = []
+            else:
+                raise e
+
+        if len(nodes) > 0:
+            self._is_cluster_enabled = True
+            self._apis: dict[str, LavenderDataClient] = {
+                node.node_url: _api(node.node_url, self._api_key) for node in nodes
+            }
+            self._nodes_upcoming_samples: dict[str, list[int]] = {
+                node.node_url: [] for node in nodes
+            }
+        else:
+            self._is_cluster_enabled = False
+            self._apis = {}
+            self._nodes_upcoming_samples = {}
 
         self._dataset_id = iteration_response.dataset_id
         self._iteration_id = iteration_response.id
@@ -219,26 +239,60 @@ class LavenderDataLoader:
         else:
             self._using_indices = {indices}
 
+    def _find_next_api(self, mapping: dict[str, list[int]]):
+        if not self._is_cluster_enabled:
+            return self._api
+
+        for node_url, indices in mapping.items():
+            if self._current + 1 in indices:
+                return self._apis[node_url]
+
+        return None
+
+    def _get_prefetcher_node_map(self):
+        if not self._is_cluster_enabled:
+            raise ValueError("Cluster is not enabled")
+
+        return self._api.get_prefetcher_node_map(self._iteration_id, self._rank)
+
     def _get_next_item(self):
         serialized = None
-        with self._api._get_client() as client:
+
+        api = self._find_next_api(self._nodes_upcoming_samples)
+        node_map = None
+        while api is None:
+            node_map = self._get_prefetcher_node_map()
+            api = self._find_next_api(node_map)
+            if api is None:
+                # time.sleep(self._poll_interval / 10)
+                time.sleep(0.5)
+
+        with api._get_client() as client:
             while serialized is None and not self._stopped:
                 try:
-                    serialized, self._current = self._api.get_next_item(
+                    (
+                        serialized,
+                        self._current,
+                        self._nodes_upcoming_samples[api.api_url],
+                    ) = api.get_next_item(
                         iteration_id=self._iteration_id,
                         rank=self._rank,
+                        seq=self._current + 1,
                         client=client,
                     )
+                except LavenderDataStillProcessingError as e:
+                    if e.upcoming_samples is not None:
+                        self._nodes_upcoming_samples[api.api_url] = e.upcoming_samples
+                    continue
                 except LavenderDataSampleProcessingError as e:
                     self._current = e.current
                     raise e
                 except LavenderDataApiError as e:
-                    if "Data is still being processed" in str(e):
-                        continue
-                    elif "No more indices to pop" in str(e):
+                    if "No more indices to pop" in str(e):
                         raise StopIteration
                     else:
                         raise e
+
         self._bytes += len(serialized)
         try:
             return deserialize_sample(serialized)

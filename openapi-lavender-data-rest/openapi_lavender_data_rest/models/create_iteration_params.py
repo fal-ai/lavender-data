@@ -39,7 +39,6 @@ class CreateIterationParams:
         num_workers (Union[None, Unset, int]):
         prefetch_factor (Union[None, Unset, int]):
         in_order (Union[None, Unset, bool]):
-        cluster_sync (Union[None, Unset, bool]):
     """
 
     dataset_id: str
@@ -61,7 +60,6 @@ class CreateIterationParams:
     num_workers: Union[None, Unset, int] = UNSET
     prefetch_factor: Union[None, Unset, int] = UNSET
     in_order: Union[None, Unset, bool] = UNSET
-    cluster_sync: Union[None, Unset, bool] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -204,12 +202,6 @@ class CreateIterationParams:
         else:
             in_order = self.in_order
 
-        cluster_sync: Union[None, Unset, bool]
-        if isinstance(self.cluster_sync, Unset):
-            cluster_sync = UNSET
-        else:
-            cluster_sync = self.cluster_sync
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -253,8 +245,6 @@ class CreateIterationParams:
             field_dict["prefetch_factor"] = prefetch_factor
         if in_order is not UNSET:
             field_dict["in_order"] = in_order
-        if cluster_sync is not UNSET:
-            field_dict["cluster_sync"] = cluster_sync
 
         return field_dict
 
@@ -493,15 +483,6 @@ class CreateIterationParams:
 
         in_order = _parse_in_order(d.pop("in_order", UNSET))
 
-        def _parse_cluster_sync(data: object) -> Union[None, Unset, bool]:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(Union[None, Unset, bool], data)
-
-        cluster_sync = _parse_cluster_sync(d.pop("cluster_sync", UNSET))
-
         create_iteration_params = cls(
             dataset_id=dataset_id,
             shardsets=shardsets,
@@ -522,7 +503,6 @@ class CreateIterationParams:
             num_workers=num_workers,
             prefetch_factor=prefetch_factor,
             in_order=in_order,
-            cluster_sync=cluster_sync,
         )
 
         create_iteration_params.additional_properties = d

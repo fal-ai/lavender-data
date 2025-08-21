@@ -140,8 +140,12 @@ def _process_next_samples(
         else CollaterRegistry.get("default").collate(samples)
     )
 
+    batch["_lavender_data_indices"] = [i.index for i in global_sample_indices]
+    batch["_lavender_data_current"] = current
+
     if preprocessors is not None:
         # TODO configurable max_workers
+        # TODO real pipeline parallelism
         batch = PreprocessorRegistry.process(
             [(p["name"], p["params"]) for p in preprocessors],
             batch,
@@ -149,9 +153,6 @@ def _process_next_samples(
 
     if batch_size == 0:
         batch = _decollate(batch)
-
-    batch["_lavender_data_indices"] = [i.index for i in global_sample_indices]
-    batch["_lavender_data_current"] = current
 
     return batch
 
