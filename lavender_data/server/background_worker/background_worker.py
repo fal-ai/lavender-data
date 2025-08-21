@@ -202,13 +202,6 @@ class BackgroundWorker:
 
         return task_id
 
-    def process_pool_submit(
-        self,
-        func: Callable,
-        **kwargs,
-    ):
-        return self.process_pool().submit(func, **kwargs)
-
     def abort(self, task_id: str):
         status = get_task_status(task_id)
         if status is not None:

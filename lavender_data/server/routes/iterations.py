@@ -24,11 +24,6 @@ from lavender_data.server.db.models import (
     IterationPreprocessor,
     IterationShardsetLink,
 )
-from lavender_data.serialize import _bytes_to_int
-from lavender_data.server.background_worker import (
-    CurrentBackgroundWorker,
-    CurrentSharedMemory,
-)
 from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.reader import ReaderInstance
 from lavender_data.server.dataset import refine_sample_previewable
@@ -38,12 +33,14 @@ from lavender_data.server.iteration import (
     Progress,
     ProcessNextSamplesException,
     process_next_samples,
-    process_next_samples_and_store,
     set_cluster_sync,
     get_iteration_hash,
     set_iteration_hash,
     get_iteration_id_from_hash,
     get_iteration_id_from_hash_from_head,
+    CurrentIterationPrefetcherPool,
+    CurrentIterationPrefetcher,
+    NotFetchedYet,
 )
 from lavender_data.server.registries import (
     FilterRegistry,
@@ -99,6 +96,12 @@ class CreateIterationParams(BaseModel):
     world_size: Optional[int] = None
     wait_participant_threshold: Optional[float] = None
 
+    no_cache: Optional[bool] = None
+    max_retry_count: Optional[int] = None
+    num_workers: Optional[int] = None
+    prefetch_factor: Optional[int] = None
+    in_order: Optional[bool] = None
+
     cluster_sync: Optional[bool] = None
 
 
@@ -109,6 +112,7 @@ def create_iteration(
     cache: CacheClient,
     cluster: CurrentCluster,
     settings: AppSettings,
+    prefetcher_pool: CurrentIterationPrefetcherPool,
 ) -> IterationPublic:
     shuffle = params.shuffle or False
     batch_size = params.batch_size or 0
@@ -280,6 +284,20 @@ def create_iteration(
     state = IterationState(iteration.id, cache)
     state.init(iteration)
 
+    try:
+        prefetcher = prefetcher_pool.get_prefetcher(iteration.id)
+    except KeyError:
+        prefetcher = prefetcher_pool.create(
+            iteration.id,
+            state,
+            params.max_retry_count if params.max_retry_count is not None else 0,
+            params.no_cache if params.no_cache is not None else False,
+            params.num_workers if params.num_workers is not None else 1,
+            params.prefetch_factor if params.prefetch_factor is not None else 1,
+            params.in_order if params.in_order is not None else True,
+        )
+    prefetcher.start(params.rank or 0)
+
     return iteration
 
 
@@ -340,114 +358,19 @@ def get_next_preview(
 @router.get("/{iteration_id}/next")
 def get_next(
     iteration_id: str,
-    shared_memory: CurrentSharedMemory,
-    settings: AppSettings,
-    state: CurrentIterationState,
+    prefetcher: CurrentIterationPrefetcher,
     rank: int = 0,
-    no_cache: bool = False,
-    max_retry_count: int = 0,
 ) -> bytes:
-    if max_retry_count < 0:
-        raise HTTPException(status_code=400, detail="max_retry_count must be >= 0")
-
-    cache_key, params = state.get_next_samples(rank)
-
-    """
-    TODO if cluster_mode is true
-    fetch ProcessNextSamplesParams from head node
-    all operations related to iteration_state should be done in head node
-    """
-
-    cache_ttl = settings.lavender_data_batch_cache_ttl
-
-    if no_cache:
-        shared_memory.delete(cache_key)
-
-    if shared_memory.exists(cache_key):
-        shared_memory.expire(cache_key, cache_ttl)
-    else:
-        process_next_samples_and_store(
-            params=params,
-            max_retry_count=max_retry_count,
-            cache_key=cache_key,
-            cache_ttl=cache_ttl,
-            shared_memory=shared_memory,
-        )
-
-    content = shared_memory.get(cache_key)
-    if content.startswith(b"processing_error:"):
-        e = ProcessNextSamplesException.from_json(content[17:])
-        raise e.to_http_exception()
-    if content.startswith(b"error:"):
-        raise HTTPException(status_code=500, detail=content[6:].decode("utf-8"))
-
-    content = content[4:]
-
-    return Response(
-        content=content,
-        media_type="application/octet-stream",
-        headers={
-            "X-Lavender-Data-Sample-Current": str(params.current),
-        },
-    )
-
-
-class SubmitNextResponse(BaseModel):
-    cache_key: str
-
-
-@router.post("/{iteration_id}/next")
-def submit_next(
-    iteration_id: str,
-    settings: AppSettings,
-    background_worker: CurrentBackgroundWorker,
-    shared_memory: CurrentSharedMemory,
-    state: CurrentIterationState,
-    rank: int = 0,
-    no_cache: bool = False,
-    max_retry_count: int = 0,
-) -> SubmitNextResponse:
-    if max_retry_count < 0:
-        raise HTTPException(status_code=400, detail="max_retry_count must be >= 0")
-
-    cache_key, params = state.get_next_samples(rank)
-    cache_ttl = settings.lavender_data_batch_cache_ttl
-
-    if no_cache:
-        shared_memory.delete(cache_key)
-
-    if shared_memory.exists(cache_key):
-        shared_memory.expire(cache_key, cache_ttl)
-    else:
-        background_worker.process_pool_submit(
-            process_next_samples_and_store,
-            params=params,
-            max_retry_count=max_retry_count,
-            cache_key=cache_key,
-            cache_ttl=cache_ttl,
-            shared_memory=shared_memory,
-        )
-
-    return SubmitNextResponse(cache_key=cache_key)
-
-
-@router.get("/{iteration_id}/next/{cache_key}")
-def get_submitted_result(
-    iteration_id: str,
-    cache_key: str,
-    shared_memory: CurrentSharedMemory,
-) -> bytes:
-    content = shared_memory.get(cache_key)
-    if content is None:
+    try:
+        current, content = prefetcher.get_next(rank)
+    except StopIteration:
+        raise HTTPException(status_code=400, detail="No more indices to pop")
+    except NotFetchedYet as e:
         raise HTTPException(status_code=202, detail="Data is still being processed")
-    if content.startswith(b"processing_error:"):
-        e = ProcessNextSamplesException.from_json(content[17:])
+    except ProcessNextSamplesException as e:
         raise e.to_http_exception()
-    if content.startswith(b"error:"):
-        raise HTTPException(status_code=500, detail=content[6:].decode("utf-8"))
-
-    current = _bytes_to_int(content[:4])
-    content = content[4:]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
     return Response(
         content=content,

@@ -14,23 +14,19 @@ class CreateDatasetParams:
     """
     Attributes:
         name (str):
-        uid_column_name (Union[None, Unset, str]):
+        uid_column_name (str):
         shardset_location (Union[None, Unset, str]):
     """
 
     name: str
-    uid_column_name: Union[None, Unset, str] = UNSET
+    uid_column_name: str
     shardset_location: Union[None, Unset, str] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         name = self.name
 
-        uid_column_name: Union[None, Unset, str]
-        if isinstance(self.uid_column_name, Unset):
-            uid_column_name = UNSET
-        else:
-            uid_column_name = self.uid_column_name
+        uid_column_name = self.uid_column_name
 
         shardset_location: Union[None, Unset, str]
         if isinstance(self.shardset_location, Unset):
@@ -43,10 +39,9 @@ class CreateDatasetParams:
         field_dict.update(
             {
                 "name": name,
+                "uid_column_name": uid_column_name,
             }
         )
-        if uid_column_name is not UNSET:
-            field_dict["uid_column_name"] = uid_column_name
         if shardset_location is not UNSET:
             field_dict["shardset_location"] = shardset_location
 
@@ -57,14 +52,7 @@ class CreateDatasetParams:
         d = dict(src_dict)
         name = d.pop("name")
 
-        def _parse_uid_column_name(data: object) -> Union[None, Unset, str]:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(Union[None, Unset, str], data)
-
-        uid_column_name = _parse_uid_column_name(d.pop("uid_column_name", UNSET))
+        uid_column_name = d.pop("uid_column_name")
 
         def _parse_shardset_location(data: object) -> Union[None, Unset, str]:
             if data is None:

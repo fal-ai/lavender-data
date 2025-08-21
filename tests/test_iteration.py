@@ -345,7 +345,9 @@ class TestIteration(unittest.TestCase):
         dataloader = LavenderDataLoader(
             self.dataset_id,
             shardsets=[self.shardset_id],
-        ).torch()
+        ).torch(
+            collate_fn=lambda x: x[0],
+        )
 
         for i, sample in enumerate(
             tqdm.tqdm(dataloader, desc="test_iteration_torch_dataloader")

@@ -15,8 +15,6 @@ from .api_call import (
     get_iterations,
     get_iteration,
     get_next_item,
-    submit_next_item,
-    get_submitted_result,
     complete_index,
     pushback,
     get_progress,
@@ -91,22 +89,6 @@ class ClientCLI:
         self.iterations_next.add_argument("--rank", type=int, default=0)
         self.iterations_next.add_argument("--no-cache", action="store_true")
         self.iterations_next.add_argument("--max-retry-count", type=int, default=0)
-
-        self.iterations_submit_next_item = self.iterations_command_parser.add_parser(
-            "async-next"
-        )
-        self.iterations_submit_next_item.add_argument("id", type=str)
-        self.iterations_submit_next_item.add_argument("--rank", type=int, default=0)
-        self.iterations_submit_next_item.add_argument("--no-cache", action="store_true")
-        self.iterations_submit_next_item.add_argument(
-            "--max-retry-count", type=int, default=0
-        )
-
-        self.iterations_async_result = self.iterations_command_parser.add_parser(
-            "async-result"
-        )
-        self.iterations_async_result.add_argument("id", type=str)
-        self.iterations_async_result.add_argument("key", type=str)
 
         self.iterations_complete_index = self.iterations_command_parser.add_parser(
             "complete-index"
@@ -194,21 +176,6 @@ class ClientCLI:
                     args.api_key,
                     args.id,
                     args.rank,
-                    args.no_cache,
-                    args.max_retry_count,
-                )
-            elif args.command == "async-next":
-                result = submit_next_item(
-                    args.api_url,
-                    args.api_key,
-                    args.id,
-                    args.rank,
-                    args.no_cache,
-                    args.max_retry_count,
-                )
-            elif args.command == "async-result":
-                result = get_submitted_result(
-                    args.api_url, args.api_key, args.id, args.key
                 )
             elif args.command == "complete-index":
                 result = complete_index(args.api_url, args.api_key, args.id, args.index)

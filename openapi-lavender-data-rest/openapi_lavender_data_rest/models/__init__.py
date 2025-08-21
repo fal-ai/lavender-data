@@ -61,7 +61,6 @@ from .shard_statistics_public_data import ShardStatisticsPublicData
 from .shardset_base import ShardsetBase
 from .shardset_public import ShardsetPublic
 from .shardset_with_shards import ShardsetWithShards
-from .submit_next_response import SubmitNextResponse
 from .sync_params import SyncParams
 from .sync_shardset_params import SyncShardsetParams
 from .task_item import TaskItem
@@ -129,7 +128,6 @@ __all__ = (
     "ShardsetWithShards",
     "ShardStatisticsPublic",
     "ShardStatisticsPublicData",
-    "SubmitNextResponse",
     "SyncParams",
     "SyncShardsetParams",
     "TaskItem",

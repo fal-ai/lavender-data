@@ -20,6 +20,10 @@ from .background_worker import (
     setup_shared_memory,
     shutdown_shared_memory,
 )
+from .iteration import (
+    setup_iteration_prefetcher_pool,
+    shutdown_iteration_prefetcher_pool,
+)
 from .routes import (
     datasets_router,
     iterations_router,
@@ -65,6 +69,8 @@ async def lifespan(app: FastAPI):
 
     setup_background_worker(settings.lavender_data_num_workers)
 
+    setup_iteration_prefetcher_pool()
+
     if settings.lavender_data_disable_ui:
         logger.warning("UI is disabled")
         ui = None
@@ -93,17 +99,22 @@ async def lifespan(app: FastAPI):
         if ui is not None:
             ui.terminate()
     except Exception as e:
-        pass
+        logger.warning(f"UI failed to terminate: {e}")
 
     try:
         shutdown_background_worker()
     except Exception as e:
-        pass
+        logger.warning(f"Background worker failed to shutdown: {e}")
 
     try:
         shutdown_shared_memory()
     except Exception as e:
-        pass
+        logger.warning(f"Shared memory failed to shutdown: {e}")
+
+    try:
+        shutdown_iteration_prefetcher_pool()
+    except Exception as e:
+        logger.warning(f"Iteration prefetcher pool failed to shutdown: {e}")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -111,7 +122,7 @@ app = FastAPI(lifespan=lifespan)
 
 def log_filter(request: Request, response):
     if (
-        re.match(r"/iterations/.*/next/.*", request.url.path)
+        re.match(r"/iterations/.*/next.*", request.url.path)
         and response.status_code == 202
     ):
         return False
