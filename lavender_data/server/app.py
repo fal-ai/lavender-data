@@ -122,7 +122,7 @@ app = FastAPI(lifespan=lifespan)
 
 def log_filter(request: Request, response):
     if (
-        re.match(r"/iterations/.*/next/.*", request.url.path)
+        re.match(r"/iterations/.*/next.*", request.url.path)
         and response.status_code == 202
     ):
         return False
