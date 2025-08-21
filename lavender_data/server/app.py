@@ -74,6 +74,9 @@ async def lifespan(app: FastAPI):
     if settings.lavender_data_disable_ui:
         logger.warning("UI is disabled")
         ui = None
+    elif cluster is not None and not cluster.is_head:
+        logger.warning("UI is disabled on non-head node")
+        ui = None
     else:
         try:
             ui = setup_ui(

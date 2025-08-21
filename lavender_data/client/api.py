@@ -477,7 +477,8 @@ def init(api_url: str = "http://localhost:8000", api_key: Optional[str] = None):
     """
     global _client_instance
     _client_instance = LavenderDataClient(api_url=api_url, api_key=api_key)
-    os.environ["LAVENDER_DATA_API_KEY"] = _client_instance.api_key
+    if _client_instance.api_key is not None:
+        os.environ["LAVENDER_DATA_API_KEY"] = _client_instance.api_key
     return _client_instance
 
 
