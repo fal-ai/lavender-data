@@ -122,25 +122,26 @@ class IterationPrefetcher:
             return
 
         batch = gather_samples(params)
-        if params.preprocessors is not None:
-            preprocessors = organize_preprocessors(params.preprocessors)
-            queue.put(
-                (
-                    rank,
-                    params.current,
-                    cache_key,
-                    batch,
-                    preprocessors,
-                    0,
-                    params.batch_size,
-                    params.global_sample_indices,
-                )
-            )
-        else:
+        if params.preprocessors is None:
             if params.batch_size == 0:
                 batch = decollate(batch)
             content = serialize_sample(batch)
             self._set_cache(rank, params.current, cache_key, content)
+            return
+
+        preprocessors = organize_preprocessors(params.preprocessors)
+        queue.put(
+            (
+                rank,
+                params.current,
+                cache_key,
+                batch,
+                preprocessors,
+                0,
+                params.batch_size,
+                params.global_sample_indices,
+            )
+        )
 
     def _keep_submitting(
         self,
@@ -221,19 +222,39 @@ class IterationPrefetcher:
                     # error occurred
                     continue
 
-                if args[5] == len(args[4]) - 1:
+                (
+                    _,
+                    current,
+                    cache_key,
+                    _,
+                    preprocessors,
+                    preprocessor_group_index,
+                    batch_size,
+                    global_sample_indices,
+                ) = args
+                if preprocessor_group_index == len(preprocessors) - 1:
                     # this one done
-                    if args[6] == 0:
+                    if batch_size == 0:
                         next_batch = decollate(next_batch)
                     self._set_cache(
-                        args[0], args[1], args[2], serialize_sample(next_batch)
+                        rank, current, cache_key, serialize_sample(next_batch)
                     )
                     continue
 
                 # proceed to next preprocessor group
-                args[3] = next_batch
-                args[5] += 1
-                queue.put(args)
+                preprocessor_group_index += 1
+                queue.put(
+                    (
+                        rank,
+                        current,
+                        cache_key,
+                        next_batch,
+                        preprocessors,
+                        preprocessor_group_index,
+                        batch_size,
+                        global_sample_indices,
+                    )
+                )
             except Empty:
                 if all_submitted_event.is_set() and len(self.fetching[rank]) == 0:
                     self._log(rank, "Iteration finished")

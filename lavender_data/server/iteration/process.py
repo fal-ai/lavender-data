@@ -160,7 +160,7 @@ def organize_preprocessors(
     while len(current_preprocessors) > 0:
         execute_this_round: list[tuple[Preprocessor, dict]] = []
         _current_preprocessors = []
-        for preprocessor, params in _current_preprocessors:
+        for preprocessor, params in current_preprocessors:
             deps = [d for d in preprocessor.depends_on]
 
             if (
@@ -170,7 +170,6 @@ def organize_preprocessors(
                 or all(d in seen for d in deps)
             ):
                 execute_this_round.append((preprocessor, params))
-                seen.add(preprocessor.name)
             else:
                 # unprocessable if some dependencies are not met
                 for dep in deps:
