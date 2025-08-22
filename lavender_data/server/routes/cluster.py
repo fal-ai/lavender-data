@@ -24,6 +24,8 @@ def register(
     cluster: CurrentCluster,
     background_tasks: BackgroundTasks,
 ) -> None:
+    if cluster is None:
+        raise HTTPException(status_code=400, detail="Cluster not enabled")
     if not cluster.is_head:
         raise HTTPException(status_code=403, detail="Not allowed")
     background_tasks.add_task(cluster.on_register, params.node_url)
@@ -38,6 +40,8 @@ def deregister(
     params: DeregisterParams,
     cluster: CurrentCluster,
 ) -> None:
+    if cluster is None:
+        raise HTTPException(status_code=400, detail="Cluster not enabled")
     if not cluster.is_head:
         raise HTTPException(status_code=403, detail="Not allowed")
     cluster.on_deregister(params.node_url)
@@ -52,6 +56,8 @@ def heartbeat(
     params: HeartbeatParams,
     cluster: CurrentCluster,
 ) -> None:
+    if cluster is None:
+        raise HTTPException(status_code=400, detail="Cluster not enabled")
     if not cluster.is_head:
         raise HTTPException(status_code=403, detail="Not allowed")
     cluster.on_heartbeat(params.node_url)
@@ -61,6 +67,8 @@ def heartbeat(
 def get_nodes(
     cluster: CurrentCluster,
 ) -> list[NodeStatus]:
+    if cluster is None:
+        raise HTTPException(status_code=400, detail="Cluster not enabled")
     if not cluster.is_head:
         raise HTTPException(status_code=403, detail="Not allowed")
     return cluster.get_node_statuses()
@@ -77,6 +85,8 @@ def get_api_keys(
     cluster: CurrentCluster,
     session: DbSession,
 ):
+    if cluster is None:
+        raise HTTPException(status_code=400, detail="Cluster not enabled")
     if not cluster.is_head:
         raise HTTPException(status_code=403, detail="Not allowed")
 
