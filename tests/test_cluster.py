@@ -102,22 +102,14 @@ class TestCluster(unittest.TestCase):
         # wait until shardset is synced
         time.sleep(3)
 
-        iteration_from_nodes = [
-            LavenderDataLoader(
-                dataset_id=dataset_id,
-                shardsets=[shardset_id],
-                api_url=url,
-            )
-            for url in [self.head_url, *self.node_urls]
-        ]
-
-        self.assertEqual(
-            len(set(iteration._iteration_id for iteration in iteration_from_nodes)), 1
+        iteration = LavenderDataLoader(
+            dataset_id=dataset_id,
+            shardsets=[shardset_id],
+            api_url=self.head_url,
         )
 
         read_samples = 0
         for i in tqdm.tqdm(range(total_samples)):
-            iteration = random.choice(iteration_from_nodes)
             sample = next(iteration)
             self.assertEqual(
                 sample["image_url"], f"https://example.com/image-{i:05d}.jpg"

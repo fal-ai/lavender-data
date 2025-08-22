@@ -124,17 +124,18 @@ class Cluster:
         return response.json()
 
     @only_head
-    def broadcast_post(self, path: str, json: dict) -> list[tuple[str, Optional[dict]]]:
+    def broadcast_post(
+        self, path: str, json: dict
+    ) -> list[tuple[str, Optional[dict], Optional[Exception]]]:
         node_urls = self._node_urls()
         if len(node_urls) == 0:
             return []
 
         def _post(node_url: str, path: str, json: dict):
             try:
-                return node_url, self._post(node_url, path, json)
+                return node_url, self._post(node_url, path, json), None
             except Exception as e:
-                self.logger.error(f"Failed to post to {node_url}: {e}")
-                return node_url, None
+                return node_url, None, e
 
         results = []
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -152,17 +153,18 @@ class Cluster:
         return results
 
     @only_head
-    def broadcast_get(self, path: str) -> list[tuple[str, Optional[dict]]]:
+    def broadcast_get(
+        self, path: str
+    ) -> list[tuple[str, Optional[dict], Optional[Exception]]]:
         node_urls = self._node_urls()
         if len(node_urls) == 0:
             return []
 
         def _get(node_url: str, path: str):
             try:
-                return node_url, self._get(node_url, path)
+                return node_url, self._get(node_url, path), None
             except Exception as e:
-                self.logger.error(f"Failed to get from {node_url}: {e}")
-                return node_url, None
+                return node_url, None, e
 
         results = []
         with ThreadPoolExecutor(max_workers=10) as executor:

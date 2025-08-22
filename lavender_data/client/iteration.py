@@ -264,8 +264,7 @@ class LavenderDataLoader:
             node_map = self._get_prefetcher_node_map()
             api = self._find_next_api(node_map)
             if api is None:
-                # time.sleep(self._poll_interval / 10)
-                time.sleep(0.5)
+                time.sleep(self._poll_interval / 10)
 
         with api._get_client() as client:
             while serialized is None and not self._stopped:

@@ -72,14 +72,16 @@ class IterationPrefetcher:
 
     def _log(
         self,
-        rank: int,
+        rank: Optional[int],
         message: str,
-        level: Literal["debug", "info", "exception"] = "debug",
+        level: Literal["debug", "info", "exception", "warning"] = "debug",
     ):
         if level == "debug":
             self.logger.debug(f"[{self.iteration_id} {rank=}] {message}")
         elif level == "info":
             self.logger.info(f"[{self.iteration_id} {rank=}] {message}")
+        elif level == "warning":
+            self.logger.warning(f"[{self.iteration_id} {rank=}] {message}")
         elif level == "exception":
             self.logger.exception(f"[{self.iteration_id} {rank=}] {message}")
 
@@ -187,20 +189,7 @@ class IterationPrefetcher:
             futures.append(executor.submit(preprocessor.process, batch, **args))
 
         for future in as_completed(futures):
-            try:
-                batch.update(future.result())
-            except Exception as e:
-                error = ProcessNextSamplesException(
-                    e=e,
-                    current=seq,
-                    global_sample_indices=global_sample_indices,
-                )
-                self._set_cache(
-                    rank,
-                    seq,
-                    cache_key,
-                    f"processing_error:{error.json()}".encode("utf-8"),
-                )
+            batch.update(future.result())
 
         executor.shutdown()
         return batch
@@ -217,7 +206,29 @@ class IterationPrefetcher:
             try:
                 # rank, current, cache_key, batch, preprocessors, preprocessor_group_index, batch_size, global_sample_indices
                 args = queue.get(timeout=1.0)
-                next_batch = self._process_prefetch(*args)
+                for i in range(self.max_retry_count + 1):
+                    try:
+                        next_batch = self._process_prefetch(*args)
+                        break
+                    except Exception as e:
+                        if i == self.max_retry_count:
+                            error = ProcessNextSamplesException(
+                                e=e, current=args[1], global_sample_indices=args[7]
+                            )
+                            self._set_cache(
+                                rank,
+                                args[1],
+                                args[2],
+                                f"processing_error:{error.json()}".encode("utf-8"),
+                            )
+                            raise e
+                        else:
+                            self._log(
+                                rank,
+                                f"Error prefetching: {e} (retrying... {i + 1}/{self.max_retry_count})",
+                                level="warning",
+                            )
+
                 if next_batch is None:
                     # error occurred
                     continue
@@ -311,14 +322,25 @@ class IterationPrefetcher:
             return
 
         self._node_map[rank][node_url] = [
-            seq for seq in self._node_map[rank][node_url] if seq > current
+            seq for seq in self._node_map[rank][node_url] if seq >= current
         ]
 
     def _sync_node_map(self):
         responses = self.cluster.broadcast_get(
             f"/iterations/{self.iteration_id}/prefetcher-current"
         )
-        for node_url, currents in responses:
+        for node_url, currents, error in responses:
+            if error is not None:
+                if "404" in str(error):
+                    pass
+                else:
+                    self._log(
+                        None,
+                        f"Error syncing node map {node_url}: {error}",
+                        level="exception",
+                    )
+                continue
+
             if currents is None:
                 continue
 

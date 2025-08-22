@@ -130,7 +130,7 @@ def log_filter(request: Request, response):
     ):
         return False
     if (
-        re.match(r"/iterations/.*/prefetch-node-map.*", request.url.path)
+        re.match(r"/iterations/.*/prefetcher-node-map.*", request.url.path)
         and response.status_code == 200
     ):
         return False
