@@ -1,6 +1,7 @@
 import ujson as json
 from typing import Optional
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -25,14 +26,18 @@ from lavender_data.server.reader import (
 from lavender_data.server.registries import (
     PreprocessorRegistry,
     CollaterRegistry,
+    Preprocessor,
 )
 
 
-class ProcessNextSamplesParams(BaseModel):
+class CollateSamplesParams(BaseModel):
     current: int
     global_sample_indices: list[GlobalSampleIndex]
     samples: Optional[list[dict]] = None
     collater: Optional[IterationCollater] = None
+
+
+class ProcessNextSamplesParams(CollateSamplesParams):
     preprocessors: Optional[list[IterationPreprocessor]] = None
     batch_size: int
 
@@ -90,7 +95,7 @@ class ProcessNextSamplesException(Exception):
         )
 
 
-def _decollate(batch: dict) -> dict:
+def decollate(batch: dict) -> dict:
     _batch = {}
     for k, v in batch.items():
         if torch is not None and isinstance(v, torch.Tensor):
@@ -101,7 +106,7 @@ def _decollate(batch: dict) -> dict:
         elif isinstance(v, list) and len(v) == 1:
             _batch[k] = v[0]
         elif isinstance(v, dict):
-            _batch[k] = _decollate(v)
+            _batch[k] = decollate(v)
         else:
             _batch[k] = v
     return _batch
@@ -111,8 +116,8 @@ class NoSamplesFound(Exception):
     pass
 
 
-def _process_next_samples(
-    params: ProcessNextSamplesParams, join_method: JoinMethod = "left"
+def gather_samples(
+    params: CollateSamplesParams, join_method: JoinMethod = "left"
 ) -> dict:
     reader = get_reader_instance()
 
@@ -120,8 +125,6 @@ def _process_next_samples(
     global_sample_indices = params.global_sample_indices
     samples = params.samples
     collater = params.collater
-    preprocessors = params.preprocessors
-    batch_size = params.batch_size
 
     if samples is None:
         samples = []
@@ -143,16 +146,63 @@ def _process_next_samples(
     batch["_lavender_data_indices"] = [i.index for i in global_sample_indices]
     batch["_lavender_data_current"] = current
 
-    if preprocessors is not None:
-        # TODO configurable max_workers
-        # TODO real pipeline parallelism
-        batch = PreprocessorRegistry.process(
-            [(p["name"], p["params"]) for p in preprocessors],
-            batch,
-        )
+    return batch
 
-    if batch_size == 0:
-        batch = _decollate(batch)
+
+def organize_preprocessors(
+    preprocessors: list[IterationPreprocessor],
+) -> list[list[tuple[Preprocessor, dict]]]:
+    current_preprocessors = [
+        (PreprocessorRegistry.get(p["name"]), p["params"]) for p in preprocessors
+    ]
+    seen: set[str] = set()
+    result: list[list[tuple[Preprocessor, dict]]] = []
+    while len(current_preprocessors) > 0:
+        execute_this_round: list[tuple[Preprocessor, dict]] = []
+        _current_preprocessors = []
+        for preprocessor, params in current_preprocessors:
+            deps = [d for d in preprocessor.depends_on]
+
+            if (
+                # it has no dependencies
+                len(preprocessor.depends_on) == 0
+                # or all dependencies have been executed
+                or all(d in seen for d in deps)
+            ):
+                execute_this_round.append((preprocessor, params))
+                seen.add(preprocessor.name)
+            else:
+                # unprocessable if some dependencies are not met
+                for dep in deps:
+                    if not dep in [p[0].name for p in current_preprocessors]:
+                        raise ValueError(
+                            f"Preprocessor '{preprocessor.name}' depends on {deps} but '{dep}' is not included in {[p[0].name for p in current_preprocessors]}."
+                        )
+                _current_preprocessors.append((preprocessor, params))
+        current_preprocessors = _current_preprocessors
+        result.append(execute_this_round)
+    return result
+
+
+def _process_next_samples(
+    params: ProcessNextSamplesParams,
+    join_method: JoinMethod = "left",
+) -> dict:
+    batch = gather_samples(params, join_method)
+
+    if params.preprocessors is not None:
+        preprocessors = organize_preprocessors(params.preprocessors)
+        executor = ThreadPoolExecutor()
+        for preprocessor_group in preprocessors:
+            futures = []
+            for preprocessor, args in preprocessor_group:
+                futures.append(executor.submit(preprocessor.process, batch, **args))
+            for future in as_completed(futures):
+                batch.update(future.result())
+        executor.shutdown()
+
+    if params.batch_size == 0:
+        batch = decollate(batch)
 
     return batch
 

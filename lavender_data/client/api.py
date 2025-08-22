@@ -402,14 +402,20 @@ class LavenderDataClient:
                 seq=seq,
             )
 
-        upcoming_samples = json.loads(
-            response.headers.get("X-Lavender-Data-Upcoming-Samples")
-        )
+        try:
+            upcoming_samples = json.loads(
+                response.headers.get("X-Lavender-Data-Upcoming-Samples")
+            )
+        except Exception:
+            upcoming_samples = None
 
         if response.status_code == 202:
             raise LavenderDataStillProcessingError(upcoming_samples)
 
-        current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
+        try:
+            current = int(response.headers.get("X-Lavender-Data-Sample-Current"))
+        except Exception:
+            current = None
 
         return self._check_response(response).payload.read(), current, upcoming_samples
 
