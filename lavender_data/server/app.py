@@ -74,6 +74,9 @@ async def lifespan(app: FastAPI):
     if settings.lavender_data_disable_ui:
         logger.warning("UI is disabled")
         ui = None
+    elif cluster is not None and not cluster.is_head:
+        logger.warning("UI is disabled on non-head node")
+        ui = None
     else:
         try:
             ui = setup_ui(
@@ -124,6 +127,11 @@ def log_filter(request: Request, response):
     if (
         re.match(r"/iterations/.*/next.*", request.url.path)
         and response.status_code == 202
+    ):
+        return False
+    if (
+        re.match(r"/iterations/.*/prefetcher-node-map.*", request.url.path)
+        and response.status_code == 200
     ):
         return False
     return True

@@ -22,11 +22,12 @@ from .iteration_state import (
     IterationStateOps,
     IterationState,
     IterationStateClusterOps,
-    is_cluster_sync,
-    set_cluster_sync,
-    get_iteration_id_from_hash_from_head,
 )
-from .prefetcher import IterationPrefetcherPool, IterationPrefetcher, NotFetchedYet
+from .prefetcher import (
+    IterationPrefetcherPool,
+    IterationPrefetcher,
+    NotFetchedYet,
+)
 
 __all__ = [
     "ProcessNextSamplesParams",
@@ -35,15 +36,12 @@ __all__ = [
     "get_iteration_hash",
     "set_iteration_hash",
     "get_iteration_id_from_hash",
-    "get_iteration_id_from_hash_from_head",
     "Progress",
     "InProgressIndex",
     "IterationStateException",
     "IterationStateOps",
     "IterationState",
     "IterationStateClusterOps",
-    "is_cluster_sync",
-    "set_cluster_sync",
     "get_iteration_state",
     "CurrentIterationState",
     "CurrentIterationPrefetcher",
@@ -56,14 +54,11 @@ __all__ = [
 
 def get_iteration_state(
     iteration_id: str, cache: CacheClient, cluster: CurrentCluster
-) -> IterationState:
+) -> IterationStateOps:
     state = None
 
-    if is_cluster_sync(iteration_id, cache):
-        if cluster is None:
-            raise HTTPException(status_code=400, detail="Cluster not found")
-        if not cluster.is_head:
-            state = IterationStateClusterOps(iteration_id, cluster)
+    if cluster is not None and not cluster.is_head:
+        state = IterationStateClusterOps(iteration_id, cluster)
 
     if state is None:
         state = IterationState(iteration_id, cache)

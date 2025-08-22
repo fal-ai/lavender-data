@@ -6,35 +6,26 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.sync_params import SyncParams
 from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
+    iteration_id: str,
     *,
-    body: SyncParams,
-    delete: Union[Unset, bool] = False,
+    rank: Union[Unset, int] = 0,
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-
     params: dict[str, Any] = {}
 
-    params["delete"] = delete
+    params["rank"] = rank
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
-        "method": "post",
-        "url": "/cluster/sync-changes",
+        "method": "get",
+        "url": f"/iterations/{iteration_id}/prefetcher-current",
         "params": params,
     }
 
-    _body = body.to_dict()
-
-    _kwargs["json"] = _body
-    headers["Content-Type"] = "application/json"
-
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -66,16 +57,16 @@ def _build_response(
 
 
 def sync_detailed(
+    iteration_id: str,
     *,
     client: AuthenticatedClient,
-    body: SyncParams,
-    delete: Union[Unset, bool] = False,
+    rank: Union[Unset, int] = 0,
 ) -> Response[Union[Any, HTTPValidationError]]:
-    """Sync Changes
+    """Prefetcher Current
 
     Args:
-        delete (Union[Unset, bool]):  Default: False.
-        body (SyncParams):
+        iteration_id (str):
+        rank (Union[Unset, int]):  Default: 0.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -86,8 +77,8 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        body=body,
-        delete=delete,
+        iteration_id=iteration_id,
+        rank=rank,
     )
 
     response = client.get_httpx_client().request(
@@ -98,16 +89,16 @@ def sync_detailed(
 
 
 def sync(
+    iteration_id: str,
     *,
     client: AuthenticatedClient,
-    body: SyncParams,
-    delete: Union[Unset, bool] = False,
+    rank: Union[Unset, int] = 0,
 ) -> Optional[Union[Any, HTTPValidationError]]:
-    """Sync Changes
+    """Prefetcher Current
 
     Args:
-        delete (Union[Unset, bool]):  Default: False.
-        body (SyncParams):
+        iteration_id (str):
+        rank (Union[Unset, int]):  Default: 0.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -118,23 +109,23 @@ def sync(
     """
 
     return sync_detailed(
+        iteration_id=iteration_id,
         client=client,
-        body=body,
-        delete=delete,
+        rank=rank,
     ).parsed
 
 
 async def asyncio_detailed(
+    iteration_id: str,
     *,
     client: AuthenticatedClient,
-    body: SyncParams,
-    delete: Union[Unset, bool] = False,
+    rank: Union[Unset, int] = 0,
 ) -> Response[Union[Any, HTTPValidationError]]:
-    """Sync Changes
+    """Prefetcher Current
 
     Args:
-        delete (Union[Unset, bool]):  Default: False.
-        body (SyncParams):
+        iteration_id (str):
+        rank (Union[Unset, int]):  Default: 0.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -145,8 +136,8 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
-        body=body,
-        delete=delete,
+        iteration_id=iteration_id,
+        rank=rank,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -155,16 +146,16 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    iteration_id: str,
     *,
     client: AuthenticatedClient,
-    body: SyncParams,
-    delete: Union[Unset, bool] = False,
+    rank: Union[Unset, int] = 0,
 ) -> Optional[Union[Any, HTTPValidationError]]:
-    """Sync Changes
+    """Prefetcher Current
 
     Args:
-        delete (Union[Unset, bool]):  Default: False.
-        body (SyncParams):
+        iteration_id (str):
+        rank (Union[Unset, int]):  Default: 0.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -176,8 +167,8 @@ async def asyncio(
 
     return (
         await asyncio_detailed(
+            iteration_id=iteration_id,
             client=client,
-            body=body,
-            delete=delete,
+            rank=rank,
         )
     ).parsed

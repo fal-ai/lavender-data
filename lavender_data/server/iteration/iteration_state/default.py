@@ -487,7 +487,9 @@ class IterationState(IterationStateOps):
             next_item = self.next_item(rank)
 
             try:
-                with self.cache.lock(f"get_sample:{self.iteration_id}:{next_item.main_shard.index}"):
+                with self.cache.lock(
+                    f"get_sample:{self.iteration_id}:{next_item.main_shard.index}"
+                ):
                     sample = reader.get_sample(next_item, join="inner")
             except InnerJoinSampleInsufficient:
                 self.filtered(next_item.index)

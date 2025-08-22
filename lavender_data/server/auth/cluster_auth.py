@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import Depends, HTTPException
 
 from lavender_data.server.settings import AppSettings
@@ -10,7 +11,7 @@ def cluster_auth(
     auth: AuthorizationHeader, cluster: CurrentCluster, settings: AppSettings
 ):
     if settings.lavender_data_disable_auth:
-        return None
+        return auth
 
     if not settings.lavender_data_cluster_enabled or cluster is None:
         raise HTTPException(status_code=401, detail="Cluster not enabled")
@@ -21,7 +22,7 @@ def cluster_auth(
     if not cluster.is_valid_auth(salt, hashed):
         raise HTTPException(status_code=401, detail="Invalid cluster auth")
 
-    return None
+    return auth
 
 
-ClusterAuth: None = Depends(cluster_auth)
+ClusterAuth = Annotated[AuthorizationHeader, Depends(cluster_auth)]

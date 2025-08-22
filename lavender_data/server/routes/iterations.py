@@ -1,4 +1,5 @@
 import random
+import json
 from typing import Optional
 
 from fastapi import HTTPException, APIRouter, Response, Depends
@@ -22,7 +23,6 @@ from lavender_data.server.db.models import (
     IterationCategorizer,
     IterationCollater,
     IterationPreprocessor,
-    IterationShardsetLink,
 )
 from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.reader import ReaderInstance
@@ -33,11 +33,9 @@ from lavender_data.server.iteration import (
     Progress,
     ProcessNextSamplesException,
     process_next_samples,
-    set_cluster_sync,
     get_iteration_hash,
     set_iteration_hash,
     get_iteration_id_from_hash,
-    get_iteration_id_from_hash_from_head,
     CurrentIterationPrefetcherPool,
     CurrentIterationPrefetcher,
     NotFetchedYet,
@@ -48,7 +46,6 @@ from lavender_data.server.registries import (
     CollaterRegistry,
     PreprocessorRegistry,
 )
-from lavender_data.server.settings import AppSettings
 from lavender_data.server.auth import AppAuth
 from lavender_data.server.shardset.span import get_main_shardset
 
@@ -102,8 +99,6 @@ class CreateIterationParams(BaseModel):
     prefetch_factor: Optional[int] = None
     in_order: Optional[bool] = None
 
-    cluster_sync: Optional[bool] = None
-
 
 @router.post("/")
 def create_iteration(
@@ -111,11 +106,15 @@ def create_iteration(
     session: DbSession,
     cache: CacheClient,
     cluster: CurrentCluster,
-    settings: AppSettings,
     prefetcher_pool: CurrentIterationPrefetcherPool,
 ) -> IterationPublic:
     shuffle = params.shuffle or False
     batch_size = params.batch_size or 0
+
+    if cluster is not None and not cluster.is_head:
+        raise HTTPException(
+            status_code=400, detail="Worker node cannot create iteration"
+        )
 
     if shuffle:
         if params.shuffle_seed is None:
@@ -200,12 +199,6 @@ def create_iteration(
 
     total_samples = get_main_shardset(shardsets).total_samples
 
-    cluster_sync = (
-        params.cluster_sync
-        if params.cluster_sync is not None
-        else settings.lavender_data_cluster_enabled
-    )
-
     iteration = Iteration(
         dataset_id=dataset.id,
         total=total_samples,
@@ -227,11 +220,6 @@ def create_iteration(
         iteration_with_same_config_id = get_iteration_id_from_hash(
             iteration_hash, cache
         )
-
-        if cluster and cluster_sync and not cluster.is_head:
-            iteration_with_same_config_id = get_iteration_id_from_hash_from_head(
-                iteration_hash, cluster
-            )
 
         if iteration_with_same_config_id is not None:
             try:
@@ -264,17 +252,6 @@ def create_iteration(
             session.commit()
             session.refresh(iteration)
 
-        if cluster:
-            iteration_shardset_links = [
-                IterationShardsetLink(
-                    iteration_id=iteration.id, shardset_id=shardset.id
-                )
-                for shardset in iteration.shardsets
-            ]
-            cluster.sync_changes([iteration, *iteration_shardset_links])
-            if cluster_sync:
-                set_cluster_sync(iteration.id, cache, cluster)
-
         set_iteration_hash(
             iteration.id,
             iteration_hash=iteration_hash,
@@ -298,20 +275,62 @@ def create_iteration(
         )
     prefetcher.start(params.rank or 0)
 
+    if cluster is not None:
+        cluster.start_prefetcher(iteration.id, params.model_dump())
+
     return iteration
 
 
-@router.get("/iteration-id-from-hash")
-def cluster_get_iteration_id_from_hash(
-    iteration_hash: str, cache: CacheClient, cluster: CurrentCluster
-) -> str:
+@router.post("/{iteration_id}/start-prefetcher")
+def cluster_start_prefetcher(
+    iteration_id: str,
+    cluster: CurrentCluster,
+    prefetcher_pool: CurrentIterationPrefetcherPool,
+    state: CurrentIterationState,
+    params: CreateIterationParams,
+):
+    if cluster is None:
+        raise HTTPException(status_code=400, detail="Cluster not found")
+    if cluster.is_head:
+        raise HTTPException(status_code=400, detail="Only for worker nodes")
+
+    try:
+        prefetcher = prefetcher_pool.get_prefetcher(iteration_id)
+    except KeyError:
+        prefetcher = prefetcher_pool.create(
+            iteration_id,
+            state,
+            params.max_retry_count if params.max_retry_count is not None else 0,
+            params.no_cache if params.no_cache is not None else False,
+            params.num_workers if params.num_workers is not None else 1,
+            params.prefetch_factor if params.prefetch_factor is not None else 1,
+            params.in_order if params.in_order is not None else True,
+        )
+    prefetcher.start(params.rank or 0)
+
+
+@router.get("/{iteration_id}/prefetcher-node-map")
+def get_prefetcher_node_map(
+    iteration_id: str,
+    cluster: CurrentCluster,
+    prefetcher: CurrentIterationPrefetcher,
+    rank: int = 0,
+):
     if cluster is None:
         raise HTTPException(status_code=400, detail="Cluster not found")
     if not cluster.is_head:
-        raise HTTPException(
-            status_code=400, detail="Worker node cannot get iteration id from hash"
-        )
-    return get_iteration_id_from_hash(iteration_hash, cache)
+        raise HTTPException(status_code=400, detail="Only for head node")
+
+    return prefetcher.get_node_map(rank)
+
+
+@router.get("/{iteration_id}/prefetcher-current")
+def prefetcher_current(
+    iteration_id: str,
+    prefetcher: CurrentIterationPrefetcher,
+    rank: int = 0,
+):
+    return {rank: prefetcher.current[rank] for rank in prefetcher.ranks()}
 
 
 class ShardsetWithShards(ShardsetPublic):
@@ -360,13 +379,22 @@ def get_next(
     iteration_id: str,
     prefetcher: CurrentIterationPrefetcher,
     rank: int = 0,
+    seq: Optional[int] = None,
 ) -> bytes:
+    headers = {
+        "X-Lavender-Data-Upcoming-Samples": json.dumps(
+            prefetcher.upcoming_samples(rank)
+        ),
+    }
     try:
-        current, content = prefetcher.get_next(rank)
+        current, content = prefetcher.get_next(rank, seq)
+        headers["X-Lavender-Data-Sample-Current"] = str(current)
     except StopIteration:
         raise HTTPException(status_code=400, detail="No more indices to pop")
     except NotFetchedYet as e:
-        raise HTTPException(status_code=202, detail="Data is still being processed")
+        raise HTTPException(
+            status_code=202, detail="Data is still being processed", headers=headers
+        )
     except ProcessNextSamplesException as e:
         raise e.to_http_exception()
     except Exception as e:
@@ -375,9 +403,7 @@ def get_next(
     return Response(
         content=content,
         media_type="application/octet-stream",
-        headers={
-            "X-Lavender-Data-Sample-Current": str(current),
-        },
+        headers=headers,
     )
 
 
@@ -396,15 +422,15 @@ def pushback(iteration_id: str, state: CurrentIterationState):
     return state.pushback_inprogress()
 
 
-@router.post("/{iteration_id}/state/set-cluster-sync")
-def cluster_set_cluster_sync(
-    iteration_id: str, cache: CacheClient, cluster: CurrentCluster
-):
-    if cluster is None:
-        raise HTTPException(status_code=400, detail="Cluster not found")
-    if cluster.is_head:
-        raise HTTPException(status_code=400, detail="Head node cannot set cluster sync")
-    return set_cluster_sync(iteration_id, cache, cluster)
+def _is_serializable(value) -> bool:
+    if isinstance(value, list):
+        return all(_is_serializable(item) for item in value)
+    elif isinstance(value, dict):
+        return all(_is_serializable(item) for item in value.values())
+    elif isinstance(value, (int, float, str, bool)):
+        return True
+    else:
+        return False
 
 
 @router.post("/{iteration_id}/state/{operation}")
@@ -412,6 +438,7 @@ def cluster_operation(
     iteration_id: str,
     operation: str,
     state: CurrentIterationState,
+    prefetcher: CurrentIterationPrefetcher,
     cluster: CurrentCluster,
     params: dict,
 ):
@@ -439,6 +466,19 @@ def cluster_operation(
     elif operation == "get_progress":
         return state.get_progress()
     elif operation == "get_next_samples":
-        return state.get_next_samples(params["rank"])
+        rank = params["rank"]
+        node_url = params["node_url"]
+
+        cache_key, process_next_samples_params = state.get_next_samples(rank)
+        current = process_next_samples_params.current
+
+        prefetcher.set_node_map(rank, node_url, current)
+
+        if not all(
+            _is_serializable(sample) for sample in process_next_samples_params.samples
+        ):
+            process_next_samples_params.samples = None
+
+        return cache_key, process_next_samples_params
     else:
         raise HTTPException(status_code=400, detail="Invalid operation")

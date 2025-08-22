@@ -75,6 +75,8 @@ def port_open(port: int):
         return True
     except httpx.ConnectError:
         return False
+    except httpx.RemoteProtocolError:
+        return False
 
 
 def wait_server_ready(server_process: subprocess.Popen, port: int, timeout: int = 30):

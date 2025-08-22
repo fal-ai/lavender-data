@@ -89,6 +89,7 @@ class ClientCLI:
         self.iterations_next.add_argument("--rank", type=int, default=0)
         self.iterations_next.add_argument("--no-cache", action="store_true")
         self.iterations_next.add_argument("--max-retry-count", type=int, default=0)
+        self.iterations_next.add_argument("--seq", type=int, default=None)
 
         self.iterations_complete_index = self.iterations_command_parser.add_parser(
             "complete-index"
@@ -176,6 +177,7 @@ class ClientCLI:
                     args.api_key,
                     args.id,
                     args.rank,
+                    args.seq,
                 )
             elif args.command == "complete-index":
                 result = complete_index(args.api_url, args.api_key, args.id, args.index)

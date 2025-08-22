@@ -27,7 +27,6 @@ from lavender_data.server.db.models import (
     IterationCollater,
 )
 from lavender_data.server.cache import CacheClient, get_cache
-from lavender_data.server.distributed import CurrentCluster
 from lavender_data.server.background_worker import (
     TaskStatus,
     CurrentBackgroundWorker,
@@ -211,7 +210,6 @@ def create_dataset(
     params: CreateDatasetParams,
     session: DbSession,
     background_worker: CurrentBackgroundWorker,
-    cluster: CurrentCluster,
 ) -> DatasetPublic:
     dataset = Dataset(name=params.name, uid_column_name=params.uid_column_name)
     session.add(dataset)
@@ -224,9 +222,6 @@ def create_dataset(
 
     session.refresh(dataset)
 
-    if cluster:
-        cluster.sync_changes([dataset])
-
     if params.shardset_location:
         try:
             create_shardset(
@@ -236,10 +231,9 @@ def create_dataset(
                 ),
                 session=session,
                 background_worker=background_worker,
-                cluster=cluster,
             )
         except:
-            delete_dataset(dataset.id, session, cluster)
+            delete_dataset(dataset.id, session)
             raise
 
     return dataset
@@ -249,7 +243,6 @@ def create_dataset(
 def delete_dataset(
     dataset_id: str,
     session: DbSession,
-    cluster: CurrentCluster,
 ) -> DatasetPublic:
     try:
         dataset = session.get_one(Dataset, dataset_id)
@@ -308,19 +301,6 @@ def delete_dataset(
         session.rollback()
         raise e
 
-    if cluster:
-        cluster.sync_changes(
-            [
-                dataset,
-                *columns_to_delete,
-                *links_to_delete,
-                *iterations_to_delete,
-                *shards_to_delete,
-                *shardsets_to_delete,
-            ],
-            delete=True,
-        )
-
     return dataset
 
 
@@ -367,7 +347,6 @@ def create_shardset(
     params: CreateShardsetParams,
     session: DbSession,
     background_worker: CurrentBackgroundWorker,
-    cluster: CurrentCluster,
 ) -> CreateShardsetResponse:
     logger = get_logger(__name__)
 
@@ -444,9 +423,6 @@ def create_shardset(
         session.refresh(column)
     session.refresh(shardset)
 
-    if cluster:
-        cluster.sync_changes([shardset, *columns])
-
     if len(shard_basenames) > 0:
         sync_shardset(
             dataset_id=dataset_id,
@@ -469,7 +445,6 @@ def update_shardset(
     shardset_id: str,
     params: UpdateShardsetParams,
     session: DbSession,
-    cluster: CurrentCluster,
 ) -> ShardsetPublic:
     try:
         shardset = session.exec(
@@ -495,9 +470,6 @@ def update_shardset(
     session.add(shardset)
     session.commit()
     session.refresh(shardset)
-
-    if cluster:
-        cluster.sync_changes([shardset])
 
     return shardset
 
@@ -644,7 +616,6 @@ def delete_shardset(
     shardset_id: str,
     session: DbSession,
     cache: CacheClient,
-    cluster: CurrentCluster,
 ) -> ShardsetPublic:
     try:
         shardset = session.exec(
@@ -691,12 +662,6 @@ def delete_shardset(
         except Exception as e:
             session.rollback()
             raise e
-
-        if cluster:
-            cluster.sync_changes(
-                [shardset, *columns_to_delete, *links_to_delete, *shards_to_delete],
-                delete=True,
-            )
 
     return shardset
 

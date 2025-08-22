@@ -15,7 +15,6 @@ from lavender_data.server.background_worker import (
 )
 from lavender_data.server.db.models import Shard, Shardset, ShardStatistics
 from lavender_data.server.db import db_manual_session
-from lavender_data.server.distributed import get_cluster
 from lavender_data.server.dataset.statistics import get_dataset_statistics
 from lavender_data.server.reader import get_reader_instance, ShardInfo
 from lavender_data.server.cache import get_cache
@@ -107,7 +106,6 @@ def sync_shardset_location(
     # TODO handle when columns are changed
     logger = get_logger(__name__)
     try:
-        cluster = get_cluster()
         reader = get_reader_instance()
 
         yield TaskStatus(status="list", current=0, total=0)
@@ -230,17 +228,5 @@ def sync_shardset_location(
         cache.set(f"dataset-statistics:{dataset_id}", json.dumps(dataset_statistics))
         cache.delete(f"preview:{dataset_id}")
 
-        if cluster is not None and cluster.is_head:
-            try:
-                with db_manual_session() as session:
-                    shardset_shards = session.exec(
-                        select(Shard).where(Shard.shardset_id == shardset_id)
-                    ).all()
-                logger.debug(
-                    f"Syncing shardset {shardset_id} to cluster nodes ({len(shardset_shards)} shards)"
-                )
-                cluster.sync_changes(shardset_shards)
-            except Exception as e:
-                logger.exception(e)
     except GeneratorExit:
         logger.info(f"Sync shardset {shardset_id} aborted")
