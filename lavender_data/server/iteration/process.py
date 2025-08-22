@@ -160,7 +160,7 @@ def organize_preprocessors(
     while len(current_preprocessors) > 0:
         execute_this_round: list[tuple[Preprocessor, dict]] = []
         _current_preprocessors = []
-        for preprocessor, params in current_preprocessors:
+        for preprocessor, params in _current_preprocessors:
             deps = [d for d in preprocessor.depends_on]
 
             if (
@@ -179,6 +179,8 @@ def organize_preprocessors(
                             f"Preprocessor '{preprocessor.name}' depends on {deps} but '{dep}' is not included in {[p[0].name for p in current_preprocessors]}."
                         )
                 _current_preprocessors.append((preprocessor, params))
+        for preprocessor, params in execute_this_round:
+            seen.add(preprocessor.name)
         current_preprocessors = _current_preprocessors
         result.append(execute_this_round)
     return result
