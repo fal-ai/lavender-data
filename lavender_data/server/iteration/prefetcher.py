@@ -4,7 +4,9 @@ from typing import Literal, Optional
 from queue import Empty, Queue
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from lavender_data.serialize import serialize_sample
 from lavender_data.logging import get_logger
+
 from lavender_data.server.distributed import get_cluster
 from lavender_data.server.settings import get_settings
 from lavender_data.server.cache import get_cache
@@ -17,9 +19,9 @@ from lavender_data.server.iteration.process import (
     gather_samples,
     organize_preprocessors,
     decollate,
+    GlobalSampleIndex,
 )
 from lavender_data.server.registries import Preprocessor
-from lavender_data.serialize import serialize_sample
 
 
 class NotFetchedYet(Exception):
@@ -131,6 +133,7 @@ class IterationPrefetcher:
                     preprocessors,
                     0,
                     params.batch_size,
+                    params.global_sample_indices,
                 )
             )
         else:
@@ -173,25 +176,33 @@ class IterationPrefetcher:
         preprocessors: list[list[tuple[Preprocessor, dict]]],
         preprocessor_group_index: int,
         batch_size: int,
+        global_sample_indices: list[GlobalSampleIndex],
     ):
         _start = time.time()
-        try:
-            executor = ThreadPoolExecutor()
-            futures = []
-            for preprocessor, args in preprocessors[preprocessor_group_index]:
-                futures.append(executor.submit(preprocessor.process, batch, **args))
-            for future in as_completed(futures):
+
+        executor = ThreadPoolExecutor()
+        futures = []
+        for preprocessor, args in preprocessors[preprocessor_group_index]:
+            futures.append(executor.submit(preprocessor.process, batch, **args))
+
+        for future in as_completed(futures):
+            try:
                 batch.update(future.result())
-            executor.shutdown()
-            return batch
-        except ProcessNextSamplesException as e:
-            if cache_key:
-                self._set_cache(
-                    rank, seq, cache_key, f"processing_error:{e.json()}".encode("utf-8")
+            except Exception as e:
+                error = ProcessNextSamplesException(
+                    e=e,
+                    current=seq,
+                    global_sample_indices=global_sample_indices,
                 )
-        except Exception as e:
-            if cache_key:
-                self._set_cache(rank, seq, cache_key, f"error:{e}".encode("utf-8"))
+                self._set_cache(
+                    rank,
+                    seq,
+                    cache_key,
+                    f"processing_error:{error.json()}".encode("utf-8"),
+                )
+
+        executor.shutdown()
+        return batch
 
     def _keep_prefetching(
         self,
@@ -203,7 +214,7 @@ class IterationPrefetcher:
     ) -> None:
         while not stop_event.is_set() and not done_event.is_set():
             try:
-                # rank, current, cache_key, batch, preprocessors, preprocessor_group_index, batch_size
+                # rank, current, cache_key, batch, preprocessors, preprocessor_group_index, batch_size, global_sample_indices
                 args = queue.get(timeout=1.0)
                 next_batch = self._process_prefetch(*args)
                 if next_batch is None:
