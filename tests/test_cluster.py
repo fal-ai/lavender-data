@@ -107,7 +107,6 @@ class TestCluster(unittest.TestCase):
                 dataset_id=dataset_id,
                 shardsets=[shardset_id],
                 api_url=url,
-                cluster_sync=True,
             )
             for url in [self.head_url, *self.node_urls]
         ]

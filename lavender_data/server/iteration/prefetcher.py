@@ -134,6 +134,8 @@ class IterationPrefetcher:
                 )
             )
         else:
+            if params.batch_size == 0:
+                batch = decollate(batch)
             content = serialize_sample(batch)
             self._set_cache(rank, params.current, cache_key, content)
 

@@ -62,7 +62,6 @@ if __name__ == "__main__":
     dls = [
         lavender.LavenderDataLoader(
             dataset_id=dataset.id,
-            cluster_sync=True,
             api_url=api_url,
         )
         for api_url in api_urls
