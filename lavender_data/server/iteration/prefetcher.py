@@ -65,7 +65,7 @@ class IterationPrefetcher:
         self.all_submitted_event: dict[int, threading.Event] = {}
         self.done_event: dict[int, threading.Event] = {}
 
-        self.process_queue = Queue()
+        self.process_queues: dict[int, Queue] = {}
 
         self._node_map: dict[int, dict[str, list[int]]] = {}
         self._sync_node_map_thread = None
@@ -134,7 +134,6 @@ class IterationPrefetcher:
         preprocessors = organize_preprocessors(params.preprocessors)
         queue.put(
             (
-                rank,
                 params.current,
                 cache_key,
                 batch,
@@ -172,14 +171,9 @@ class IterationPrefetcher:
 
     def _process_prefetch(
         self,
-        rank: int,
-        seq: int,
-        cache_key: str,
         batch: dict,
         preprocessors: list[list[tuple[Preprocessor, dict]]],
         preprocessor_group_index: int,
-        batch_size: int,
-        global_sample_indices: list[GlobalSampleIndex],
     ):
         _start = time.time()
 
@@ -204,21 +198,32 @@ class IterationPrefetcher:
     ) -> None:
         while not stop_event.is_set() and not done_event.is_set():
             try:
-                # rank, current, cache_key, batch, preprocessors, preprocessor_group_index, batch_size, global_sample_indices
-                args = queue.get(timeout=1.0)
+                (
+                    current,
+                    cache_key,
+                    batch,
+                    preprocessors,
+                    preprocessor_group_index,
+                    batch_size,
+                    global_sample_indices,
+                ) = queue.get(timeout=1.0)
                 for i in range(self.max_retry_count + 1):
                     try:
-                        next_batch = self._process_prefetch(*args)
+                        next_batch = self._process_prefetch(
+                            batch, preprocessors, preprocessor_group_index
+                        )
                         break
                     except Exception as e:
                         if i == self.max_retry_count:
                             error = ProcessNextSamplesException(
-                                e=e, current=args[1], global_sample_indices=args[7]
+                                e=e,
+                                current=current,
+                                global_sample_indices=global_sample_indices,
                             )
                             self._set_cache(
                                 rank,
-                                args[1],
-                                args[2],
+                                current,
+                                cache_key,
                                 f"processing_error:{error.json()}".encode("utf-8"),
                             )
                             raise e
@@ -233,16 +238,6 @@ class IterationPrefetcher:
                     # error occurred
                     continue
 
-                (
-                    _,
-                    current,
-                    cache_key,
-                    _,
-                    preprocessors,
-                    preprocessor_group_index,
-                    batch_size,
-                    global_sample_indices,
-                ) = args
                 if preprocessor_group_index == len(preprocessors) - 1:
                     # this one done
                     if batch_size == 0:
@@ -256,7 +251,6 @@ class IterationPrefetcher:
                 preprocessor_group_index += 1
                 queue.put(
                     (
-                        rank,
                         current,
                         cache_key,
                         next_batch,
@@ -364,6 +358,7 @@ class IterationPrefetcher:
         self.current[rank] = 0
         self.fetching[rank] = []
         self.fetched[rank] = {}
+        self.process_queues[rank] = Queue()
 
         self.stop_event[rank] = threading.Event()
         self.done_event[rank] = threading.Event()
@@ -375,7 +370,7 @@ class IterationPrefetcher:
                 rank,
                 self.stop_event[rank],
                 self.all_submitted_event[rank],
-                self.process_queue,
+                self.process_queues[rank],
             ),
         )
         self.submit_threads[rank].start()
@@ -388,7 +383,7 @@ class IterationPrefetcher:
                     self.stop_event[rank],
                     self.all_submitted_event[rank],
                     self.done_event[rank],
-                    self.process_queue,
+                    self.process_queues[rank],
                 ),
             )
             for _ in range(self.num_workers)
